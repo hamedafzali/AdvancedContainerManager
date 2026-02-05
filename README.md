@@ -1,10 +1,10 @@
 # Advanced Container Manager
 
-A professional web-based container management platform inspired by Portainer and modern container management tools.
+A professional web-based container management platform built with Node.js, TypeScript, and modern web technologies.
 
 ## 🚀 Features
 
-### 🎯 Core Functionality
+### Core Functionality
 - **Real-time Monitoring**: Live CPU, memory, disk, and network metrics
 - **Container Management**: Start, stop, restart, inspect containers
 - **Web Terminal**: Full bash shell access inside containers
@@ -12,16 +12,9 @@ A professional web-based container management platform inspired by Portainer and
 - **Resource Monitoring**: Live resource usage with charts and graphs
 - **Health Checks**: Container health status monitoring
 
-### 🎨 Professional UI
-- **Modern Design**: Glassmorphism effects and smooth animations
-- **Responsive Layout**: Works on desktop and mobile devices
-- **Real-time Updates**: WebSocket-based live data streaming
-- **Interactive Charts**: Visual metrics with Chart.js
-- **Dark Theme**: Professional terminal aesthetic
-
-### 📊 Advanced Features
-- **Docker Integration**: Full Docker API access
-- **Metrics Collection**: Background system and container metrics
+### Advanced Features
+- **TypeScript**: Type-safe codebase with modern JavaScript features
+- **WebSocket Integration**: Real-time data streaming and updates
 - **Terminal Sessions**: xterm.js powered web terminal
 - **Process Monitoring**: View running processes inside containers
 - **Log Management**: Advanced log viewing and filtering
@@ -29,11 +22,18 @@ A professional web-based container management platform inspired by Portainer and
 - **Volume Management**: Docker volumes management
 - **Image Management**: Docker images control
 
+### Modern UI/UX
+- **Responsive Design**: Works on desktop and mobile devices
+- **Real-time Updates**: WebSocket-based live data streaming
+- **Interactive Charts**: Visual metrics with Chart.js
+- **Glassmorphism Design**: Modern UI with smooth animations
+- **Dark Theme**: Professional terminal aesthetic
+
 ## 🛠️ Installation
 
 ### Prerequisites
+- Node.js 18 or higher
 - Docker Engine running on the host
-- Python 3.8 or higher
 - Git (for project management features)
 
 ### Quick Start
@@ -44,271 +44,404 @@ git clone <repository-url>
 cd AdvancedContainerManager
 
 # Install dependencies
-pip install -r requirements.txt
+npm install
 
-# Start the manager
-python advanced_manager.py
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your configuration
+
+# Build the application
+npm run build
+
+# Start the application
+npm start
+```
+
+### Development Mode
+
+```bash
+# Run in development mode with hot reload
+npm run dev
+
+# Run in development mode with debugging
+npm run dev:debug
 ```
 
 ### Docker Deployment
 
 ```bash
 # Build the image
-docker build -t advanced-container-manager .
+npm run docker:build
 
-# Run the manager
-docker run -d \
-  --name advanced-container-manager \
-  --restart unless-stopped \
-  -p 5003:5003 \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  advanced-container-manager
+# Run the container
+npm run docker:run
 ```
 
 ### Docker Compose
 
-```yaml
-version: '3.8'
-services:
-  container-manager:
-    build: .
-    container_name: advanced-container-manager
-    ports:
-      - "5003:5003"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    restart: unless-stopped
-    environment:
-      - DOCKER_HOST=unix:///var/run/docker.sock
+```bash
+# Copy environment file
+cp .env.example .env
+# Edit .env with your configuration
+
+# Run with Docker Compose
+docker-compose up -d
 ```
-
-## 🌐 Access
-
-Once running, access the web interface at:
-- **Main Dashboard**: http://localhost:5003
-- **Containers**: http://localhost:5003/containers
-- **Projects**: http://localhost:5003/projects
-- **Images**: http://localhost:5003/images
-- **Networks**: http://localhost:5003/networks
-- **Volumes**: http://localhost:5003/volumes
-- **Settings**: http://localhost:5003/settings
 
 ## 📋 Usage
 
-### Container Management
-1. **View Containers**: See all containers with real-time metrics
-2. **Terminal Access**: Click the terminal icon to open a shell inside running containers
-3. **Resource Monitoring**: View CPU and memory usage in real-time
-4. **Control Actions**: Start, stop, restart containers with one click
+### API Endpoints
 
-### Project Management
-1. **Add Projects**: Add Git repositories to manage
-2. **Build Images**: Build Docker images from source code
-3. **Deploy Containers**: Deploy and manage project containers
-4. **Health Monitoring**: Track project health status
+#### System
+- `GET /api/system/status` - Get system status
+- `GET /api/system/metrics` - Get system metrics
+- `GET /api/system/metrics/history` - Get metrics history
 
-### Advanced Features
-- **Web Terminal**: Full bash access with command history
-- **Metrics Collection**: Historical performance data
-- **Process Monitoring**: View processes inside containers
-- **Log Management**: Advanced log viewing and filtering
+#### Containers
+- `GET /api/containers` - List all containers
+- `GET /api/container/:id` - Get container details
+- `POST /api/container/:id/start` - Start container
+- `POST /api/container/:id/stop` - Stop container
+- `POST /api/container/:id/restart` - Restart container
+- `DELETE /api/container/:id` - Remove container
+- `GET /api/container/:id/logs` - Get container logs
+- `GET /api/container/:id/stats` - Get container stats
+- `GET /api/container/:id/processes` - Get container processes
+
+#### Projects
+- `GET /api/projects` - List all projects
+- `POST /api/projects` - Add new project
+- `GET /api/project/:name` - Get project details
+- `POST /api/project/:name/build` - Build project
+- `POST /api/project/:name/start` - Start project
+- `POST /api/project/:name/stop` - Stop project
+- `DELETE /api/project/:name` - Remove project
+- `GET /api/project/:name/health` - Get project health
+
+#### Images
+- `GET /api/images` - List all images
+- `POST /api/images/pull` - Pull image
+- `DELETE /api/images/:id` - Remove image
+
+#### Networks
+- `GET /api/networks` - List all networks
+- `POST /api/networks` - Create network
+- `DELETE /api/networks/:id` - Remove network
+
+#### Volumes
+- `GET /api/volumes` - List all volumes
+- `POST /api/volumes` - Create volume
+- `DELETE /api/volumes/:id` - Remove volume
+
+#### Terminal
+- `POST /api/terminal/:containerId/session` - Create terminal session
+- `GET /api/terminal/sessions` - List terminal sessions
+- `DELETE /api/terminal/sessions/:sessionId` - Close terminal session
+
+### WebSocket Events
+
+#### Client to Server
+- `get_system_metrics` - Request system metrics
+- `get_container_metrics` - Request container metrics
+- `get_system_metrics_history` - Request metrics history
+- `get_container_metrics_history` - Request container metrics history
+- `subscribe_container` - Subscribe to container updates
+- `unsubscribe_container` - Unsubscribe from container updates
+
+#### Server to Client
+- `system_status_update` - System status updates
+- `system_metrics_update` - System metrics updates
+- `container_metrics_update` - Container metrics updates
+- `notification` - System notifications
 
 ## 🔧 Configuration
 
 ### Environment Variables
 
 ```bash
-# Application settings
+# Application Configuration
+NODE_ENV=production
 PORT=5003
 HOST=0.0.0.0
-DEBUG=false
+DEBUG_MODE=false
+LOG_LEVEL=info
 
-# Docker settings
+# Docker Configuration
 DOCKER_HOST=unix:///var/run/docker.sock
+DOCKER_TIMEOUT=2000
+DOCKER_PROTOCOL=http
 
-# Metrics settings
-METRICS_INTERVAL=5
-METRICS_RETENTION=24
-
-# Redis settings (optional)
+# Redis Configuration (Optional)
 REDIS_HOST=localhost
 REDIS_PORT=6379
 REDIS_DB=0
+REDIS_PASSWORD=
+
+# Project Configuration
+PROJECTS_DIR=/tmp/advanced_manager_projects
+CONFIG_PATH=/tmp/advanced_manager_config.json
+
+# WebSocket Configuration
+WEBSOCKET_TIMEOUT=300000
+TERMINAL_TIMEOUT=3600000
+MAX_TERMINAL_SESSIONS=100
+
+# Metrics Configuration
+METRICS_INTERVAL=5000
+METRICS_RETENTION=24
+
+# Security
+SESSION_SECRET=your-session-secret-here
 ```
 
-### Settings Panel
+### TypeScript Configuration
 
-Access the settings panel at `/settings` to configure:
-- Application preferences
-- Docker connection settings
-- Monitoring thresholds
-- Theme and language options
+The project uses TypeScript with strict type checking. Key configuration options:
 
-## 📊 Monitoring
+- **Target**: ES2020
+- **Module**: CommonJS
+- **Strict**: Enabled
+- **Source Maps**: Enabled
+- **Path Mapping**: Configured for clean imports
 
-### System Metrics
-- **CPU Usage**: Real-time CPU percentage
-- **Memory Usage**: Memory consumption and availability
-- **Disk Usage**: Storage space utilization
-- **Network I/O**: Network traffic statistics
-- **Load Average**: System load metrics
+### ESLint Configuration
 
-### Container Metrics
-- **Resource Usage**: Per-container CPU and memory
-- **Network Traffic**: Container network I/O
-- **Block I/O**: Disk read/write operations
-- **Health Status**: Container health checks
+ESLint is configured with TypeScript support and recommended rules:
 
-## 🔐 Security
+- **TypeScript ESLint**: Enabled
+- **No Unused Variables**: Error
+- **No Explicit Any**: Warning
+- **Prefer Const**: Required
 
-### Docker Socket Access
-The manager requires Docker socket access for container management:
-```bash
--v /var/run/docker.sock:/var/run/docker.sock
-```
-
-### Network Security
-- Runs on configurable port (default: 5003)
-- Supports HTTPS configuration
-- Can be placed behind reverse proxy
-
-### User Authentication
-- Basic authentication support (configurable)
-- Session management
-- Role-based access control (future feature)
-
-## 🚀 Advanced Features
-
-### Web Terminal
-- **Full Shell Access**: bash, sh, and other shells
-- **Command History**: Up/down arrow navigation
-- **Tab Completion**: Smart command suggestions
-- **Copy/Paste**: Clipboard integration
-- **Session Management**: Multiple terminal sessions
-
-### Real-time Updates
-- **WebSocket Integration**: Live data streaming
-- **Auto-refresh**: Configurable update intervals
-- **Event Notifications**: Real-time alerts
-- **Status Changes**: Instant status updates
-
-### Project Management
-- **Git Integration**: Clone and manage repositories
-- **Build Automation**: Automated Docker image building
-- **Deployment**: One-click container deployment
-- **Environment Variables**: Per-project configuration
-
-## 📚 API Documentation
-
-### REST API Endpoints
-
-#### System
-- `GET /api/system/metrics` - Get system metrics
-- `GET /api/system/status` - Get system status
-
-#### Containers
-- `GET /api/containers` - List all containers
-- `GET /api/container/<id>` - Get container details
-- `POST /api/container/<id>/restart` - Restart container
-- `POST /api/container/<id>/terminal` - Create terminal session
-- `GET /api/container/<id>/logs` - Get container logs
-- `GET /api/container/<id>/metrics` - Get container metrics
-- `GET /api/container/<id>/processes` - Get container processes
-
-#### Projects
-- `GET /api/projects` - List all projects
-- `POST /api/projects` - Add new project
-- `GET /api/project/<name>` - Get project details
-- `POST /api/project/<name>/build` - Build project
-- `POST /api/project/<name>/start` - Start project
-- `POST /api/project/<name>/stop` - Stop project
-- `GET /api/project/<name>/health` - Get project health
-
-### WebSocket Events
-- `container_update` - Container status updates
-- `system_metrics` - System metrics updates
-- `project_status` - Project status changes
-
-## 🛠️ Development
+## 📊 Architecture
 
 ### Project Structure
 ```
 AdvancedContainerManager/
-├── advanced_manager.py      # Main Flask application
-├── templates/               # HTML templates
-│   ├── advanced_dashboard.html
-│   ├── advanced_containers.html
-│   ├── projects.html
-│   ├── images.html
-│   ├── networks.html
-│   ├── volumes.html
-│   ├── settings.html
-│   ├── container_detail.html
-│   └── terminal.html
-├── requirements.txt          # Python dependencies
-├── Dockerfile               # Docker configuration
-├── docker-compose.yml       # Docker Compose setup
-└── README.md               # This file
+├── src/
+│   ├── types/                 # TypeScript type definitions
+│   │   └── index.ts
+│   ├── utils/                 # Utility functions
+│   │   └── logger.ts
+│   ├── services/              # Business logic services
+│   │   ├── docker-service.ts
+│   │   ├── metrics-collector.ts
+│   │   ├── project-service.ts
+│   │   ├── terminal-service.ts
+│   │   └── websocket-handler.ts
+│   ├── middleware/            # Express middleware
+│   │   └── error-handler.ts
+│   ├── routes/                # API routes
+│   │   └── index.ts
+│   ├── public/                # Static files
+│   │   └── index.html
+│   └── index.ts               # Application entry point
+├── dist/                      # Compiled JavaScript
+├── logs/                      # Application logs
+├── tests/                     # Test files
+├── package.json               # Dependencies and scripts
+├── tsconfig.json              # TypeScript configuration
+├── jest.config.js             # Jest test configuration
+├── .eslintrc.json             # ESLint configuration
+├── Dockerfile                 # Container definition
+├── docker-compose.yml         # Service orchestration
+└── README.md                  # This file
 ```
 
-### Adding New Features
-1. **Backend**: Add routes in `advanced_manager.py`
-2. **Frontend**: Create templates in `templates/`
-3. **API**: Add REST endpoints with `/api/` prefix
-4. **WebSocket**: Add events for real-time updates
+### Key Components
 
-### Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
+#### **DockerService**
+- Docker API integration
+- Container management
+- Image management
+- Network and volume management
+
+#### **MetricsCollector**
+- System metrics collection
+- Container metrics collection
+- Redis integration for storage
+- Historical data management
+
+#### **ProjectService**
+- Git repository management
+- Project lifecycle management
+- Health monitoring
+- Build and deployment tracking
+
+#### **TerminalService**
+- WebSocket terminal sessions
+- Container shell access
+- Session management
+- Process handling
+
+#### **WebSocketHandler**
+- Real-time data streaming
+- Client connection management
+- Event handling
+- Notification system
+
+## 🔍 Supported Formats
+
+### Input Formats
+- **Repositories**: Git repositories (HTTP, SSH)
+- **Dockerfiles**: Standard Dockerfile format
+- **Compose Files**: Docker Compose YAML format
+
+### Output Formats
+- **Metrics**: JSON format with timestamps
+- **Logs**: Plain text with timestamps
+- **Charts**: Chart.js data format
+
+## 📈 Performance
+
+### Optimization Features
+- **TypeScript**: Type safety and performance
+- **WebSocket**: Real-time updates without polling
+- **Redis**: Efficient metrics storage
+- **Process Management**: Proper signal handling
+- **Memory Management**: Automatic cleanup
+
+### Resource Usage
+- **Memory**: ~100MB base memory
+- **CPU**: Low CPU usage for monitoring
+- **Network**: Efficient WebSocket communication
+- **Storage**: Configurable metrics retention
+
+## 🛡️ Security
+
+### Security Features
+- **TypeScript**: Type safety prevents runtime errors
+- **Helmet.js**: Security headers
+- **CORS**: Configurable cross-origin requests
+- **Input Validation**: Joi schema validation
+- **Error Handling**: Secure error responses
+
+### Best Practices
+- Use environment variables for sensitive data
+- Regular updates of dependencies
+- Monitor logs for unusual activity
+- Use HTTPS in production
+- Implement rate limiting
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
-#### Docker Socket Permission Denied
+#### Docker Connection
 ```bash
-# Add user to docker group
-sudo usermod -aG docker $USER
-
-# Or run with sudo
-sudo python advanced_manager.py
-```
-
-#### Port Already in Use
-```bash
-# Change port in environment
-PORT=5004 python advanced_manager.py
-```
-
-#### Container Not Found
-```bash
-# Check Docker daemon status
+# Check Docker daemon
 docker version
 
-# Check container list
-docker ps -a
+# Check socket permissions
+ls -la /var/run/docker.sock
+
+# Test Docker API
+curl --unix-socket /var/run/docker.sock http://localhost/version
 ```
 
-#### Metrics Not Showing
+#### Redis Connection
 ```bash
-# Check Redis connection
+# Check Redis status
 redis-cli ping
 
-# Disable Redis (uses in-memory storage)
-# Remove redis from requirements.txt
+# Check Redis logs
+docker logs advanced-manager-redis
+```
+
+#### Application Issues
+```bash
+# Check application logs
+docker logs advanced-container-manager
+
+# Check health status
+curl http://localhost:5003/health
+
+# Debug mode
+DEBUG=true npm run dev
 ```
 
 ### Debug Mode
+Enable debug mode for detailed logging:
 ```bash
-# Enable debug mode
-DEBUG=true python advanced_manager.py
-
-# Check logs
-tail -f /var/log/advanced-manager.log
+DEBUG=true LOG_LEVEL=debug npm run dev
 ```
+
+## 📚 API Reference
+
+### TypeScript Types
+
+#### Core Types
+- `ContainerInfo`: Container information
+- `SystemMetrics`: System metrics data
+- `ContainerMetrics`: Container metrics data
+- `ProjectInfo`: Project information
+- `TerminalSession`: Terminal session data
+
+#### API Types
+- `ApiResponse`: Standard API response format
+- `WebSocketMessage`: WebSocket message format
+- `AppConfig`: Application configuration
+
+### Service Classes
+
+#### DockerService
+- `getAllContainers()`: List all containers
+- `getContainer(id)`: Get container details
+- `startContainer(id)`: Start container
+- `stopContainer(id)`: Stop container
+- `restartContainer(id)`: Restart container
+
+#### MetricsCollector
+- `collectSystemMetrics()`: Collect system metrics
+- `collectContainerMetrics(id)`: Collect container metrics
+- `getSystemMetricsHistory()`: Get metrics history
+- `getContainerMetricsHistory(id)`: Get container history
+
+#### ProjectService
+- `addProject()`: Add new project
+- `getProjects()`: List all projects
+- `buildProject(name)`: Build project
+- `deployProject(name)`: Deploy project
+
+## 🤝 Contributing
+
+### Development Setup
+```bash
+# Clone repository
+git clone <repository-url>
+cd AdvancedContainerManager
+
+# Install dependencies
+npm install
+
+# Create development environment
+cp .env.example .env
+# Edit .env with your configuration
+
+# Run tests
+npm test
+
+# Run in development mode
+npm run dev
+
+# Build for production
+npm run build
+```
+
+### Code Style
+- Follow TypeScript best practices
+- Use ESLint for code quality
+- Add type hints for all functions
+- Write tests for new features
+- Update documentation
+
+### Submitting Changes
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Run tests and linting
+6. Submit a pull request
 
 ## 📄 License
 
@@ -336,11 +469,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [ ] Custom themes
 
 ### Version History
-- **v1.0.0** - Initial release with core features
-- **v1.1.0** - Added project management
-- **v1.2.0** - Enhanced terminal and monitoring
+- **v2.0.0** - Complete rewrite in Node.js/TypeScript
 - **v1.3.0** - Advanced UI and real-time updates
+- **v1.2.0** - Enhanced terminal and monitoring
+- **v1.1.0** - Added project management
+- **v1.0.0** - Initial release with core features
 
 ---
 
-**Advanced Container Manager** - Professional container management made simple. 🐳✨
+**Advanced Container Manager** - Professional container management with modern Node.js/TypeScript! 🐳✨

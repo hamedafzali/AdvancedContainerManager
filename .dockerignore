@@ -1,29 +1,86 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Virtual environments
-venv/
-env/
-ENV/
+# TypeScript
+*.tsbuildinfo
+src/
+tsconfig.json
+.eslintrc.json
+jest.config.js
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# parcel-bundler cache (https://parceljs.org/)
+.cache
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
 
 # IDE
 .vscode/
@@ -45,24 +102,15 @@ Thumbs.db
 .git/
 .gitignore
 
-# Logs
-*.log
-logs/
+# Documentation
+README.md
+*.md
 
-# Configuration with secrets
-.env
-.env.local
-.env.*.local
+# Test files
+__tests__/
+*.test.ts
+*.spec.ts
 
-# Temporary files
-*.tmp
-*.temp
-.cache/
-
-# Redis data
-redis_data/
-
-# Project data
-projects/
-config/
-*.json
+# Development files
+tsconfig.dev.json
+tsconfig.test.json

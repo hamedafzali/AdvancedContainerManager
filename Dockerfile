@@ -1,43 +1,55 @@
-FROM python:3.11-slim
+# Use Node.js 18 Alpine as base image
+FROM node:18-alpine
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
+RUN apk add --no-cache \
+    git \
+    python3 \
+    python3-dev \
+    py3-pip \
+    make \
     g++ \
-    libffi-dev \
-    libssl-dev \
+    docker \
+    docker-cli \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    bash \
+    && rm -rf /var/cache/apk/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy package files
+COPY package*.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN npm ci
+
+# Create logs directory
+RUN mkdir -p logs && chmod 755 logs
+
+# Copy source code
+COPY src/ ./src/
+
+# Build the application
+RUN npm run build
 
 # Create non-root user for security
-RUN useradd --create-home --shell /bin/bash appuser && \
+RUN addgroup -S appuser && \
+    adduser -S -G appuser appuser && \
     chown -R appuser:appuser /app && \
     chmod 755 /app
 
+# Switch to non-root user
 USER appuser
-
-# Environment variables
-ENV PYTHONPATH=/app
-ENV PORT=5003
-ENV HOST=0.0.0.0
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:5003/api/system/status || exit 1
-
-# Copy application code
-COPY templates/ ./templates/
-COPY advanced_manager.py .
 
 # Expose port
 EXPOSE 5003
 
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:5003/health || \
+  node -e "require('http').get('http://localhost:5003/health').then(() => process.exit(0)).catch(() => process.exit(1))"
+
 # Default command
-CMD ["python", "advanced_manager.py"]
+CMD ["node", "dist/index.js"]

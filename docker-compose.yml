@@ -1,23 +1,36 @@
 version: '3.8'
 
 services:
-  container-manager:
+  advanced-container-manager:
     build: .
     container_name: advanced-container-manager
+    restart: unless-stopped
     ports:
       - "5003:5003"
     environment:
+      - NODE_ENV=production
       - PORT=5003
       - HOST=0.0.0.0
-      - DEBUG=false
+      - DEBUG_MODE=false
+      - LOG_LEVEL=info
       - DOCKER_HOST=unix:///var/run/docker.sock
+      - REDIS_HOST=localhost
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - PROJECTS_DIR=/tmp/advanced_manager_projects
+      - CONFIG_PATH=/tmp/advanced_manager_config.json
+      - WEBSOCKET_TIMEOUT=300000
+      - TERMINAL_TIMEOUT=3600000
+      - MAX_TERMINAL_SESSIONS=100
+      - METRICS_INTERVAL=5000
+      - METRICS_RETENTION=24
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /tmp/advanced_manager_projects:/app/projects
-      - /tmp/advanced_manager_config:/app/config
-    restart: unless-stopped
+      - /tmp/advanced_manager_config.json:/app/config
+      - ./logs:/app/logs
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5003/api/system/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -27,17 +40,29 @@ services:
   redis:
     image: redis:7-alpine
     container_name: advanced-manager-redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    restart: unless-stopped
     command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  default:
+    driver: bridge
 
 volumes:
   redis_data:
     driver: local
-
-networks:
-  default:
-    name: advanced-manager-network
+  projects_data:
+    driver: local
+  config_data:
+    driver: local
+  logs_data:
+    driver: local
