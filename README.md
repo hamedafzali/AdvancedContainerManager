@@ -1,33 +1,44 @@
 # Advanced Container Manager
 
-A professional web-based container management platform built with Node.js, TypeScript, and modern web technologies.
+A professional web-based container management platform built with modern TypeScript, React, and Node.js.
 
-## 🚀 Features
+## 🚀 Architecture
 
-### Core Functionality
-- **Real-time Monitoring**: Live CPU, memory, disk, and network metrics
-- **Container Management**: Start, stop, restart, inspect containers
-- **Web Terminal**: Full bash shell access inside containers
-- **Project Management**: Multi-project Git repository integration
-- **Resource Monitoring**: Live resource usage with charts and graphs
-- **Health Checks**: Container health status monitoring
+This project uses a **monorepo structure** with separate frontend and backend applications:
 
-### Advanced Features
-- **TypeScript**: Type-safe codebase with modern JavaScript features
-- **WebSocket Integration**: Real-time data streaming and updates
-- **Terminal Sessions**: xterm.js powered web terminal
-- **Process Monitoring**: View running processes inside containers
-- **Log Management**: Advanced log viewing and filtering
-- **Network Management**: Docker networks control
-- **Volume Management**: Docker volumes management
-- **Image Management**: Docker images control
+```
+advanced-container-manager/
+├── frontend/          # React + TypeScript frontend
+├── backend/           # Node.js + TypeScript backend API
+├── package.json       # Monorepo configuration
+├── docker-compose.yml # Container orchestration
+└── README.md         # This file
+```
 
-### Modern UI/UX
-- **Responsive Design**: Works on desktop and mobile devices
-- **Real-time Updates**: WebSocket-based live data streaming
-- **Interactive Charts**: Visual metrics with Chart.js
-- **Glassmorphism Design**: Modern UI with smooth animations
-- **Dark Theme**: Professional terminal aesthetic
+## 🎯 Features
+
+### Frontend (React + TypeScript)
+- **Modern UI**: React 18 with TypeScript
+- **Real-time Updates**: Socket.IO integration
+- **Responsive Design**: Tailwind CSS
+- **Fast Development**: Vite with hot reload
+- **Type Safety**: Full TypeScript coverage
+- **Component Architecture**: Reusable React components
+
+### Backend (Node.js + TypeScript)
+- **REST API**: Express.js with TypeScript
+- **Real-time Communication**: Socket.IO server
+- **Docker Integration**: Full Docker API support
+- **Type Safety**: Comprehensive TypeScript types
+- **Modular Architecture**: Clean service-based structure
+- **WebSocket Support**: Real-time metrics and terminal access
+
+### Shared Features
+- **Container Management**: Start, stop, restart containers
+- **Real-time Monitoring**: Live system and container metrics
+- **Web Terminal**: Browser-based terminal access
+- **Project Management**: Git repository integration
+- **Professional UI**: Modern glassmorphism design
 
 ## 🛠️ Installation
 
@@ -40,31 +51,34 @@ A professional web-based container management platform built with Node.js, TypeS
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/hamedafzali/AdvancedContainerManager.git
 cd AdvancedContainerManager
 
-# Install dependencies
+# Install all dependencies (both frontend and backend)
 npm install
 
 # Set up environment variables
 cp .env.example .env
 # Edit .env with your configuration
 
-# Build the application
-npm run build
-
-# Start the application
-npm start
+# Start both frontend and backend in development mode
+npm run dev
 ```
 
-### Development Mode
+### Individual Development
 
 ```bash
-# Run in development mode with hot reload
-npm run dev
+# Start only backend (API server on port 5003)
+npm run dev:backend
 
-# Run in development mode with debugging
-npm run dev:debug
+# Start only frontend (React app on port 3000)
+npm run dev:frontend
+
+# Build both applications
+npm run build
+
+# Start production backend
+npm start
 ```
 
 ### Docker Deployment
@@ -90,6 +104,12 @@ docker-compose up -d
 
 ## 📋 Usage
 
+### Development URLs
+
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:5003
+- **Health Check**: http://localhost:5003/health
+
 ### API Endpoints
 
 #### System
@@ -99,24 +119,24 @@ docker-compose up -d
 
 #### Containers
 - `GET /api/containers` - List all containers
-- `GET /api/container/:id` - Get container details
-- `POST /api/container/:id/start` - Start container
-- `POST /api/container/:id/stop` - Stop container
-- `POST /api/container/:id/restart` - Restart container
-- `DELETE /api/container/:id` - Remove container
-- `GET /api/container/:id/logs` - Get container logs
-- `GET /api/container/:id/stats` - Get container stats
-- `GET /api/container/:id/processes` - Get container processes
+- `GET /api/containers/:id` - Get container details
+- `POST /api/containers/:id/start` - Start container
+- `POST /api/containers/:id/stop` - Stop container
+- `POST /api/containers/:id/restart` - Restart container
+- `DELETE /api/containers/:id` - Remove container
+- `GET /api/containers/:id/logs` - Get container logs
+- `GET /api/containers/:id/stats` - Get container stats
+- `GET /api/containers/:id/processes` - Get container processes
 
 #### Projects
 - `GET /api/projects` - List all projects
 - `POST /api/projects` - Add new project
-- `GET /api/project/:name` - Get project details
-- `POST /api/project/:name/build` - Build project
-- `POST /api/project/:name/start` - Start project
-- `POST /api/project/:name/stop` - Stop project
-- `DELETE /api/project/:name` - Remove project
-- `GET /api/project/:name/health` - Get project health
+- `GET /api/projects/:name` - Get project details
+- `POST /api/projects/:name/build` - Build project
+- `POST /api/projects/:name/deploy` - Deploy project
+- `POST /api/projects/:name/stop` - Stop project
+- `DELETE /api/projects/:name` - Remove project
+- `GET /api/projects/:name/health` - Get project health
 
 #### Images
 - `GET /api/images` - List all images
@@ -194,246 +214,194 @@ METRICS_RETENTION=24
 SESSION_SECRET=your-session-secret-here
 ```
 
-### TypeScript Configuration
+## 📊 Project Structure
 
-The project uses TypeScript with strict type checking. Key configuration options:
-
-- **Target**: ES2020
-- **Module**: CommonJS
-- **Strict**: Enabled
-- **Source Maps**: Enabled
-- **Path Mapping**: Configured for clean imports
-
-### ESLint Configuration
-
-ESLint is configured with TypeScript support and recommended rules:
-
-- **TypeScript ESLint**: Enabled
-- **No Unused Variables**: Error
-- **No Explicit Any**: Warning
-- **Prefer Const**: Required
-
-## 📊 Architecture
-
-### Project Structure
+### Frontend Structure
 ```
-AdvancedContainerManager/
+frontend/
 ├── src/
-│   ├── types/                 # TypeScript type definitions
-│   │   └── index.ts
-│   ├── utils/                 # Utility functions
-│   │   └── logger.ts
-│   ├── services/              # Business logic services
+│   ├── components/          # React components
+│   │   ├── Layout.tsx      # Main layout component
+│   │   ├── MetricCard.tsx  # Metric display card
+│   │   └── ...             # Other components
+│   ├── pages/               # Page components
+│   │   ├── Dashboard.tsx    # Dashboard page
+│   │   ├── Containers.tsx   # Containers page
+│   │   └── ...             # Other pages
+│   ├── hooks/               # Custom React hooks
+│   │   ├── useSocket.ts     # WebSocket hook
+│   │   └── useNotifications.ts
+│   ├── services/            # API services
+│   │   └── api.ts          # Axios API client
+│   ├── types/               # TypeScript types
+│   ├── utils/               # Utility functions
+│   ├── App.tsx              # Main App component
+│   ├── main.tsx             # Application entry point
+│   └── index.css            # Global styles
+├── package.json             # Frontend dependencies
+├── vite.config.ts           # Vite configuration
+├── tsconfig.json            # TypeScript config
+└── tailwind.config.js       # Tailwind CSS config
+```
+
+### Backend Structure
+```
+backend/
+├── src/
+│   ├── types/               # TypeScript type definitions
+│   ├── utils/               # Utility functions
+│   │   └── logger.ts        # Winston logger
+│   ├── services/            # Business logic services
 │   │   ├── docker-service.ts
 │   │   ├── metrics-collector.ts
 │   │   ├── project-service.ts
 │   │   ├── terminal-service.ts
 │   │   └── websocket-handler.ts
-│   ├── middleware/            # Express middleware
+│   ├── middleware/          # Express middleware
 │   │   └── error-handler.ts
-│   ├── routes/                # API routes
+│   ├── routes/              # API routes
 │   │   └── index.ts
-│   ├── public/                # Static files
-│   │   └── index.html
-│   └── index.ts               # Application entry point
-├── dist/                      # Compiled JavaScript
-├── logs/                      # Application logs
-├── tests/                     # Test files
-├── package.json               # Dependencies and scripts
-├── tsconfig.json              # TypeScript configuration
-├── jest.config.js             # Jest test configuration
-├── .eslintrc.json             # ESLint configuration
-├── Dockerfile                 # Container definition
-├── docker-compose.yml         # Service orchestration
-└── README.md                  # This file
+│   └── index.ts             # Application entry point
+├── package.json             # Backend dependencies
+├── tsconfig.json            # TypeScript config
+├── jest.config.js           # Jest test configuration
+└── .eslintrc.json           # ESLint configuration
 ```
 
-### Key Components
+## 🎨 Frontend Technologies
 
-#### **DockerService**
-- Docker API integration
-- Container management
-- Image management
-- Network and volume management
+- **React 18**: Modern React with hooks
+- **TypeScript**: Type-safe JavaScript
+- **Vite**: Fast development server and build tool
+- **Tailwind CSS**: Utility-first CSS framework
+- **React Router**: Client-side routing
+- **React Query**: Data fetching and caching
+- **Socket.IO Client**: Real-time communication
+- **Lucide React**: Icon library
+- **Axios**: HTTP client
 
-#### **MetricsCollector**
-- System metrics collection
-- Container metrics collection
-- Redis integration for storage
-- Historical data management
+## 🔧 Backend Technologies
 
-#### **ProjectService**
-- Git repository management
-- Project lifecycle management
-- Health monitoring
-- Build and deployment tracking
+- **Node.js**: JavaScript runtime
+- **TypeScript**: Type-safe JavaScript
+- **Express.js**: Web framework
+- **Socket.IO**: Real-time WebSocket server
+- **Dockerode**: Docker API client
+- **Winston**: Logging library
+- **Redis**: Optional metrics storage
+- **Joi**: Input validation
+- **Helmet**: Security middleware
 
-#### **TerminalService**
-- WebSocket terminal sessions
-- Container shell access
-- Session management
-- Process handling
+## 🚀 Development Workflow
 
-#### **WebSocketHandler**
-- Real-time data streaming
-- Client connection management
-- Event handling
-- Notification system
+### Monorepo Scripts
 
-## 🔍 Supported Formats
+```bash
+# Development (both frontend and backend)
+npm run dev
 
-### Input Formats
-- **Repositories**: Git repositories (HTTP, SSH)
-- **Dockerfiles**: Standard Dockerfile format
-- **Compose Files**: Docker Compose YAML format
+# Individual development
+npm run dev:frontend    # Frontend on port 3000
+npm run dev:backend     # Backend on port 5003
 
-### Output Formats
-- **Metrics**: JSON format with timestamps
-- **Logs**: Plain text with timestamps
-- **Charts**: Chart.js data format
+# Building
+npm run build            # Build both
+npm run build:frontend   # Build frontend only
+npm run build:backend    # Build backend only
+
+# Testing
+npm run test             # Test both
+npm run lint             # Lint both
+npm run clean            # Clean both
+```
+
+### Development Experience
+
+- **Hot Reload**: Both frontend and backend support hot reload
+- **Type Safety**: Full TypeScript coverage
+- **Code Splitting**: Optimized bundle sizes
+- **Proxy Configuration**: Frontend proxies API requests to backend
+- **Environment Variables**: Shared configuration
+
+## 🐳 Docker Configuration
+
+### Multi-stage Build
+
+The Dockerfile uses multi-stage builds:
+
+1. **Frontend Builder**: Builds the React application
+2. **Backend Builder**: Compiles TypeScript to JavaScript
+3. **Production**: Combines both into a single optimized image
+
+### Docker Compose
+
+```yaml
+services:
+  advanced-container-manager:
+    build: .
+    ports:
+      - "5003:5003"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - NODE_ENV=production
+      - PORT=5003
+      - DOCKER_HOST=unix:///var/run/docker.sock
+```
 
 ## 📈 Performance
 
-### Optimization Features
-- **TypeScript**: Type safety and performance
-- **WebSocket**: Real-time updates without polling
-- **Redis**: Efficient metrics storage
-- **Process Management**: Proper signal handling
-- **Memory Management**: Automatic cleanup
+### Frontend Performance
+- **Code Splitting**: Automatic code splitting with React.lazy
+- **Tree Shaking**: Unused code elimination
+- **Asset Optimization**: Optimized bundles with Vite
+- **Caching**: HTTP caching for static assets
 
-### Resource Usage
-- **Memory**: ~100MB base memory
-- **CPU**: Low CPU usage for monitoring
-- **Network**: Efficient WebSocket communication
-- **Storage**: Configurable metrics retention
+### Backend Performance
+- **TypeScript**: Compile-time optimizations
+- **Connection Pooling**: Efficient database connections
+- **WebSocket**: Efficient real-time communication
+- **Metrics Caching**: Redis-based metrics storage
 
 ## 🛡️ Security
 
-### Security Features
+### Frontend Security
 - **TypeScript**: Type safety prevents runtime errors
+- **Content Security Policy**: Secure headers with Helmet
+- **Input Validation**: Client-side form validation
+- **HTTPS Ready**: Production-ready security
+
+### Backend Security
 - **Helmet.js**: Security headers
 - **CORS**: Configurable cross-origin requests
 - **Input Validation**: Joi schema validation
 - **Error Handling**: Secure error responses
-
-### Best Practices
-- Use environment variables for sensitive data
-- Regular updates of dependencies
-- Monitor logs for unusual activity
-- Use HTTPS in production
-- Implement rate limiting
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-#### Docker Connection
-```bash
-# Check Docker daemon
-docker version
-
-# Check socket permissions
-ls -la /var/run/docker.sock
-
-# Test Docker API
-curl --unix-socket /var/run/docker.sock http://localhost/version
-```
-
-#### Redis Connection
-```bash
-# Check Redis status
-redis-cli ping
-
-# Check Redis logs
-docker logs advanced-manager-redis
-```
-
-#### Application Issues
-```bash
-# Check application logs
-docker logs advanced-container-manager
-
-# Check health status
-curl http://localhost:5003/health
-
-# Debug mode
-DEBUG=true npm run dev
-```
-
-### Debug Mode
-Enable debug mode for detailed logging:
-```bash
-DEBUG=true LOG_LEVEL=debug npm run dev
-```
-
-## 📚 API Reference
-
-### TypeScript Types
-
-#### Core Types
-- `ContainerInfo`: Container information
-- `SystemMetrics`: System metrics data
-- `ContainerMetrics`: Container metrics data
-- `ProjectInfo`: Project information
-- `TerminalSession`: Terminal session data
-
-#### API Types
-- `ApiResponse`: Standard API response format
-- `WebSocketMessage`: WebSocket message format
-- `AppConfig`: Application configuration
-
-### Service Classes
-
-#### DockerService
-- `getAllContainers()`: List all containers
-- `getContainer(id)`: Get container details
-- `startContainer(id)`: Start container
-- `stopContainer(id)`: Stop container
-- `restartContainer(id)`: Restart container
-
-#### MetricsCollector
-- `collectSystemMetrics()`: Collect system metrics
-- `collectContainerMetrics(id)`: Collect container metrics
-- `getSystemMetricsHistory()`: Get metrics history
-- `getContainerMetricsHistory(id)`: Get container history
-
-#### ProjectService
-- `addProject()`: Add new project
-- `getProjects()`: List all projects
-- `buildProject(name)`: Build project
-- `deployProject(name)`: Deploy project
+- **Rate Limiting**: Configurable rate limiting
 
 ## 🤝 Contributing
 
 ### Development Setup
 ```bash
 # Clone repository
-git clone <repository-url>
+git clone https://github.com/hamedafzali/AdvancedContainerManager.git
 cd AdvancedContainerManager
 
 # Install dependencies
 npm install
 
-# Create development environment
+# Set up environment
 cp .env.example .env
 # Edit .env with your configuration
 
-# Run tests
-npm test
-
-# Run in development mode
+# Start development
 npm run dev
-
-# Build for production
-npm run build
 ```
 
 ### Code Style
-- Follow TypeScript best practices
-- Use ESLint for code quality
-- Add type hints for all functions
-- Write tests for new features
-- Update documentation
+- **TypeScript**: Strict type checking
+- **ESLint**: Code quality enforcement
+- **Prettier**: Consistent code formatting
+- **Conventional Commits**: Standardized commit messages
 
 ### Submitting Changes
 1. Fork the repository
@@ -469,6 +437,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [ ] Custom themes
 
 ### Version History
+- **v2.1.0** - Restructured into separate frontend and backend
 - **v2.0.0** - Complete rewrite in Node.js/TypeScript
 - **v1.3.0** - Advanced UI and real-time updates
 - **v1.2.0** - Enhanced terminal and monitoring
@@ -477,4 +446,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Advanced Container Manager** - Professional container management with modern Node.js/TypeScript! 🐳✨
+**Advanced Container Manager** - Modern container management with separate frontend and backend! 🐳✨
