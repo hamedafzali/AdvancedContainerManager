@@ -106,11 +106,21 @@ Thumbs.db
 README.md
 *.md
 
-# Test files
-__tests__/
-*.test.ts
-*.spec.ts
-
 # Development files
+frontend/dist/
+backend/dist/
+*.ts
+*.tsx
+*.js
+*.jsx
+
+# Test files
+**/*.test.ts
+**/*.spec.ts
+**/__tests__/
+
+# Build artifacts
+dist/
+build/
 tsconfig.dev.json
 tsconfig.test.json
