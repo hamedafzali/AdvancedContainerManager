@@ -1,5 +1,23 @@
-# Use Node.js 18 Alpine as base image
-FROM node:18-alpine
+# Multi-stage build for frontend and backend
+
+# Stage 1: Build frontend
+FROM node:18-alpine AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+# Stage 2: Build backend
+FROM node:18-alpine AS backend-builder
+WORKDIR /app/backend
+COPY backend/package*.json ./
+RUN npm ci
+COPY backend/ ./
+RUN npm run build
+
+# Stage 3: Production image
+FROM node:18-alpine AS production
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -15,24 +33,18 @@ RUN apk add --no-cache \
     bash \
     && rm -rf /var/cache/apk/*
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY tsconfig.json ./
+# Copy built backend
+COPY --from=backend-builder /app/backend/dist ./dist
+COPY --from=backend-builder /app/backend/node_modules ./node_modules
+COPY --from=backend-builder /app/backend/package.json ./
 
-# Install dependencies
-RUN npm ci
+# Copy built frontend
+COPY --from=frontend-builder /app/frontend/dist ./public
 
 # Create logs directory
 RUN mkdir -p logs && chmod 755 logs
-
-# Copy source code
-COPY src/ ./src/
-
-# Build the application
-RUN npm run build
 
 # Create non-root user for security
 RUN addgroup -S appuser && \

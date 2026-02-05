@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .glass-morphism {
+    @apply bg-white/95 backdrop-blur-sm border border-white/18;
+  }
+  
+  .metric-card {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-300 hover:transform hover:-translate-y-1 hover:shadow-lg;
+  }
+  
+  .sidebar-item {
+    @apply transition-all duration-200 border-l-3 border-transparent hover:bg-primary-50 hover:border-primary-500;
+  }
+  
+  .sidebar-item.active {
+    @apply bg-primary-100 border-primary-500;
+  }
+  
+  .container-card {
+    @apply transition-all duration-300 border-l-4 border-transparent hover:transform hover:-translate-y-1 hover:shadow-md;
+  }
+  
+  .container-card.running { @apply border-green-500; }
+  .container-card.exited { @apply border-red-500; }
+  .container-card.paused { @apply border-yellow-500; }
+  .container-card.restarting { @apply border-purple-500; }
+  
+  .terminal-container {
+    @apply bg-gray-900 rounded-lg font-mono text-sm h-96 overflow-y-auto p-4;
+  }
+  
+  .pulse-dot {
+    @apply animate-pulse;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent;
+  }
+}
