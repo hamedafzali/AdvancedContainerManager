@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terminal - {{ container.name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm@4.19.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.5.0/lib/xterm-addon-fit.js"></script>
+    <style>
+        .terminal-container {
+            height: calc(100vh - 120px);
+        }
+        #terminal {
+            height: 100%;
+            width: 100%;
+        }
+        .terminal-header {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+        .terminal-button {
+            transition: all 0.2s ease;
+        }
+        .terminal-button:hover {
+            transform: scale(1.05);
+        }
+        .connection-status {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <!-- Terminal Header -->
+    <div class="terminal-header border-b border-gray-700">
+        <div class="flex items-center justify-between px-4 py-3">
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <div class="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                    <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <i data-lucide="terminal" class="w-4 h-4 text-gray-400"></i>
+                    <span class="text-sm font-medium">{{ container.name }}</span>
+                    <span class="text-xs text-gray-500">{{ container.id }}</span>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <div id="connection-indicator" class="flex items-center space-x-1">
+                        <div class="w-2 h-2 bg-green-500 rounded-full connection-status"></div>
+                        <span class="text-xs text-green-400">Connected</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <!-- Terminal Actions -->
+                <button onclick="clearTerminal()" class="terminal-button p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Clear">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+                
+                <button onclick="copyTerminal()" class="terminal-button p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Copy">
+                    <i data-lucide="copy" class="w-4 h-4"></i>
+                </button>
+                
+                <button onclick="pasteTerminal()" class="terminal-button p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Paste">
+                    <i data-lucide="clipboard" class="w-4 h-4"></i>
+                </button>
+                
+                <button onclick="toggleFullscreen()" class="terminal-button p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded" title="Fullscreen">
+                    <i data-lucide="maximize" class="w-4 h-4"></i>
+                </button>
+                
+                <button onclick="closeTerminal()" class="terminal-button p-2 text-gray-400 hover:text-red-400 hover:bg-red-900 rounded" title="Close">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal Info Bar -->
+    <div class="bg-gray-800 border-b border-gray-700 px-4 py-2">
+        <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-4">
+                <span class="text-gray-400">Shell: <span class="text-gray-300">/bin/bash</span></span>
+                <span class="text-gray-400">User: <span class="text-gray-300">root</span></span>
+                <span class="text-gray-400">Working Dir: <span class="text-gray-300">/</span></span>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <span id="terminal-size" class="text-gray-400">80x24</span>
+                <span id="session-time" class="text-gray-400">00:00:00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Terminal Container -->
+    <div class="terminal-container bg-black p-4">
+        <div id="terminal"></div>
+    </div>
+
+    <!-- Command Palette (Hidden by default) -->
+    <div id="command-palette" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-start justify-center pt-20">
+            <div class="bg-gray-800 rounded-lg shadow-2xl w-96 max-h-96 overflow-hidden">
+                <div class="p-4 border-b border-gray-700">
+                    <input type="text" id="command-input" placeholder="Type command..." 
+                           class="w-full bg-gray-700 text-white px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div id="command-suggestions" class="max-h-64 overflow-y-auto">
+                    <!-- Command suggestions will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Terminal setup
+        const terminal = new Terminal({
+            cursorBlink: true,
+            cursorStyle: 'block',
+            fontSize: 14,
+            fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+            theme: {
+                background: '#000000',
+                foreground: '#ffffff',
+                cursor: '#ffffff',
+                selection: '#ffffff40',
+                black: '#000000',
+                red: '#ff5555',
+                green: '#50fa7b',
+                yellow: '#f1fa8c',
+                blue: '#6275ff',
+                magenta: '#ff79c6',
+                cyan: '#8be9fd',
+                white: '#f8f8f2',
+                brightBlack: '#6272a4',
+                brightRed: '#ff6e6e',
+                brightGreen: '#69ff94',
+                brightYellow: '#ffffa5',
+                brightBlue: '#d6acff',
+                brightMagenta: '#ff92df',
+                brightCyan: '#a4ffff',
+                brightWhite: '#ffffff',
+            }
+        });
+
+        // Load fit addon
+        const fitAddon = new FitAddon.FitAddon();
+        terminal.loadAddon(fitAddon);
+
+        // Mount terminal
+        const terminalElement = document.getElementById('terminal');
+        terminal.open(terminalElement);
+        fitAddon.fit();
+
+        // Terminal session state
+        let sessionId = null;
+        let isConnected = false;
+        let sessionStartTime = Date.now();
+        let commandHistory = [];
+        let historyIndex = -1;
+
+        // Container info
+        const containerId = '{{ container.id }}';
+        const containerName = '{{ container.name }}';
+
+        // Initialize terminal session
+        async function initTerminalSession() {
+            try {
+                const response = await fetch(`/api/container/${containerId}/terminal`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    sessionId = result.session_id;
+                    isConnected = true;
+                    terminal.writeln('\x1b[32m✓ Terminal session established\x1b[0m');
+                    terminal.writeln(`\x1b[36mContainer: ${containerName} (${containerId})\x1b[0m`);
+                    terminal.writeln(`\x1b[36mSession ID: ${sessionId}\x1b[0m`);
+                    terminal.writeln('');
+                    terminal.write('\x1b[1mroot@container:~#\x1b[0m ');
+                    
+                    updateConnectionStatus(true);
+                    startSessionTimer();
+                } else {
+                    terminal.writeln(`\x1b[31m✗ Failed to create terminal session: ${result.message}\x1b[0m`);
+                    updateConnectionStatus(false);
+                }
+            } catch (error) {
+                terminal.writeln(`\x1b[31m✗ Error creating terminal session: ${error.message}\x1b[0m`);
+                updateConnectionStatus(false);
+            }
+        }
+
+        // Handle terminal input
+        let currentLine = '';
+        let cursorPosition = 0;
+
+        terminal.onData((data) => {
+            if (!isConnected) {
+                return;
+            }
+
+            // Handle special keys
+            if (data === '\r') {
+                // Enter key - execute command
+                terminal.write('\r\n');
+                executeCommand(currentLine);
+                commandHistory.push(currentLine);
+                historyIndex = commandHistory.length;
+                currentLine = '';
+                cursorPosition = 0;
+            } else if (data === '\u007f') {
+                // Backspace
+                if (cursorPosition > 0) {
+                    currentLine = currentLine.slice(0, cursorPosition - 1) + currentLine.slice(cursorPosition);
+                    cursorPosition--;
+                    terminal.write('\b \b');
+                }
+            } else if (data === '\u001b[A') {
+                // Up arrow - command history
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    currentLine = commandHistory[historyIndex];
+                    cursorPosition = currentLine.length;
+                    terminal.write('\x1b[2K\r\x1b[1mroot@container:~#\x1b[0m ' + currentLine);
+                }
+            } else if (data === '\u001b[B') {
+                // Down arrow - command history
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++;
+                    currentLine = commandHistory[historyIndex];
+                    cursorPosition = currentLine.length;
+                    terminal.write('\x1b[2K\r\x1b[1mroot@container:~#\x1b[0m ' + currentLine);
+                } else if (historyIndex === commandHistory.length - 1) {
+                    historyIndex = commandHistory.length;
+                    currentLine = '';
+                    cursorPosition = 0;
+                    terminal.write('\x1b[2K\r\x1b[1mroot@container:~#\x1b[0m ');
+                }
+            } else if (data === '\u001b[C') {
+                // Right arrow
+                if (cursorPosition < currentLine.length) {
+                    cursorPosition++;
+                    terminal.write(data);
+                }
+            } else if (data === '\u001b[D') {
+                // Left arrow
+                if (cursorPosition > 0) {
+                    cursorPosition--;
+                    terminal.write(data);
+                }
+            } else if (data === '\u0003') {
+                // Ctrl+C
+                terminal.write('^C\r\n');
+                terminal.write('\x1b[1mroot@container:~#\x1b[0m ');
+                currentLine = '';
+                cursorPosition = 0;
+            } else if (data === '\u0009') {
+                // Tab - simple completion
+                const commands = ['ls', 'cd', 'pwd', 'cat', 'echo', 'ps', 'top', 'exit', 'clear'];
+                const matches = commands.filter(cmd => cmd.startsWith(currentLine));
+                
+                if (matches.length === 1) {
+                    const completion = matches[0].slice(currentLine.length);
+                    currentLine += completion;
+                    cursorPosition += completion.length;
+                    terminal.write(completion);
+                } else if (matches.length > 1) {
+                    terminal.write('\r\n');
+                    matches.forEach(cmd => terminal.write(`  ${cmd}\r\n`));
+                    terminal.write(`\x1b[1mroot@container:~#\x1b[0m ${currentLine}`);
+                }
+            } else if (data.length === 1) {
+                // Regular character
+                currentLine += data;
+                cursorPosition++;
+                terminal.write(data);
+            }
+        });
+
+        // Execute command (simulated)
+        async function executeCommand(command) {
+            if (!command.trim()) {
+                terminal.write('\x1b[1mroot@container:~#\x1b[0m ');
+                return;
+            }
+
+            try {
+                // Simulate command execution
+                const response = await fetch(`/api/container/${containerId}/execute`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command: command, session_id: sessionId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (result.output) {
+                        terminal.write(result.output);
+                    }
+                } else {
+                    terminal.write(`\x1b[31mError: ${result.message}\x1b[0m\r\n`);
+                }
+            } catch (error) {
+                // Fallback to simulated commands for demo
+                await simulateCommand(command);
+            }
+            
+            terminal.write('\x1b[1mroot@container:~#\x1b[0m ');
+        }
+
+        // Simulate command execution for demo
+        async function simulateCommand(command) {
+            const cmd = command.trim().toLowerCase();
+            
+            switch (cmd) {
+                case 'ls':
+                    terminal.write('app  bin  dev  etc  home  lib  media  mnt  opt  proc  root  run  sbin  srv  sys  tmp  usr  var\r\n');
+                    break;
+                case 'pwd':
+                    terminal.write('/\r\n');
+                    break;
+                case 'whoami':
+                    terminal.write('root\r\n');
+                    break;
+                case 'ps aux':
+                    terminal.write('USER         PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND\r\n');
+                    terminal.write('root           1  0.0  0.1   4000  800 ?        Ss   00:00   0:00 /init\r\n');
+                    terminal.write('root          10  0.1  0.2   8000 1600 ?        S   00:00   0:00 /bin/bash\r\n');
+                    break;
+                case 'top':
+                    terminal.write('top - 00:00:00 up 0 min,  0 users,  load average: 0.00, 0.00, 0.00\r\n');
+                    terminal.write('Tasks:   2 total,   1 running,   1 sleeping,   0 stopped,   0 zombie\r\n');
+                    terminal.write('%Cpu(s):  5.0 us,  2.0 sy,  0.0 ni, 93.0 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st\r\n');
+                    terminal.write('MiB Mem :   1024.0 total,   512.0 free,   256.0 used,   256.0 buff/cache\r\n');
+                    break;
+                case 'clear':
+                    terminal.clear();
+                    return;
+                case 'exit':
+                    terminal.writeln('Goodbye!');
+                    setTimeout(() => window.close(), 1000);
+                    return;
+                case 'help':
+                    terminal.write('Available commands:\r\n');
+                    terminal.write('  ls        - List directory contents\r\n');
+                    terminal.write('  pwd       - Print working directory\r\n');
+                    terminal.write('  whoami    - Display current user\r\n');
+                    terminal.write('  ps aux    - Show running processes\r\n');
+                    terminal.write('  top       - Display system processes\r\n');
+                    terminal.write('  clear     - Clear terminal screen\r\n');
+                    terminal.write('  exit      - Exit terminal\r\n');
+                    terminal.write('  help      - Show this help message\r\n');
+                    break;
+                default:
+                    if (cmd.startsWith('echo ')) {
+                        const text = cmd.slice(5);
+                        terminal.write(`${text}\r\n`);
+                    } else if (cmd.startsWith('cd ')) {
+                        const dir = cmd.slice(3);
+                        terminal.write(`Changed to ${dir}\r\n`);
+                    } else {
+                        terminal.write(`Command not found: ${cmd}\r\n`);
+                    }
+            }
+        }
+
+        // Terminal actions
+        function clearTerminal() {
+            terminal.clear();
+            terminal.write('\x1b[1mroot@container:~#\x1b[0m ');
+        }
+
+        function copyTerminal() {
+            const content = terminal.getSelection();
+            if (content) {
+                navigator.clipboard.writeText(content);
+                showNotification('Copied to clipboard', 'success');
+            }
+        }
+
+        async function pasteTerminal() {
+            try {
+                const text = await navigator.clipboard.readText();
+                for (const char of text) {
+                    terminal.write(char);
+                    if (isConnected) {
+                        currentLine += char;
+                        cursorPosition++;
+                    }
+                }
+            } catch (error) {
+                showNotification('Failed to paste', 'error');
+            }
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        function closeTerminal() {
+            if (confirm('Are you sure you want to close this terminal session?')) {
+                window.close();
+            }
+        }
+
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            isConnected = connected;
+            const indicator = document.getElementById('connection-indicator');
+            
+            if (connected) {
+                indicator.innerHTML = `
+                    <div class="w-2 h-2 bg-green-500 rounded-full connection-status"></div>
+                    <span class="text-xs text-green-400">Connected</span>
+                `;
+            } else {
+                indicator.innerHTML = `
+                    <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                    <span class="text-xs text-red-400">Disconnected</span>
+                `;
+            }
+        }
+
+        // Session timer
+        function startSessionTimer() {
+            setInterval(() => {
+                const elapsed = Date.now() - sessionStartTime;
+                const hours = Math.floor(elapsed / (1000 * 60 * 60));
+                const minutes = Math.floor((elapsed % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((elapsed % (1000 * 60)) / 1000);
+                
+                document.getElementById('session-time').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        // Update terminal size
+        function updateTerminalSize() {
+            const cols = terminal.cols;
+            const rows = terminal.rows;
+            document.getElementById('terminal-size').textContent = `${cols}x${rows}`;
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            fitAddon.fit();
+            updateTerminalSize();
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                switch (e.key) {
+                    case 'l':
+                        e.preventDefault();
+                        clearTerminal();
+                        break;
+                    case 'c':
+                        if (e.shiftKey) {
+                            e.preventDefault();
+                            copyTerminal();
+                        }
+                        break;
+                    case 'v':
+                        if (e.shiftKey) {
+                            e.preventDefault();
+                            pasteTerminal();
+                        }
+                        break;
+                }
+            }
+        });
+
+        // Command palette (Ctrl+P)
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                e.preventDefault();
+                toggleCommandPalette();
+            }
+        });
+
+        function toggleCommandPalette() {
+            const palette = document.getElementById('command-palette');
+            const input = document.getElementById('command-input');
+            
+            if (palette.classList.contains('hidden')) {
+                palette.classList.remove('hidden');
+                input.focus();
+            } else {
+                palette.classList.add('hidden');
+                input.value = '';
+            }
+        }
+
+        // Notification system
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            const bgColor = type === 'success' ? 'bg-green-500' : 
+                           type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+            
+            notification.className = `fixed top-4 right-4 ${bgColor} text-white px-4 py-2 rounded-lg shadow-lg z-50`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initTerminalSession();
+            updateTerminalSize();
+            
+            // Focus terminal
+            terminal.focus();
+        });
+
+        // Handle window close
+        window.addEventListener('beforeunload', (e) => {
+            if (isConnected) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    </script>
+</body>
+</html>

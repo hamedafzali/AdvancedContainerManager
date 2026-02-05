@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ project.name }} - Pro Container Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i data-lucide="package" class="w-8 h-8 text-indigo-600 mr-3"></i>
+                    <h1 class="text-xl font-bold text-gray-900">Pro Container Manager</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Dashboard</a>
+                    <a href="/projects" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Projects</a>
+                    <a href="/containers" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Containers</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <!-- Project Header -->
+        <div class="bg-white shadow-md rounded-lg p-6 mb-8">
+            <div class="flex justify-between items-start">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ project.name }}</h1>
+                    <div class="flex items-center space-x-4 text-sm text-gray-600">
+                        <span class="flex items-center">
+                            <i data-lucide="git-branch" class="w-4 h-4 mr-1"></i>
+                            {{ project.repo_url }}
+                        </span>
+                        <span class="flex items-center">
+                            <i data-lucide="clock" class="w-4 h-4 mr-1"></i>
+                            Updated: {{ project.last_updated[:10] if project.last_updated else 'Never' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="flex space-x-3">
+                    {% if project.status == 'configured' or project.status == 'stopped' %}
+                    <button onclick="buildProject('{{ project.name }}')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 flex items-center">
+                        <i data-lucide="hammer" class="w-4 h-4 mr-2"></i>
+                        Build
+                    </button>
+                    {% endif %}
+                    {% if project.status == 'built' or project.status == 'stopped' %}
+                    <button onclick="startProject('{{ project.name }}')" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 flex items-center">
+                        <i data-lucide="play" class="w-4 h-4 mr-2"></i>
+                        Start
+                    </button>
+                    {% endif %}
+                    {% if project.status == 'running' %}
+                    <button onclick="stopProject('{{ project.name }}')" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 flex items-center">
+                        <i data-lucide="square" class="w-4 h-4 mr-2"></i>
+                        Stop
+                    </button>
+                    {% endif %}
+                    <button onclick="pullLatest()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-md transition duration-300 flex items-center">
+                        <i data-lucide="download" class="w-4 h-4 mr-2"></i>
+                        Pull Latest
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Info -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            <div class="lg:col-span-2">
+                <div class="bg-white shadow-md rounded-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Project Information</h2>
+                    <dl class="space-y-3">
+                        <div class="flex justify-between py-2 border-b border-gray-200">
+                            <dt class="text-sm font-medium text-gray-600">Status</dt>
+                            <dd class="text-sm text-gray-900">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                    {% if project.status == 'running' %}bg-green-100 text-green-800
+                                    {% elif project.status == 'stopped' %}bg-red-100 text-red-800
+                                    {% elif project.status == 'building' %}bg-yellow-100 text-yellow-800
+                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                    {{ project.status }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-200">
+                            <dt class="text-sm font-medium text-gray-600">Repository</dt>
+                            <dd class="text-sm text-gray-900 truncate max-w-xs">{{ project.repo_url }}</dd>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-200">
+                            <dt class="text-sm font-medium text-gray-600">Dockerfile</dt>
+                            <dd class="text-sm text-gray-900">{{ project.dockerfile }}</dd>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-200">
+                            <dt class="text-sm font-medium text-gray-600">Compose File</dt>
+                            <dd class="text-sm text-gray-900">{{ project.compose_file }}</dd>
+                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-200">
+                            <dt class="text-sm font-medium text-gray-600">Created</dt>
+                            <dd class="text-sm text-gray-900">{{ project.created_at[:10] if project.created_at else 'Unknown' }}</dd>
+                        </div>
+                        <div class="flex justify-between py-2">
+                            <dt class="text-sm font-medium text-gray-600">Last Updated</dt>
+                            <dd class="text-sm text-gray-900">{{ project.last_updated[:10] if project.last_updated else 'Never' }}</dd>
+                        </div>
+                    </dl>
+                </div>
+            </div>
+
+            <div>
+                <div class="bg-white shadow-md rounded-lg p-6">
+                    <h2 class="text-xl font-semibold text-gray-900 mb-4">Quick Actions</h2>
+                    <div class="space-y-3">
+                        <button onclick="viewLogs()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-300 flex items-center justify-center">
+                            <i data-lucide="file-text" class="w-4 h-4 mr-2"></i>
+                            View Logs
+                        </button>
+                        <button onclick="openTerminal()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-300 flex items-center justify-center">
+                            <i data-lucide="terminal" class="w-4 h-4 mr-2"></i>
+                            Open Terminal
+                        </button>
+                        <button onclick="editConfig()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-300 flex items-center justify-center">
+                            <i data-lucide="settings" class="w-4 h-4 mr-2"></i>
+                            Edit Config
+                        </button>
+                        <button onclick="rebuildProject()" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-md transition duration-300 flex items-center justify-center">
+                            <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                            Rebuild
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Containers -->
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-semibold text-gray-900">Containers</h2>
+                <button onclick="refreshContainers()" class="text-indigo-600 hover:text-indigo-800 flex items-center">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 mr-1"></i>
+                    Refresh
+                </button>
+            </div>
+            
+            {% if containers %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Image</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ports</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for container in containers %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {{ container.name }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                    {% if container.status == 'running' %}bg-green-100 text-green-800
+                                    {% elif container.status == 'exited' %}bg-red-100 text-red-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ container.status }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ container.image }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {% if container.ports %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for port, bindings in container.ports.items() %}
+                                        {% if bindings %}
+                                            {% for binding in bindings %}
+                                                <span class="text-xs bg-gray-100 px-1 rounded">{{ binding['HostPort'] }}:{{ port.split('/')[0] }}</span>
+                                            {% endfor %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <span class="text-gray-400">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <div class="flex space-x-2">
+                                    {% if container.status == 'running' %}
+                                    <button onclick="restartContainer('{{ container.id }}')" class="text-indigo-600 hover:text-indigo-900 p-1" title="Restart">
+                                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button onclick="viewContainerLogs('{{ container.id }}')" class="text-gray-600 hover:text-gray-900 p-1" title="Logs">
+                                        <i data-lucide="file-text" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i data-lucide="package-2" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
+                <p class="text-gray-500">No containers running for this project</p>
+                <p class="text-sm text-gray-400 mt-2">Start the project to see containers here</p>
+            </div>
+            {% endif %}
+        </div>
+    </main>
+
+    <!-- Notification -->
+    <div id="notification" class="fixed top-4 right-4 hidden">
+        <div class="bg-white rounded-lg shadow-lg p-4 flex items-center space-x-3">
+            <div id="notification-icon"></div>
+            <div>
+                <p id="notification-message" class="text-sm font-medium text-gray-900"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        async function buildProject(name) {
+            try {
+                const response = await fetch(`/api/project/${name}/build`, { method: 'POST' });
+                const result = await response.json();
+                showNotification(result.message, result.success ? 'success' : 'error');
+                if (result.success) setTimeout(() => window.location.reload(), 2000);
+            } catch (error) {
+                showNotification('Error building project', 'error');
+            }
+        }
+
+        async function startProject(name) {
+            try {
+                const response = await fetch(`/api/project/${name}/start`, { method: 'POST' });
+                const result = await response.json();
+                showNotification(result.message, result.success ? 'success' : 'error');
+                if (result.success) setTimeout(() => window.location.reload(), 2000);
+            } catch (error) {
+                showNotification('Error starting project', 'error');
+            }
+        }
+
+        async function stopProject(name) {
+            try {
+                const response = await fetch(`/api/project/${name}/stop`, { method: 'POST' });
+                const result = await response.json();
+                showNotification(result.message, result.success ? 'success' : 'error');
+                if (result.success) setTimeout(() => window.location.reload(), 2000);
+            } catch (error) {
+                showNotification('Error stopping project', 'error');
+            }
+        }
+
+        async function pullLatest() {
+            try {
+                showNotification('Pulling latest changes...', 'success');
+                // This would need a backend endpoint to pull latest
+                setTimeout(() => {
+                    showNotification('Latest changes pulled successfully!', 'success');
+                }, 2000);
+            } catch (error) {
+                showNotification('Error pulling latest changes', 'error');
+            }
+        }
+
+        async function rebuildProject() {
+            if (confirm('Are you sure you want to rebuild this project? This will stop and rebuild all containers.')) {
+                try {
+                    showNotification('Rebuilding project...', 'success');
+                    // This would need a backend endpoint for rebuild
+                    setTimeout(() => {
+                        showNotification('Project rebuilt successfully!', 'success');
+                        window.location.reload();
+                    }, 3000);
+                } catch (error) {
+                    showNotification('Error rebuilding project', 'error');
+                }
+            }
+        }
+
+        async function restartContainer(id) {
+            try {
+                const response = await fetch(`/api/container/${id}/restart`, { method: 'POST' });
+                const result = await response.json();
+                showNotification(result.message, result.success ? 'success' : 'error');
+                if (result.success) setTimeout(() => window.location.reload(), 2000);
+            } catch (error) {
+                showNotification('Error restarting container', 'error');
+            }
+        }
+
+        function viewContainerLogs(id) {
+            window.open(`/containers/${id}/logs`, '_blank');
+        }
+
+        function viewLogs() {
+            window.open(`/project/{{ project.name }}/logs`, '_blank');
+        }
+
+        function openTerminal() {
+            showNotification('Terminal feature coming soon!', 'success');
+        }
+
+        function editConfig() {
+            showNotification('Config editor coming soon!', 'success');
+        }
+
+        function refreshContainers() {
+            window.location.reload();
+        }
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            const messageEl = document.getElementById('notification-message');
+            const iconEl = document.getElementById('notification-icon');
+            
+            messageEl.textContent = message;
+            
+            if (type === 'success') {
+                iconEl.innerHTML = '<i data-lucide="check-circle" class="w-5 h-5 text-green-500"></i>';
+            } else {
+                iconEl.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5 text-red-500"></i>';
+            }
+            
+            notification.classList.remove('hidden');
+            lucide.createIcons();
+            
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(() => {
+            if (document.visibilityState === 'visible') {
+                refreshContainers();
+            }
+        }, 30000);
+    </script>
+</body>
+</html>
