@@ -3526,3 +3526,54 @@ For more help on how to use Docker, head to https://docs.docker.com/go/guides/
     at Socket.emit (node:events:529:35)
     at Pipe.<anonymous> (node:net:350:12)
 2026-02-07T19:17:39.140Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:39 +0000] "GET /api/containers/581b335e849c/stats HTTP/1.1" 500 44 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:41.168Z [ERROR]: Error fetching stats for container 2e2f1b70a642: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:41.174Z [ERROR]: Error getting stats for container 2e2f1b70a642: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:41.182Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:41 +0000] "GET /api/containers/2e2f1b70a642/stats HTTP/1.1" 500 44 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:42.226Z [ERROR]: Error fetching stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:17:42.226Z [ERROR]: Error getting stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:17:42.228Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:42 +0000] "GET /api/containers/ad33baf17146/stats HTTP/1.1" 500 84 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:44.237Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:44.238Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:44.239Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:44 +0000] "GET /api/containers/f0497d474e9c/stats HTTP/1.1" 500 44 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:46.207Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:46 +0000] "GET /api/ai/optimization/history HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:50.823Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:50 +0000] "GET /api/multi-cloud/providers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:50.825Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:50 +0000] "GET /api/multi-cloud/instances HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:50.829Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:50 +0000] "GET /api/multi-cloud/metrics HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:58.025Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:58 +0000] "GET /api/security/scans HTTP/1.1" 404 142 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:58.028Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:58 +0000] "GET /api/security/alerts?limit=100 HTTP/1.1" 404 142 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:58.030Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:58 +0000] "GET /api/security/policies HTTP/1.1" 404 142 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:58.031Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:58 +0000] "GET /api/security/metrics HTTP/1.1" 404 142 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:17:58.024Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/app/dist/public/index.html'\nError: ENOENT: no such file or directory, stat '/app/dist/public/index.html'
+2026-02-07T19:17:58.031Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/app/dist/public/index.html'\nError: ENOENT: no such file or directory, stat '/app/dist/public/index.html'
+2026-02-07T19:17:58.028Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/app/dist/public/index.html'\nError: ENOENT: no such file or directory, stat '/app/dist/public/index.html'
+2026-02-07T19:17:58.029Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/app/dist/public/index.html'\nError: ENOENT: no such file or directory, stat '/app/dist/public/index.html'
+2026-02-07T19:17:58.265Z [INFO]: 127.0.0.1 - - [07/Feb/2026:19:17:58 +0000] "GET /health HTTP/1.1" 200 142 "-" "curl/8.14.1"
+2026-02-07T19:17:59.614Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:17:59 +0000] "GET /api/settings HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:18:01.619Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:18:01 +0000] "GET /api/terminal/sessions HTTP/1.1" 200 26 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:18:01.653Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:18:01 +0000] "GET /api/containers HTTP/1.1" 304 - "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:18:01.658Z [INFO]: Created terminal session 38e42ec7-2c40-4c63-b00e-b9d54998c3dc for container 87a802bbb764
+2026-02-07T19:18:01.659Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:18:01 +0000] "POST /api/terminal/87a802bbb764/session HTTP/1.1" 200 76 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:18:01.661Z [INFO]: 146.75.122.132 - - [07/Feb/2026:19:18:01 +0000] "GET /api/terminal/sessions HTTP/1.1" 200 195 "http://localhost:3000/" "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36"
+2026-02-07T19:18:28.313Z [INFO]: 127.0.0.1 - - [07/Feb/2026:19:18:28 +0000] "GET /health HTTP/1.1" 200 142 "-" "curl/8.14.1"

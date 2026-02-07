@@ -2418,3 +2418,35 @@ For more help on how to use Docker, head to https://docs.docker.com/go/guides/
     at Socket.socketCloseListener (node:_http_client:474:25)
     at Socket.emit (node:events:529:35)
     at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:41.168Z [ERROR]: Error fetching stats for container 2e2f1b70a642: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:41.174Z [ERROR]: Error getting stats for container 2e2f1b70a642: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:42.226Z [ERROR]: Error fetching stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:17:42.226Z [ERROR]: Error getting stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:17:44.237Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:44.238Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:58.024Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/app/dist/public/index.html'\nError: ENOENT: no such file or directory, stat '/app/dist/public/index.html'
+2026-02-07T19:17:58.028Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/app/dist/public/index.html'\nError: ENOENT: no such file or directory, stat '/app/dist/public/index.html'
+2026-02-07T19:17:58.029Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/app/dist/public/index.html'\nError: ENOENT: no such file or directory, stat '/app/dist/public/index.html'
+2026-02-07T19:17:58.031Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/app/dist/public/index.html'\nError: ENOENT: no such file or directory, stat '/app/dist/public/index.html'
