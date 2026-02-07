@@ -1,15 +1,15 @@
-import { v4 as uuidv4 } from 'uuid';
-import { spawn } from 'child_process';
-import { WebSocket } from 'ws';
-import { AppConfig, TerminalSession } from '../types';
-import { Logger } from '../utils/logger';
+import { v4 as uuidv4 } from "uuid";
+import { spawn } from "child_process";
+import { WebSocket } from "ws";
+import { AppConfig, TerminalSession } from "../types";
+import { Logger } from "../utils/logger";
 
 export class TerminalService {
   private config: AppConfig;
   private logger: Logger;
   private sessions: Map<string, TerminalSession> = new Map();
   private wsServer: any = null;
-  private isRunning: boolean = false;
+  private _isRunning: boolean = false;
 
   constructor(config: AppConfig, logger: Logger) {
     this.config = config;
@@ -17,29 +17,29 @@ export class TerminalService {
   }
 
   public start(): void {
-    if (this.isRunning) {
-      this.logger.warn('Terminal service already running');
+    if (this._isRunning) {
+      this.logger.warn("Terminal service already running");
       return;
     }
 
     try {
       // Create WebSocket server for terminal connections
       this.wsServer = new WebSocket.Server({ port: 0 });
-      
-      this.wsServer.on('connection', this.handleWebSocketConnection.bind(this));
-      this.wsServer.on('error', (error) => {
-        this.logger.error('WebSocket server error:', error);
+
+      this.wsServer.on("connection", this.handleWebSocketConnection.bind(this));
+      this.wsServer.on("error", (error) => {
+        this.logger.error("WebSocket server error:", error);
       });
 
-      this.isRunning = true;
-      this.logger.info('Terminal service started');
+      this._isRunning = true;
+      this.logger.info("Terminal service started");
     } catch (error) {
-      this.logger.error('Failed to start terminal service:', error);
+      this.logger.error("Failed to start terminal service:", error);
     }
   }
 
   public stop(): void {
-    if (!this.isRunning) {
+    if (!this._isRunning) {
       return;
     }
 
@@ -50,54 +50,113 @@ export class TerminalService {
           session.socket.close();
         }
       }
-      
+
       // Clear sessions
       this.sessions.clear();
-      
+
       // Close WebSocket server
       if (this.wsServer) {
         this.wsServer.close();
         this.wsServer = null;
       }
-      
-      this.isRunning = false;
-      this.logger.info('Terminal service stopped');
+
+      this._isRunning = false;
+      this.logger.info("Terminal service stopped");
     } catch (error) {
-      this.logger.error('Error stopping terminal service:', error);
+      this.logger.error("Error stopping terminal service:", error);
     }
   }
 
   public isRunning(): boolean {
-    return this.isRunning;
+    return this._isRunning;
   }
 
   public createSession(containerId: string, userId?: string): string {
     try {
       const sessionId = uuidv4();
-      
+
       const session: TerminalSession = {
         id: sessionId,
         containerId,
         socket: null,
         createdAt: new Date(),
         lastActivity: new Date(),
-        userId
+        userId,
       };
-      
+
       this.sessions.set(sessionId, session);
-      
+
       // Clean up old sessions
       this.cleanupOldSessions();
-      
-      this.logger.info(`Created terminal session ${sessionId} for container ${containerId}`);
+
+      this.logger.info(
+        `Created terminal session ${sessionId} for container ${containerId}`,
+      );
       return sessionId;
     } catch (error) {
-      this.logger.error('Error creating terminal session:', error);
+      this.logger.error("Error creating terminal session:", error);
       throw error;
     }
   }
 
-  public async connectToContainer(sessionId: string, socket: WebSocket): Promise<void> {
+  public getSessions(): TerminalSession[] {
+    return Array.from(this.sessions.values());
+  }
+
+  public async executeCommand(
+    sessionId: string,
+    command: string,
+  ): Promise<{ output?: string; error?: string }> {
+    const session = this.sessions.get(sessionId);
+    if (!session) {
+      throw new Error(`Session ${sessionId} not found`);
+    }
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error("Command timeout"));
+      }, 30000);
+
+      const cleanup = () => clearTimeout(timeout);
+
+      if (session.socket && session.socket.readyState === WebSocket.OPEN) {
+        session.socket.send(
+          JSON.stringify({
+            type: "command",
+            command,
+            timestamp: new Date().toISOString(),
+          }),
+        );
+
+        const messageHandler = (data: any) => {
+          try {
+            const message = JSON.parse(data.toString());
+            if (message.type === "output" || message.type === "error") {
+              cleanup();
+              resolve(message);
+            }
+          } catch (error) {
+            cleanup();
+            reject(error);
+          }
+        };
+
+        session.socket.once("message", messageHandler);
+        session.socket.on("error", (error) => {
+          cleanup();
+          reject(error);
+        });
+      } else {
+        cleanup();
+        reject(new Error(`Session ${sessionId} is not connected`));
+      }
+    });
+  }
+
+  public async connectToContainer(
+    sessionId: string,
+    socket: WebSocket,
+  ): Promise<void> {
     const session = this.sessions.get(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
@@ -105,35 +164,34 @@ export class TerminalService {
 
     try {
       session.socket = socket;
-      
+
       // Create pty process for terminal
-      const ptyProcess = spawn('docker', [
-        'exec',
-        '-it',
-        session.containerId,
-        '/bin/bash'
-      ], {
-        stdio: 'inherit',
-        env: {
-          ...process.env,
-          TERM: 'xterm-256color'
-        }
-      });
+      const ptyProcess = spawn(
+        "docker",
+        ["exec", "-it", session.containerId, "/bin/bash"],
+        {
+          stdio: "inherit",
+          env: {
+            ...process.env,
+            TERM: "xterm-256color",
+          },
+        },
+      );
 
       // Handle pty output
-      ptyProcess.stdout?.on('data', (data) => {
+      ptyProcess.stdout?.on("data", (data) => {
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(data.toString());
         }
       });
 
-      ptyProcess.stderr?.on('data', (data) => {
+      ptyProcess.stderr?.on("data", (data) => {
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(data.toString());
         }
       });
 
-      ptyProcess.on('close', (code) => {
+      ptyProcess.on("close", (code) => {
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(`\r\n[Process exited with code ${code}]\r\n`);
           socket.close();
@@ -141,7 +199,7 @@ export class TerminalService {
         this.sessions.delete(sessionId);
       });
 
-      ptyProcess.on('error', (error) => {
+      ptyProcess.on("error", (error) => {
         this.logger.error(`Terminal session error: ${error}`);
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(`\r\n[Error: ${error.message}]\r\n`);
@@ -151,7 +209,7 @@ export class TerminalService {
       });
 
       // Handle socket input
-      socket.on('message', (data) => {
+      socket.on("message", (data) => {
         if (ptyProcess.stdin) {
           ptyProcess.stdin.write(data);
         }
@@ -159,16 +217,20 @@ export class TerminalService {
       });
 
       // Handle socket close
-      socket.on('close', () => {
+      socket.on("close", () => {
         ptyProcess.kill();
         this.sessions.delete(sessionId);
       });
 
       session.lastActivity = new Date();
-      this.logger.info(`Terminal session ${sessionId} connected to container ${session.containerId}`);
-      
+      this.logger.info(
+        `Terminal session ${sessionId} connected to container ${session.containerId}`,
+      );
     } catch (error) {
-      this.logger.error(`Error connecting to container ${session.containerId}:`, error);
+      this.logger.error(
+        `Error connecting to container ${session.containerId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -177,13 +239,9 @@ export class TerminalService {
     return this.sessions.get(sessionId);
   }
 
-  public getSessions(): TerminalSession[] {
-    return Array.from(this.sessions.values());
-  }
-
   public getSessionByContainer(containerId: string): TerminalSession[] {
     return Array.from(this.sessions.values()).filter(
-      session => session.containerId === containerId
+      (session) => session.containerId === containerId,
     );
   }
 
@@ -213,36 +271,38 @@ export class TerminalService {
   }
 
   private handleWebSocketConnection(ws: WebSocket): void {
-    this.logger.info('New WebSocket connection to terminal service');
-    
-    ws.on('message', (data) => {
+    this.logger.info("New WebSocket connection to terminal service");
+
+    ws.on("message", (data) => {
       try {
         const message = JSON.parse(data.toString());
-        
+
         switch (message.type) {
-          case 'connect':
+          case "connect":
             this.handleConnectRequest(ws, message);
             break;
-          case 'command':
+          case "command":
             this.handleCommandRequest(ws, message);
             break;
-          case 'resize':
+          case "resize":
             this.handleResizeRequest(ws, message);
             break;
           default:
             this.logger.warn(`Unknown message type: ${message.type}`);
         }
       } catch (error) {
-        this.logger.error('Error handling WebSocket message:', error);
-        ws.send(JSON.stringify({
-          type: 'error',
-          message: error.message
-        }));
+        this.logger.error("Error handling WebSocket message:", error);
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: error.message,
+          }),
+        );
       }
     });
 
-    ws.on('close', () => {
-      this.logger.info('WebSocket connection closed');
+    ws.on("close", () => {
+      this.logger.info("WebSocket connection closed");
     });
   }
 
@@ -250,105 +310,124 @@ export class TerminalService {
     try {
       const { containerId, userId } = message.data;
       const sessionId = this.createSession(containerId, userId);
-      
+
       // Create WebSocket connection to terminal
       const terminalWs = new WebSocket(`ws://localhost:0`);
-      
-      terminalWs.on('open', () => {
+
+      terminalWs.on("open", () => {
         this.connectToContainer(sessionId, terminalWs)
           .then(() => {
-            ws.send(JSON.stringify({
-              type: 'connected',
-              data: { sessionId }
-            }));
+            ws.send(
+              JSON.stringify({
+                type: "connected",
+                data: { sessionId },
+              }),
+            );
           })
           .catch((error) => {
-            this.logger.error('Failed to connect to terminal:', error);
-            ws.send(JSON.stringify({
-              type: 'error',
-              message: error.message
-            }));
+            this.logger.error("Failed to connect to terminal:", error);
+            ws.send(
+              JSON.stringify({
+                type: "error",
+                message: error.message,
+              }),
+            );
           });
       });
 
-      terminalWs.on('error', (error) => {
-        this.logger.error('Terminal WebSocket error:', error);
-        ws.send(JSON.stringify({
-          type: 'error',
-          message: error.message
-        }));
+      terminalWs.on("error", (error) => {
+        this.logger.error("Terminal WebSocket error:", error);
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: error.message,
+          }),
+        );
       });
 
-      terminalWs.on('close', () => {
+      terminalWs.on("close", () => {
         this.sessions.delete(sessionId);
       });
-
     } catch (error) {
-      this.logger.error('Error handling connect request:', error);
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: error.message
-      }));
+      this.logger.error("Error handling connect request:", error);
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          message: error.message,
+        }),
+      );
     }
   }
 
   private handleCommandRequest(ws: WebSocket, message: any): void {
     try {
       const { sessionId, command } = message.data;
-      
+
       this.sendCommand(sessionId, command)
         .then(() => {
-          ws.send(JSON.stringify({
-            type: 'command_sent',
-            data: { sessionId }
-          }));
+          ws.send(
+            JSON.stringify({
+              type: "command_sent",
+              data: { sessionId },
+            }),
+          );
         })
         .catch((error) => {
-          ws.send(JSON.stringify({
-            type: 'error',
-            message: error.message
-          }));
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: error.message,
+            }),
+          );
         });
     } catch (error) {
-      this.logger.error('Error handling command request:', error);
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: error.message
-      }));
+      this.logger.error("Error handling command request:", error);
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          message: error.message,
+        }),
+      );
     }
   }
 
   private handleResizeRequest(ws: WebSocket, message: any): void {
     try {
       const { sessionId, cols, rows } = message.data;
-      
+
       // Send resize command to terminal
       this.sendCommand(sessionId, `\x1b[8;${rows};${cols}t`)
         .then(() => {
-          ws.send(JSON.stringify({
-            type: 'resized',
-            data: { sessionId }
-          }));
+          ws.send(
+            JSON.stringify({
+              type: "resized",
+              data: { sessionId },
+            }),
+          );
         })
         .catch((error) => {
-          ws.send(JSON.stringify({
-            type: 'error',
-            message: error.message
-          }));
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              message: error.message,
+            }),
+          );
         });
     } catch (error) {
-      this.logger.error('Error handling resize request:', error);
-      ws.send(JSON.stringify({
-        type: 'error',
-        message: error.message
-      }));
+      this.logger.error("Error handling resize request:", error);
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          message: error.message,
+        }),
+      );
     }
   }
 
   private cleanupOldSessions(): void {
     const now = new Date();
     const timeout = this.config.terminalTimeout;
-    
+
     for (const [sessionId, session] of this.sessions.entries()) {
       if (now.getTime() - session.lastActivity.getTime() > timeout) {
         this.closeSession(sessionId);
@@ -360,10 +439,11 @@ export class TerminalService {
     return {
       total: this.sessions.size,
       active: Array.from(this.sessions.values()).filter(
-        session => session.socket && session.socket.readyState === WebSocket.OPEN
+        (session) =>
+          session.socket && session.socket.readyState === WebSocket.OPEN,
       ).length,
       maxSessions: this.config.maxTerminalSessions,
-      timeout: this.config.terminalTimeout
+      timeout: this.config.terminalTimeout,
     };
   }
 }

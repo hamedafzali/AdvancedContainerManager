@@ -1,18 +1,184 @@
-import Docker from 'dockerode';
-import { ContainerInfo, SystemMetrics, ContainerMetrics, DockerConnectionConfig, ImageInfo, NetworkInfo, VolumeInfo, ProcessInfo } from '../types';
-import { AppConfig } from '../types';
-import { Logger } from '../utils/logger';
+import Docker from "dockerode";
+import {
+  ContainerInfo,
+  SystemMetrics,
+  ContainerMetrics,
+  DockerConnectionConfig,
+  ImageInfo,
+  NetworkInfo,
+  VolumeInfo,
+  ProcessInfo,
+} from "../types";
+import { AppConfig } from "../types";
+import { Logger } from "../utils/logger";
 
 export class DockerService {
   private docker: Docker;
   private config: DockerConnectionConfig;
   private logger: Logger;
-  private isConnected: boolean = false;
+  private _isConnected: boolean = false;
+  private containerCache: Map<string, ContainerInfo> = new Map();
+  private metricsCache: Map<string, ContainerMetrics> = new Map();
+  private cacheTimeout: number = 30000; // 30 seconds
+  private performanceMode: boolean = true;
+  private batchOperations: boolean = true;
 
   constructor(config: AppConfig, logger: Logger) {
     this.config = config.docker;
     this.logger = logger;
     this.initializeDocker();
+    this.startCacheCleanup();
+  }
+
+  private startCacheCleanup(): void {
+    setInterval(() => {
+      this.cleanupCache();
+    }, this.cacheTimeout);
+  }
+
+  private cleanupCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.containerCache.entries()) {
+      if (now - new Date(value.created || "").getTime() > this.cacheTimeout) {
+        this.containerCache.delete(key);
+      }
+    }
+    for (const [key, value] of this.metricsCache.entries()) {
+      if (now - new Date(value.timestamp).getTime() > this.cacheTimeout) {
+        this.metricsCache.delete(key);
+      }
+    }
+  }
+
+  public setPerformanceMode(enabled: boolean): void {
+    this.performanceMode = enabled;
+    this.logger.info(`Performance mode ${enabled ? "enabled" : "disabled"}`);
+  }
+
+  public setBatchOperations(enabled: boolean): void {
+    this.batchOperations = enabled;
+    this.logger.info(`Batch operations ${enabled ? "enabled" : "disabled"}`);
+  }
+
+  public async getContainersWithCache(): Promise<ContainerInfo[]> {
+    if (this.performanceMode) {
+      const cached = Array.from(this.containerCache.values());
+      if (cached.length > 0) {
+        return cached;
+      }
+    }
+
+    const containers = await this.getAllContainers();
+    containers.forEach((container) => {
+      this.containerCache.set(container.id, container);
+    });
+    return containers;
+  }
+
+  public async getContainerMetricsWithCache(
+    containerId: string,
+  ): Promise<ContainerMetrics> {
+    if (this.performanceMode) {
+      const cached = this.metricsCache.get(containerId);
+      if (
+        cached &&
+        Date.now() - new Date(cached.timestamp).getTime() < this.cacheTimeout
+      ) {
+        return cached;
+      }
+    }
+
+    const metrics = await this.getContainerStats(containerId);
+    this.metricsCache.set(containerId, metrics);
+    return metrics;
+  }
+
+  public async batchContainerOperations(
+    operations: Array<{ id: string; action: string }>,
+  ): Promise<void> {
+    if (!this.batchOperations) {
+      for (const op of operations) {
+        await this.performContainerAction(op.id, op.action);
+      }
+      return;
+    }
+
+    const promises = operations.map((op) =>
+      this.performContainerAction(op.id, op.action),
+    );
+    await Promise.allSettled(promises);
+  }
+
+  private async performContainerAction(
+    containerId: string,
+    action: string,
+  ): Promise<void> {
+    const container = this.docker.getContainer(containerId);
+    switch (action) {
+      case "start":
+        await container.start();
+        break;
+      case "stop":
+        await container.stop();
+        break;
+      case "restart":
+        await container.restart();
+        break;
+      case "pause":
+        await container.pause();
+        break;
+      case "unpause":
+        await container.unpause();
+        break;
+    }
+  }
+
+  public async getAdvancedContainerStats(containerId: string): Promise<any> {
+    const container = this.docker.getContainer(containerId);
+    const stats = await container.stats({ stream: false });
+
+    return {
+      id: containerId,
+      cpu: {
+        usage: stats.cpu_stats.cpu_usage.total_usage,
+        system: stats.cpu_stats.system_cpu_usage,
+        percent: this.calculateCPUPercent(stats),
+      },
+      memory: {
+        usage: stats.memory_stats.usage,
+        limit: stats.memory_stats.limit,
+        percent: (stats.memory_stats.usage / stats.memory_stats.limit) * 100,
+      },
+      network: {
+        rx_bytes: stats.networks?.rx_bytes || 0,
+        tx_bytes: stats.networks?.tx_bytes || 0,
+        rx_packets: stats.networks?.rx_packets || 0,
+        tx_packets: stats.networks?.tx_packets || 0,
+      },
+      block_io: {
+        read:
+          stats.blkio_stats?.io_service_bytes_recursive?.find(
+            (b: any) => b.op === "Read",
+          )?.value || 0,
+        write:
+          stats.blkio_stats?.io_service_bytes_recursive?.find(
+            (b: any) => b.op === "Write",
+          )?.value || 0,
+      },
+      pids: stats.pids_stats?.current || 0,
+      timestamp: new Date().toISOString(),
+    };
+  }
+
+  private calculateCPUPercent(stats: any): number {
+    const cpuDelta =
+      stats.cpu_stats.cpu_usage.total_usage -
+      stats.precpu_stats.cpu_usage.total_usage;
+    const systemDelta =
+      stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+    const cpuPercent =
+      (cpuDelta / systemDelta) * stats.cpu_stats.online_cpus * 100;
+    return Math.round(cpuPercent * 100) / 100;
   }
 
   private initializeDocker(): void {
@@ -33,37 +199,39 @@ export class DockerService {
       if (this.config.timeout) options.timeout = this.config.timeout;
 
       this.docker = new Docker(options);
-      this.isConnected = true;
-      this.logger.info('Docker service initialized successfully');
+      this._isConnected = true;
+      this.logger.info("Docker service initialized successfully");
     } catch (error) {
-      this.logger.error('Failed to initialize Docker service:', error);
-      this.isConnected = false;
+      this.logger.error("Failed to initialize Docker service:", error);
+      this._isConnected = false;
     }
   }
 
   async testConnection(): Promise<void> {
     try {
       await this.docker.ping();
-      this.isConnected = true;
-      this.logger.info('Docker connection test successful');
+      this._isConnected = true;
+      this.logger.info("Docker connection test successful");
     } catch (error) {
-      this.isConnected = false;
-      this.logger.error('Docker connection test failed:', error);
+      this._isConnected = false;
+      this.logger.error("Docker connection test failed:", error);
       throw error;
     }
   }
 
   isConnected(): boolean {
-    return this.isConnected;
+    return this._isConnected;
   }
 
   // Container Management
   async getAllContainers(): Promise<ContainerInfo[]> {
     try {
       const containers = await this.docker.listContainers({ all: true });
-      return containers.map(container => this.formatContainerInfo(container));
+      return (containers || [])
+        .filter((container) => container && (container.Id || container.id))
+        .map((container) => this.formatContainerInfo(container));
     } catch (error) {
-      this.logger.error('Error fetching containers:', error);
+      this.logger.error("Error fetching containers:", error);
       throw error;
     }
   }
@@ -112,7 +280,10 @@ export class DockerService {
     }
   }
 
-  async removeContainer(containerId: string, force: boolean = false): Promise<void> {
+  async removeContainer(
+    containerId: string,
+    force: boolean = false,
+  ): Promise<void> {
     try {
       const container = await this.docker.getContainer(containerId);
       await container.remove({ force });
@@ -123,14 +294,17 @@ export class DockerService {
     }
   }
 
-  async getContainerLogs(containerId: string, options: {
-    tail?: number;
-    since?: Date;
-    until?: Date;
-    timestamps?: boolean;
-    stdout?: boolean;
-    stderr?: boolean;
-  } = {}): Promise<string> {
+  async getContainerLogs(
+    containerId: string,
+    options: {
+      tail?: number;
+      since?: Date;
+      until?: Date;
+      timestamps?: boolean;
+      stdout?: boolean;
+      stderr?: boolean;
+    } = {},
+  ): Promise<string> {
     try {
       const container = await this.docker.getContainer(containerId);
       const logs = await container.logs({
@@ -139,11 +313,14 @@ export class DockerService {
         until: options.until,
         timestamps: options.timestamps !== false,
         stdout: options.stdout !== false,
-        stderr: options.stderr !== false
+        stderr: options.stderr !== false,
       });
       return logs.toString();
     } catch (error) {
-      this.logger.error(`Error fetching logs for container ${containerId}:`, error);
+      this.logger.error(
+        `Error fetching logs for container ${containerId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -152,21 +329,29 @@ export class DockerService {
     try {
       const container = await this.docker.getContainer(containerId);
       const stats = await container.stats({ stream: false });
-      
+
       // Calculate CPU usage
       let cpuUsage = 0;
       if (stats.cpu_stats.cpu_usage.total_usage > 0) {
-        const cpuDelta = stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
-        const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+        const cpuDelta =
+          stats.cpu_stats.cpu_usage.total_usage -
+          stats.precpu_stats.cpu_usage.total_usage;
+        const systemDelta =
+          stats.cpu_stats.system_cpu_usage -
+          stats.precpu_stats.system_cpu_usage;
         if (systemDelta > 0) {
-          cpuUsage = (cpuDelta / systemDelta) * stats.cpu_stats.cpu_usage.percpu_usage.length * 100;
+          cpuUsage =
+            (cpuDelta / systemDelta) *
+            stats.cpu_stats.cpu_usage.percpu_usage.length *
+            100;
         }
       }
 
       // Calculate memory usage
       let memoryUsage = 0;
       if (stats.memory_stats.limit > 0) {
-        memoryUsage = (stats.memory_stats.usage / stats.memory_stats.limit) * 100;
+        memoryUsage =
+          (stats.memory_stats.usage / stats.memory_stats.limit) * 100;
       }
 
       // Network I/O
@@ -174,8 +359,9 @@ export class DockerService {
       let networkTx = 0;
       if (stats.networks) {
         for (const network of Object.values(stats.networks)) {
-          networkRx += network.rx_bytes;
-          networkTx += network.tx_bytes;
+          const netData = network as any;
+          networkRx += netData.rx_bytes || 0;
+          networkTx += netData.tx_bytes || 0;
         }
       }
 
@@ -188,10 +374,13 @@ export class DockerService {
         networkRx,
         networkTx,
         blockRead: stats.blkio_stats.read_bytes || 0,
-        blockWrite: stats.blkio_stats.write_bytes || 0
+        blockWrite: stats.blkio_stats.write_bytes || 0,
       };
     } catch (error) {
-      this.logger.error(`Error fetching stats for container ${containerId}:`, error);
+      this.logger.error(
+        `Error fetching stats for container ${containerId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -200,7 +389,7 @@ export class DockerService {
     try {
       const container = await this.docker.getContainer(containerId);
       const top = await container.top();
-      
+
       const processes: ProcessInfo[] = [];
       if (top && top.Processes) {
         for (const process of top.Processes) {
@@ -210,14 +399,17 @@ export class DockerService {
             time: process.TIME,
             command: process.COMMAND,
             cpu: process.CPU,
-            memory: process.MEM
+            memory: process.MEM,
           });
         }
       }
-      
+
       return processes;
     } catch (error) {
-      this.logger.error(`Error fetching processes for container ${containerId}:`, error);
+      this.logger.error(
+        `Error fetching processes for container ${containerId}:`,
+        error,
+      );
       throw error;
     }
   }
@@ -226,9 +418,9 @@ export class DockerService {
   async getAllImages(): Promise<ImageInfo[]> {
     try {
       const images = await this.docker.listImages();
-      return images.map(image => this.formatImageInfo(image));
+      return images.map((image) => this.formatImageInfo(image));
     } catch (error) {
-      this.logger.error('Error fetching images:', error);
+      this.logger.error("Error fetching images:", error);
       throw error;
     }
   }
@@ -257,9 +449,9 @@ export class DockerService {
   async getAllNetworks(): Promise<NetworkInfo[]> {
     try {
       const networks = await this.docker.listNetworks();
-      return networks.map(network => this.formatNetworkInfo(network));
+      return networks.map((network) => this.formatNetworkInfo(network));
     } catch (error) {
-      this.logger.error('Error fetching networks:', error);
+      this.logger.error("Error fetching networks:", error);
       throw error;
     }
   }
@@ -288,9 +480,13 @@ export class DockerService {
   async getAllVolumes(): Promise<VolumeInfo[]> {
     try {
       const volumes = await this.docker.listVolumes();
-      return volumes.map(volume => this.formatVolumeInfo(volume));
+      // Docker API returns {Volumes: [...], Warnings: [...]}
+      const volumeList = volumes.Volumes || volumes;
+      return Array.isArray(volumeList)
+        ? volumeList.map((volume) => this.formatVolumeInfo(volume))
+        : [];
     } catch (error) {
-      this.logger.error('Error fetching volumes:', error);
+      this.logger.error("Error fetching volumes:", error);
       throw error;
     }
   }
@@ -320,7 +516,7 @@ export class DockerService {
     try {
       return await this.docker.info();
     } catch (error) {
-      this.logger.error('Error fetching system info:', error);
+      this.logger.error("Error fetching system info:", error);
       throw error;
     }
   }
@@ -329,42 +525,70 @@ export class DockerService {
     try {
       return await this.docker.version();
     } catch (error) {
-      this.logger.error('Error fetching Docker version:', error);
+      this.logger.error("Error fetching Docker version:", error);
       throw error;
     }
   }
 
   // Private helper methods
   private formatContainerInfo(container: any): ContainerInfo {
+    const rawStatus =
+      typeof container?.State === "string"
+        ? container.State
+        : container?.State?.Status || container?.Status;
+    const normalizedStatus = this.normalizeContainerStatus(rawStatus);
+
     return {
-      id: container.Id.substring(0, 12),
-      name: container.Name,
-      status: container.State.Status,
-      image: container.Config.Image,
-      created: container.Created,
-      startedAt: container.State.StartedAt,
-      finishedAt: container.State.FinishedAt,
-      exitCode: container.State.ExitCode,
-      ports: container.NetworkSettings.Ports || {},
-      mountPoints: container.Mounts || [],
-      networks: container.NetworkSettings.Networks || {},
-      labels: container.Config.Labels || {},
-      env: container.Config.Env || [],
-      cmd: container.Config.Cmd || [],
-      entrypoint: container.Config.Entrypoint || [],
-      workingDir: container.Config.WorkingDir || '',
-      restartPolicy: container.HostConfig.RestartPolicy || {},
+      id: (container?.Id || container?.id || "unknown").substring(0, 12),
+      name:
+        container?.Names?.[0] ||
+        container?.Name ||
+        container?.name ||
+        "unknown",
+      status: (normalizedStatus as ContainerInfo["status"]) || "created",
+      image: container?.Image || container?.Config?.Image || "unknown",
+      created:
+        container?.Created ||
+        container?.CreatedAt ||
+        new Date().toISOString(),
+      startedAt: container?.State?.StartedAt || "",
+      finishedAt: container?.State?.FinishedAt || "",
+      exitCode: container?.State?.ExitCode || 0,
+      ports: container?.Ports || {},
+      mountPoints: container?.Mounts || [],
+      networks: container?.NetworkSettings?.Networks || {},
+      labels: container?.Labels || container?.Config?.Labels || {},
+      env: container?.Env || container?.Config?.Env || [],
+      cmd: container?.Cmd || container?.Config?.Cmd || [],
+      entrypoint: container?.Entrypoint || container?.Config?.Entrypoint || [],
+      workingDir: container?.WorkingDir || container?.Config?.WorkingDir || "",
+      restartPolicy: container?.HostConfig?.RestartPolicy || {},
       resources: {
-        memoryLimit: container.HostConfig.Memory || 0,
-        cpuShares: container.HostConfig.CpuShares || 0,
-        cpuQuota: container.HostConfig.CpuQuota || 0,
-        cpuPeriod: container.HostConfig.CpuPeriod || 0
+        memoryLimit: container?.HostConfig?.Memory || 0,
+        cpuShares: container?.HostConfig?.CpuShares || 0,
+        cpuQuota: container?.HostConfig?.CpuQuota || 0,
+        cpuPeriod: container?.HostConfig?.CpuPeriod || 0,
       },
-      health: container.State.Health || {},
-      logPath: container.LogPath || '',
-      driver: container.Driver || '',
-      execIds: []
+      health: container?.State?.Health || {},
+      logPath: container?.LogPath || "",
+      driver: container?.Driver || "",
+      execIds: [],
     };
+  }
+
+  private normalizeContainerStatus(status?: string): ContainerInfo["status"] {
+    if (!status) {
+      return "created";
+    }
+    const lower = status.toLowerCase();
+    if (lower.includes("up") || lower.includes("running")) return "running";
+    if (lower.includes("exited") || lower.includes("stopped")) return "exited";
+    if (lower.includes("paused")) return "paused";
+    if (lower.includes("restarting")) return "restarting";
+    if (lower.includes("dead")) return "dead";
+    if (lower.includes("removing")) return "removing";
+    if (lower.includes("created")) return "created";
+    return "created";
   }
 
   private formatImageInfo(image: any): ImageInfo {
@@ -372,8 +596,8 @@ export class DockerService {
       id: image.Id.substring(0, 12),
       tags: image.RepoTags || [],
       size: image.Size || 0,
-      created: image.Created || '',
-      labels: image.Labels || {}
+      created: image.Created || "",
+      labels: image.Labels || {},
     };
   }
 
@@ -382,23 +606,23 @@ export class DockerService {
       id: network.Id.substring(0, 12),
       name: network.Name,
       driver: network.Driver,
-      scope: network.Scope || 'local',
+      scope: network.Scope || "local",
       containers: Object.keys(network.Containers || {}).length,
-      created: network.Created || '',
+      created: network.Created || "",
       internal: network.Internal || false,
       enableIPv6: network.EnableIPv6 || false,
-      IPAM: network.IPAM || { Driver: '', Options: {}, Config: [] }
+      IPAM: network.IPAM || { Driver: "", Options: {}, Config: [] },
     };
   }
 
   private formatVolumeInfo(volume: any): VolumeInfo {
     return {
       name: volume.Name,
-      driver: volume.Driver || 'local',
-      mountpoint: volume.Mountpoint || '',
-      created: volume.CreatedAt || '',
+      driver: volume.Driver || "local",
+      mountpoint: volume.Mountpoint || "",
+      created: volume.CreatedAt || "",
       labels: volume.Labels || {},
-      usage: volume.UsageData || { Size: 0, RefCount: 0 }
+      usage: volume.UsageData || { Size: 0, RefCount: 0 },
     };
   }
 }

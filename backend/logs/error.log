@@ -1,0 +1,929 @@
+2026-02-05T17:42:34.473Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:34.474Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:39.427Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:39.428Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:44.458Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:44.458Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:49.459Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:49.459Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:54.481Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:42:54.481Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:376:31)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:49
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/services/docker-service.ts:73:25)
+    at processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/routes/index.ts:93:28
+2026-02-05T17:43:04.512Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:04.513Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:09.430Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:09.430Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:14.280Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:14.280Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:14.303Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:14.303Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:14.574Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:14.574Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:15.566Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:15.566Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:15.623Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:15.623Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:15.649Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:15.649Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:15.808Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:15.808Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:19.251Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:19.251Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:20.054Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:20.054Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:20.096Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:20.096Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:25.174Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:25.175Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:25.202Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:25.202Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:25.916Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:25.916Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:25.947Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:25.947Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:27.857Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:27.857Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:27.932Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:27.932Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:32.870Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:32.870Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:37.880Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:37.880Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:42.851Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:42.851Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:47.899Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:47.899Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:48.128Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:48.129Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:52.882Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:52.882Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:57.854Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:43:57.855Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:02.853Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:02.854Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:07.854Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:07.854Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:12.851Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:12.852Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:15.562Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:15.562Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:15.615Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:15.615Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:15.636Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:15.636Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:17.863Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:17.863Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:22.882Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:22.882Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:27.852Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:27.852Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:32.851Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:32.851Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:38.027Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:38.028Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:42.926Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:42.926Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:47.876Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:47.876Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:52.855Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:52.856Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:57.861Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:44:57.861Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:02.915Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:02.916Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:06.571Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:06.571Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:07.884Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:07.885Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:12.885Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:12.885Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:15.610Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:15.611Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:15.704Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:15.704Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:15.740Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:15.740Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:17.881Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:17.881Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:22.912Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:22.912Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:27.890Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:27.890Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:32.890Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:32.890Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:37.918Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:37.918Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:42.995Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:42.995Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:47.918Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:47.918Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:52.940Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:52.940Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:57.933Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:45:57.933Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:46:02.896Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:46:02.896Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:46:07.917Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:46:07.917Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:46:12.934Z [ERROR]: Error fetching containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:46:12.934Z [ERROR]: Error getting containers: Cannot read properties of undefined (reading 'Image')\nTypeError: Cannot read properties of undefined (reading 'Image')
+    at DockerService.formatContainerInfo (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:336:37)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:55
+    at Array.map (<anonymous>)
+    at DockerService.getAllContainers (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:63:31)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:73:32
+2026-02-05T17:48:20.122Z [ERROR]: Error adding project test-project: Cloning into '/tmp/advanced_manager_projects/test-project'...
+fatal: Remote branch main not found in upstream origin
+\nError: Cloning into '/tmp/advanced_manager_projects/test-project'...
+fatal: Remote branch main not found in upstream origin
+
+    at Object.action (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1433:25)
+    at PluginStore.exec (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1482:29)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1901:43
+    at new Promise (<anonymous>)
+    at GitExecutorChain.handleTaskData (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1899:16)
+    at GitExecutorChain.attemptRemoteTask (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1886:42)
+    at async GitExecutorChain.attemptTask (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1858:18)
+2026-02-05T17:48:20.123Z [ERROR]: Error adding project: Cloning into '/tmp/advanced_manager_projects/test-project'...
+fatal: Remote branch main not found in upstream origin
+\nError: Cloning into '/tmp/advanced_manager_projects/test-project'...
+fatal: Remote branch main not found in upstream origin
+
+    at Object.action (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1433:25)
+    at PluginStore.exec (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1482:29)
+    at /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1901:43
+    at new Promise (<anonymous>)
+    at GitExecutorChain.handleTaskData (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1899:16)
+    at GitExecutorChain.attemptRemoteTask (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1886:42)
+    at async GitExecutorChain.attemptTask (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/node_modules/simple-git/dist/cjs/index.js:1858:18)
+2026-02-05T17:53:36.989Z [ERROR]: Error fetching volumes: volumes.map is not a function\nTypeError: volumes.map is not a function
+    at DockerService.getAllVolumes (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:284:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:328:29
+2026-02-05T17:53:36.989Z [ERROR]: Error getting volumes: volumes.map is not a function\nTypeError: volumes.map is not a function
+    at DockerService.getAllVolumes (/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/services/docker-service.js:284:28)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async /Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/dist/routes/index.js:328:29
+2026-02-07T17:42:54.981Z [ERROR]: Application Error: ENOENT: no such file or directory, stat '/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/public/index.html'\nError: ENOENT: no such file or directory, stat '/Users/hamed.afzali/Desktop/Repos/AdvancedContainerManager/backend/src/public/index.html'

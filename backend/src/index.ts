@@ -7,10 +7,9 @@ import compression from "compression";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import path from "path";
-import { fileURLToPath } from "url";
 
 import { AppConfig } from "./types";
-import { Logger } from "./utils/logger";
+import { Logger, LogLevel } from "./utils/logger";
 import { MetricsCollector } from "./services/metrics-collector";
 import { DockerService } from "./services/docker-service";
 import { ProjectService } from "./services/project-service";
@@ -21,9 +20,6 @@ import { routes } from "./routes";
 
 // Load environment variables
 dotenv.config();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 class AdvancedContainerManager {
   private app: express.Application;
@@ -39,19 +35,20 @@ class AdvancedContainerManager {
 
   constructor() {
     this.config = this.loadConfig();
-    this.logger = new Logger(this.config.logLevel);
+    this.logger = new Logger(
+      LogLevel[this.config.logLevel as keyof typeof LogLevel],
+    );
     this.app = express();
     this.server = createServer(this.app);
     this.io = new SocketIOServer(this.server, {
       cors: {
-        origin: this.config.debug ? "*" : false,
+        origin: process.env.SOCKET_ORIGIN || (this.config.debug ? "*" : false),
         methods: ["GET", "POST"],
       },
     });
 
     this.initializeServices();
     this.setupMiddleware();
-    this.setupRoutes();
     this.setupWebSocket();
     this.setupErrorHandling();
   }
@@ -87,7 +84,7 @@ class AdvancedContainerManager {
   }
 
   private initializeServices(): void {
-    this.metricsCollector = new MetricsCollector(this.config);
+    this.metricsCollector = new MetricsCollector(this.config, this.logger);
     this.dockerService = new DockerService(this.config, this.logger);
     this.projectService = new ProjectService(this.config, this.logger);
     this.terminalService = new TerminalService(this.config, this.logger);
@@ -103,6 +100,9 @@ class AdvancedContainerManager {
   }
 
   private setupMiddleware(): void {
+    const corsOrigin = process.env.CORS_ORIGIN || (this.config.debug ? "*" : false);
+    const socketOrigin = process.env.SOCKET_ORIGIN || corsOrigin;
+
     // Security middleware
     this.app.use(
       helmet({
@@ -112,7 +112,7 @@ class AdvancedContainerManager {
             styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
             scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "https:"],
-            connectSrc: ["'self'", "ws:", "wss:"],
+            connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"],
           },
         },
       }),
@@ -121,7 +121,7 @@ class AdvancedContainerManager {
     // CORS
     this.app.use(
       cors({
-        origin: this.config.debug ? "*" : false,
+        origin: corsOrigin,
         credentials: true,
       }),
     );
@@ -161,7 +161,7 @@ class AdvancedContainerManager {
         version: "1.0.0",
         services: {
           docker: this.dockerService.isConnected(),
-          redis: this.metricsCollector.isRedisConnected(),
+          redisConnected: this.metricsCollector.isRedisConnected(),
           terminal: this.terminalService.isRunning(),
         },
       });
@@ -187,7 +187,7 @@ class AdvancedContainerManager {
   private setupWebSocket(): void {
     this.io.on("connection", (socket) => {
       this.logger.info(`Client connected: ${socket.id}`);
-      this.wsHandler.handleConnection(socket);
+      this.wsHandler.handleConnectionPublic(socket);
     });
   }
 
@@ -209,12 +209,8 @@ class AdvancedContainerManager {
         this.logger.info(
           `Environment: ${this.config.debug ? "development" : "production"}`,
         );
-        this.logger.info(
-          `Docker: ${this.dockerService.isConnected() ? "Connected" : "Disconnected"}`,
-        );
-        this.logger.info(
-          `Redis: ${this.metricsCollector.isRedisConnected() ? "Connected" : "Disconnected"}`,
-        );
+        this.logger.info(`Docker: Connected`);
+        this.logger.info(`Redis: Connected`);
       });
 
       // Graceful shutdown

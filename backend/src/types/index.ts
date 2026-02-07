@@ -1,13 +1,20 @@
 export interface ContainerInfo {
   id: string;
   name: string;
-  status: 'running' | 'exited' | 'paused' | 'restarting' | 'dead' | 'created' | 'removing';
+  status:
+    | "running"
+    | "exited"
+    | "paused"
+    | "restarting"
+    | "dead"
+    | "created"
+    | "removing";
   image: string;
   created: string;
   startedAt?: string;
   finishedAt?: string;
   exitCode?: number;
-  ports: Record<string, Array<{HostPort: string; HostIp: string}>>;
+  ports: Record<string, Array<{ HostPort: string; HostIp: string }>>;
   mountPoints: Array<{
     Name: string;
     Source: string;
@@ -16,12 +23,15 @@ export interface ContainerInfo {
     Mode: string;
     RW: boolean;
   }>;
-  networks: Record<string, {
-    IPAMConfig: Array<{
-      IPv4Address: string;
-      IPv6Address?: string;
-    }>;
-  }>;
+  networks: Record<
+    string,
+    {
+      IPAMConfig: Array<{
+        IPv4Address: string;
+        IPv6Address?: string;
+      }>;
+    }
+  >;
   labels: Record<string, string>;
   env: string[];
   cmd: string[];
@@ -68,6 +78,7 @@ export interface SystemMetrics {
     packetsSent: number;
   };
   loadAverage: number[];
+  uptime: number;
 }
 
 export interface ContainerMetrics {
@@ -91,7 +102,7 @@ export interface ProjectInfo {
   composeFile: string;
   environmentVars: Record<string, string>;
   containers: string[];
-  status: 'configured' | 'building' | 'built' | 'running' | 'stopped' | 'error';
+  status: "configured" | "building" | "built" | "running" | "stopped" | "error";
   createdAt: string;
   lastUpdated: string;
   buildHistory: Array<{
@@ -108,7 +119,7 @@ export interface ProjectInfo {
   }>;
   healthChecks: Array<{
     timestamp: string;
-    status: 'healthy' | 'unhealthy' | 'unknown';
+    status: "healthy" | "unhealthy" | "unknown";
     issues: string[];
   }>;
   autoRestart: boolean;
@@ -119,7 +130,7 @@ export interface ProjectInfo {
 }
 
 export interface ProjectHealth {
-  overall: 'healthy' | 'unhealthy' | 'no_containers' | 'error';
+  overall: "healthy" | "unhealthy" | "no_containers" | "error";
   containers: Array<{
     name: string;
     status: string;
@@ -139,16 +150,10 @@ export interface TerminalSession {
   userId?: string;
 }
 
-export interface CompressionLevel {
-  HIGH: 'high';
-  MEDIUM: 'medium';
-  LOW: 'low';
-}
-
 export interface CompressionSettings {
-  [CompressionLevel.HIGH]: 95;
-  [CompressionLevel.MEDIUM]: 85;
-  [CompressionLevel.LOW]: 70;
+  high: 95;
+  medium: 85;
+  low: 70;
 }
 
 export interface ApiResponse<T = any> {
@@ -187,7 +192,7 @@ export interface AppConfig {
   port: number;
   host: string;
   debug: boolean;
-  logLevel: 'error' | 'warn' | 'info' | 'debug';
+  logLevel: "error" | "warn" | "info" | "debug";
   docker: DockerConnectionConfig;
   redis: RedisConfig;
   projectsDir: string;
@@ -250,7 +255,7 @@ export interface ProcessInfo {
 
 export interface LogEntry {
   timestamp: string;
-  level: 'info' | 'warn' | 'error' | 'debug';
+  level: "info" | "warn" | "error" | "debug";
   message: string;
   container?: string;
 }
@@ -265,13 +270,13 @@ export interface UserSession {
 }
 
 export enum CompressionLevel {
-  HIGH = 'high',
-  MEDIUM = 'medium',
-  LOW = 'low'
+  HIGH = "high",
+  MEDIUM = "medium",
+  LOW = "low",
 }
 
 export const COMPRESSION_QUALITY: Record<CompressionLevel, number> = {
   [CompressionLevel.HIGH]: 95,
   [CompressionLevel.MEDIUM]: 85,
-  [CompressionLevel.LOW]: 70
+  [CompressionLevel.LOW]: 70,
 };

@@ -1,34 +1,55 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  # Frontend service
+  frontend:
+    build:
+      context: .
+      target: frontend-builder
+      args:
+        VITE_API_BASE: "http://localhost:5003"
+        VITE_SOCKET_URL: "http://localhost:5003"
+    container_name: advanced-manager-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    working_dir: /app/frontend
+    command:
+      ["npm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]
+    environment:
+      - NODE_ENV=production
+
   advanced-container-manager:
     build: .
     container_name: advanced-container-manager
     restart: unless-stopped
+    user: "0:0"
     ports:
       - "5003:5003"
     environment:
       - NODE_ENV=production
       - PORT=5003
       - HOST=0.0.0.0
-      - DEBUG_MODE=false
+      - DEBUG=true
+      - CORS_ORIGIN=http://localhost:3000
+      - SOCKET_ORIGIN=http://localhost:3000
       - LOG_LEVEL=info
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      - REDIS_HOST=localhost
+      - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
       - PROJECTS_DIR=/tmp/advanced_manager_projects
       - CONFIG_PATH=/tmp/advanced_manager_config.json
+      - DOCKER_SOCKET_PATH=/var/run/docker.sock
       - WEBSOCKET_TIMEOUT=300000
       - TERMINAL_TIMEOUT=3600000
       - MAX_TERMINAL_SESSIONS=100
       - METRICS_INTERVAL=5000
       - METRICS_RETENTION=24
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /tmp/advanced_manager_projects:/app/projects
-      - /tmp/advanced_manager_config.json:/app/config
+      - /tmp/advanced_manager_projects:/tmp/advanced_manager_projects
+      - /tmp/advanced_manager_config.json:/tmp/advanced_manager_config.json
       - ./logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
       interval: 30s

@@ -3,17 +3,29 @@
 # Stage 1: Build frontend
 FROM node:18-alpine AS frontend-builder
 WORKDIR /app/frontend
+ARG VITE_API_BASE
+ARG VITE_SOCKET_URL
+ENV VITE_API_BASE=$VITE_API_BASE
+ENV VITE_SOCKET_URL=$VITE_SOCKET_URL
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build backend
 FROM node:18-alpine AS backend-builder
 WORKDIR /app/backend
+RUN apk add --no-cache \
+    python3 \
+    python3-dev \
+    py3-pip \
+    make \
+    g++ \
+    && ln -sf python3 /usr/bin/python
 COPY backend/package*.json ./
-RUN npm ci
+RUN npm install
 COPY backend/ ./
+# Build TypeScript to JavaScript
 RUN npm run build
 
 # Stage 3: Production image
@@ -29,9 +41,11 @@ RUN apk add --no-cache \
     g++ \
     docker \
     docker-cli \
+    docker-compose \
     curl \
     bash \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/cache/apk/* \
+    && ln -sf python3 /usr/bin/python
 
 WORKDIR /app
 
@@ -51,6 +65,9 @@ RUN addgroup -S appuser && \
     adduser -S -G appuser appuser && \
     chown -R appuser:appuser /app && \
     chmod 755 /app
+
+# Set ts-node environment variables
+ENV TS_NODE_COMPILER_OPTIONS="{\"module\":\"commonjs\",\"moduleResolution\":\"node\",\"target\":\"ES2020\",\"esModuleInterop\":true}"
 
 # Switch to non-root user
 USER appuser
