@@ -116,6 +116,8 @@ export interface ProjectInfo {
     status: string;
     containerIds: string[];
     error?: string;
+    output?: string;
+    command?: string;
   }>;
   healthChecks: Array<{
     timestamp: string;

@@ -520,6 +520,23 @@ function routes(dockerService, projectService, terminalService, metricsCollector
             });
         }
     }));
+    router.get("/projects/:name/logs", (0, error_handler_1.asyncHandler)(async (req, res) => {
+        try {
+            const tail = req.query.tail ? parseInt(req.query.tail) : 200;
+            const logs = await projectService.getProjectLogs(req.params.name, tail);
+            res.json({
+                success: true,
+                data: logs,
+            });
+        }
+        catch (error) {
+            logger.error(`Error getting project logs for ${req.params.name}:`, error);
+            res.status(500).json({
+                success: false,
+                message: error.message,
+            });
+        }
+    }));
     router.get("/projects/summary", (0, error_handler_1.asyncHandler)(async (req, res) => {
         try {
             const summary = projectService.getProjectsSummary();

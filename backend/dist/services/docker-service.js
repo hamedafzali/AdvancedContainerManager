@@ -183,7 +183,9 @@ class DockerService {
     async getAllContainers() {
         try {
             const containers = await this.docker.listContainers({ all: true });
-            return containers.map((container) => this.formatContainerInfo(container));
+            return (containers || [])
+                .filter((container) => container && (container.Id || container.id))
+                .map((container) => this.formatContainerInfo(container));
         }
         catch (error) {
             this.logger.error("Error fetching containers:", error);
@@ -456,35 +458,65 @@ class DockerService {
     }
     // Private helper methods
     formatContainerInfo(container) {
+        const rawStatus = typeof container?.State === "string"
+            ? container.State
+            : container?.State?.Status || container?.Status;
+        const normalizedStatus = this.normalizeContainerStatus(rawStatus);
         return {
-            id: container.Id.substring(0, 12),
-            name: container.Names?.[0] || container.Name || "unknown",
-            status: container.State?.Status || "unknown",
-            image: container.Image || "unknown",
-            created: container.Created || new Date().toISOString(),
-            startedAt: container.State?.StartedAt || "",
-            finishedAt: container.State?.FinishedAt || "",
-            exitCode: container.State?.ExitCode || 0,
-            ports: container.Ports || {},
-            mountPoints: container.Mounts || [],
-            networks: container.NetworkSettings?.Networks || {},
-            labels: container.Labels || {},
-            env: container.Env || [],
-            cmd: container.Cmd || [],
-            entrypoint: container.Entrypoint || [],
-            workingDir: container.WorkingDir || "",
-            restartPolicy: container.HostConfig?.RestartPolicy || {},
+            id: (container?.Id || container?.id || "unknown").substring(0, 12),
+            name: container?.Names?.[0] ||
+                container?.Name ||
+                container?.name ||
+                "unknown",
+            status: normalizedStatus || "created",
+            image: container?.Image || container?.Config?.Image || "unknown",
+            created: container?.Created ||
+                container?.CreatedAt ||
+                new Date().toISOString(),
+            startedAt: container?.State?.StartedAt || "",
+            finishedAt: container?.State?.FinishedAt || "",
+            exitCode: container?.State?.ExitCode || 0,
+            ports: container?.Ports || {},
+            mountPoints: container?.Mounts || [],
+            networks: container?.NetworkSettings?.Networks || {},
+            labels: container?.Labels || container?.Config?.Labels || {},
+            env: container?.Env || container?.Config?.Env || [],
+            cmd: container?.Cmd || container?.Config?.Cmd || [],
+            entrypoint: container?.Entrypoint || container?.Config?.Entrypoint || [],
+            workingDir: container?.WorkingDir || container?.Config?.WorkingDir || "",
+            restartPolicy: container?.HostConfig?.RestartPolicy || {},
             resources: {
-                memoryLimit: container.HostConfig?.Memory || 0,
-                cpuShares: container.HostConfig?.CpuShares || 0,
-                cpuQuota: container.HostConfig?.CpuQuota || 0,
-                cpuPeriod: container.HostConfig?.CpuPeriod || 0,
+                memoryLimit: container?.HostConfig?.Memory || 0,
+                cpuShares: container?.HostConfig?.CpuShares || 0,
+                cpuQuota: container?.HostConfig?.CpuQuota || 0,
+                cpuPeriod: container?.HostConfig?.CpuPeriod || 0,
             },
-            health: container.State?.Health || {},
-            logPath: container.LogPath || "",
-            driver: container.Driver || "",
+            health: container?.State?.Health || {},
+            logPath: container?.LogPath || "",
+            driver: container?.Driver || "",
             execIds: [],
         };
+    }
+    normalizeContainerStatus(status) {
+        if (!status) {
+            return "created";
+        }
+        const lower = status.toLowerCase();
+        if (lower.includes("up") || lower.includes("running"))
+            return "running";
+        if (lower.includes("exited") || lower.includes("stopped"))
+            return "exited";
+        if (lower.includes("paused"))
+            return "paused";
+        if (lower.includes("restarting"))
+            return "restarting";
+        if (lower.includes("dead"))
+            return "dead";
+        if (lower.includes("removing"))
+            return "removing";
+        if (lower.includes("created"))
+            return "created";
+        return "created";
     }
     formatImageInfo(image) {
         return {

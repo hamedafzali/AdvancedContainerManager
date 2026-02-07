@@ -45,6 +45,7 @@ export default function Containers() {
   );
   const [logs, setLogs] = useState<string[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
 
   // Debouncing ref to prevent excessive API calls
@@ -55,16 +56,29 @@ export default function Containers() {
   const fetchLogs = async (containerId: string) => {
     try {
       setLogsLoading(true);
+      setLogsError(null);
       const response = await fetch(
         apiUrl(`/api/containers/${containerId}/logs`),
       );
+      const text = await response.text();
       if (!response.ok) {
-        throw new Error("Failed to fetch logs");
+        throw new Error(text || "Failed to fetch logs");
       }
-      const result = await response.json();
-      setLogs(result.data || []);
+
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        parsed = null;
+      }
+
+      if (parsed && parsed.data) {
+        setLogs(parsed.data);
+      } else {
+        setLogs(text.split("\n"));
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch logs");
+      setLogsError(err instanceof Error ? err.message : "Failed to fetch logs");
     } finally {
       setLogsLoading(false);
     }
@@ -104,11 +118,20 @@ export default function Containers() {
     fetchTimeoutRef.current = setTimeout(async () => {
       try {
         setLoading(true);
-        const response = await fetch(apiUrl("/api/containers"));
-        if (!response.ok) {
-          throw new Error("Failed to fetch containers");
-        }
-        const result = await response.json();
+      const response = await fetch(apiUrl("/api/containers"));
+      const text = await response.text();
+      if (!response.ok) {
+        throw new Error(text || "Failed to fetch containers");
+      }
+
+      let result: any = null;
+      try {
+        result = JSON.parse(text);
+      } catch (parseError) {
+        throw new Error(
+          `Invalid JSON from /api/containers. First 200 chars: ${text.slice(0, 200)}`,
+        );
+      }
         const data = result.data;
 
         // Transform backend data to frontend format
@@ -137,26 +160,33 @@ export default function Containers() {
 
         for (const container of runningContainers) {
           try {
-            const statsResponse = await fetch(
-              apiUrl(`/api/containers/${container.id}/stats`),
-            );
-            if (statsResponse.ok) {
-              const stats = await statsResponse.json();
-              // Update container with real stats
-              setContainers((prev) =>
-                prev.map((c: Container) =>
-                  c.id === container.id
-                    ? {
-                        ...c,
-                        cpu: stats.cpuPercent || 0,
-                        memory:
-                          Math.round((stats.memoryUsage / 1024 / 1024) * 100) /
-                          100,
-                      }
-                    : c,
-                ),
-              );
+          const statsResponse = await fetch(
+            apiUrl(`/api/containers/${container.id}/stats`),
+          );
+          if (statsResponse.ok) {
+            const statsText = await statsResponse.text();
+            let statsResult: any = null;
+            try {
+              statsResult = JSON.parse(statsText);
+            } catch {
+              continue;
             }
+            const stats = statsResult.data || statsResult;
+            // Update container with real stats
+            setContainers((prev) =>
+              prev.map((c: Container) =>
+                c.id === container.id
+                  ? {
+                      ...c,
+                      cpu: stats.cpuPercent || 0,
+                      memory:
+                        Math.round((stats.memoryUsage / 1024 / 1024) * 100) /
+                        100,
+                    }
+                  : c,
+              ),
+            );
+          }
           } catch (statsError) {
             console.error(
               `Failed to fetch stats for container ${container.id}:`,
@@ -670,6 +700,11 @@ export default function Containers() {
                 <div className="flex items-center justify-center py-12">
                   <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
                   <span className="text-gray-600">Loading logs...</span>
+                </div>
+              ) : logsError ? (
+                <div className="flex items-center justify-center py-12 text-red-600">
+                  <Terminal className="w-8 h-8 mr-3" />
+                  <span>{logsError}</span>
                 </div>
               ) : logs.length > 0 ? (
                 <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-gray-300">

@@ -75,58 +75,8 @@ Basic health check endpoint.
 ### GET /health/detailed
 Detailed system health information.
 
-**Response:**
-```json
-{
-  "success": true,
-  "data": {
-    "status": "healthy",
-    "checks": [...],
-    "uptime": 3600000,
-    "version": "1.0.0",
-    "timestamp": "2026-02-05T18:00:00.000Z",
-    "system": {
-      "platform": "linux",
-      "arch": "x64",
-      "hostname": "server-01",
-      "nodeVersion": "v18.17.0",
-      "dockerVersion": "Docker version 24.0.0",
-      "memory": {
-        "total": 8192,
-        "free": 4096,
-        "used": 4096
-      },
-      "disk": {
-        "total": "100G",
-        "used": "50G",
-        "free": "50G"
-      }
-    }
-  }
-}
-```
-
 ### GET /health/check/:checkName
 Check specific component health.
-
-**Parameters:**
-- `checkName` (string): Component name (docker, redis, disk, memory, load, database, websocket)
-
-**Response:**
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "name": "docker",
-      "status": "healthy",
-      "message": "Docker daemon is running",
-      "timestamp": "2026-02-05T18:00:00.000Z",
-      "responseTime": 45
-    }
-  ]
-}
-```
 
 ## System Metrics
 
@@ -678,9 +628,30 @@ Delete a project.
 }
 ```
 
+### GET /api/projects/:name/logs
+Get recent logs for all containers in a project (via Docker Compose).
+
+**Query Parameters:**
+- `tail` (number, optional): Number of lines per container (default: 200)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "containerId": "abc123",
+      "logs": "..."
+    }
+  ]
+}
+```
+
 ---
 
 # Terminal Endpoints
+
+> Note: Terminal execution is non-interactive. Commands are executed via `docker exec` and return output/error.
 
 ## Create Terminal Session
 

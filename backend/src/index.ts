@@ -15,6 +15,7 @@ import { DockerService } from "./services/docker-service";
 import { ProjectService } from "./services/project-service";
 import { TerminalService } from "./services/terminal-service";
 import { WebSocketHandler } from "./services/websocket-handler";
+import { HealthService } from "./services/health-service";
 import { errorHandler } from "./middleware/error-handler";
 import { routes } from "./routes";
 
@@ -32,6 +33,7 @@ class AdvancedContainerManager {
   private projectService: ProjectService;
   private terminalService: TerminalService;
   private wsHandler: WebSocketHandler;
+  private healthService: HealthService;
 
   constructor() {
     this.config = this.loadConfig();
@@ -88,6 +90,7 @@ class AdvancedContainerManager {
     this.dockerService = new DockerService(this.config, this.logger);
     this.projectService = new ProjectService(this.config, this.logger);
     this.terminalService = new TerminalService(this.config, this.logger);
+    this.healthService = new HealthService(this.logger);
     this.wsHandler = new WebSocketHandler(
       this.io,
       this.metricsCollector,
@@ -100,7 +103,8 @@ class AdvancedContainerManager {
   }
 
   private setupMiddleware(): void {
-    const corsOrigin = process.env.CORS_ORIGIN || (this.config.debug ? "*" : false);
+    const corsOrigin =
+      process.env.CORS_ORIGIN || (this.config.debug ? "*" : false);
     const socketOrigin = process.env.SOCKET_ORIGIN || corsOrigin;
 
     // Security middleware
@@ -155,33 +159,32 @@ class AdvancedContainerManager {
 
     // Health check
     this.app.get("/health", (req, res) => {
-      res.json({
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        version: "1.0.0",
-        services: {
-          docker: this.dockerService.isConnected(),
-          redisConnected: this.metricsCollector.isRedisConnected(),
-          terminal: this.terminalService.isRunning(),
-        },
-      });
+      this.healthService
+        .getHealthStatus()
+        .then((health) => res.json({ success: true, data: health }))
+        .catch((error) =>
+          res.status(500).json({ success: false, message: error.message }),
+        );
     });
 
-    // API routes
-    this.app.use(
-      "/api",
-      routes(
-        this.dockerService,
-        this.projectService,
-        this.terminalService,
-        this.metricsCollector,
-      ),
-    );
-
-    // Serve frontend (SPA)
-    this.app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "public", "index.html"));
+    this.app.get("/health/detailed", (req, res) => {
+      this.healthService
+        .getDetailedHealth()
+        .then((health) => res.json({ success: true, data: health }))
+        .catch((error) =>
+          res.status(500).json({ success: false, message: error.message }),
+        );
     });
+
+    this.app.get("/health/check/:checkName", (req, res) => {
+      this.healthService
+        .runHealthCheck(req.params.checkName)
+        .then((checks) => res.json({ success: true, data: checks }))
+        .catch((error) =>
+          res.status(500).json({ success: false, message: error.message }),
+        );
+    });
+
   }
 
   private setupWebSocket(): void {

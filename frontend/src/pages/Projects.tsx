@@ -66,6 +66,9 @@ export default function Projects() {
   const [projectLogs, setProjectLogs] = useState<
     Array<{ containerId: string; logs: string }>
   >([]);
+  const [showDeployLogs, setShowDeployLogs] = useState(false);
+  const [deployLogs, setDeployLogs] = useState<string>("");
+  const [deployLogsTitle, setDeployLogsTitle] = useState<string>("");
   const [newProject, setNewProject] = useState({
     name: "",
     repository: "",
@@ -78,10 +81,10 @@ export default function Projects() {
     try {
       setLoading(true);
       const response = await fetch(apiUrl("/api/projects"));
-      if (!response.ok) {
-        throw new Error("Failed to fetch projects");
-      }
       const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Failed to fetch projects");
+      }
       setProjects(result.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch projects");
@@ -121,8 +124,9 @@ export default function Projects() {
         }),
       });
 
+      const result = await response.json();
       if (!response.ok) {
-        throw new Error("Failed to add project");
+        throw new Error(result?.message || "Failed to add project");
       }
 
       await fetchProjects();
@@ -178,8 +182,9 @@ export default function Projects() {
         },
       );
 
+      const result = await response.json();
       if (!response.ok) {
-        throw new Error("Failed to build project");
+        throw new Error(result?.message || "Failed to build project");
       }
 
       await fetchProjects();
@@ -191,6 +196,9 @@ export default function Projects() {
   // Deploy project
   const handleDeployProject = async (projectName: string) => {
     try {
+      setDeployLogs("");
+      setDeployLogsTitle(`Deploy Logs: ${projectName}`);
+      setShowDeployLogs(true);
       const response = await fetch(
         apiUrl(`/api/projects/${projectName}/deploy`),
         {
@@ -198,13 +206,22 @@ export default function Projects() {
         },
       );
 
+      const result = await response.json();
       if (!response.ok) {
-        throw new Error("Failed to deploy project");
+        throw new Error(result?.message || "Failed to deploy project");
       }
 
+      const output = result?.data?.output || "(no output)";
+      const command = result?.data?.command
+        ? `Command: ${result.data.command}`
+        : "";
+      setDeployLogs(`${command}\n${output}`.trim());
       await fetchProjects();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to deploy project");
+      const message =
+        err instanceof Error ? err.message : "Failed to deploy project";
+      setError(message);
+      setDeployLogs(message);
     }
   };
 
@@ -218,8 +235,9 @@ export default function Projects() {
         },
       );
 
+      const result = await response.json();
       if (!response.ok) {
-        throw new Error("Failed to stop project");
+        throw new Error(result?.message || "Failed to stop project");
       }
 
       await fetchProjects();
@@ -232,10 +250,10 @@ export default function Projects() {
     try {
       setLogsLoading(true);
       const response = await fetch(apiUrl(`/api/projects/${projectName}/logs`));
-      if (!response.ok) {
-        throw new Error("Failed to fetch project logs");
-      }
       const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Failed to fetch project logs");
+      }
       setProjectLogs(result.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch logs");
@@ -261,8 +279,9 @@ export default function Projects() {
         method: "DELETE",
       });
 
+      const result = await response.json();
       if (!response.ok) {
-        throw new Error("Failed to delete project");
+        throw new Error(result?.message || "Failed to delete project");
       }
 
       await fetchProjects();
@@ -702,6 +721,39 @@ export default function Projects() {
               >
                 Refresh Logs
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeployLogs && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-3xl w-full m-4">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Terminal className="w-5 h-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {deployLogsTitle}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowDeployLogs(false)}
+                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                title="Close"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[60vh] overflow-auto">
+              {deployLogs ? (
+                <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 overflow-auto whitespace-pre-wrap">
+                  {deployLogs}
+                </pre>
+              ) : (
+                <div className="text-sm text-gray-500">
+                  Deploying... please wait.
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -83,6 +83,51 @@ export class ProjectService {
     return null;
   }
 
+  private extractRequiredEnvVars(composeFile: string): string[] {
+    try {
+      const content = fs.readFileSync(composeFile, "utf8");
+      const required = new Set<string>();
+      const regex = /\$\{([A-Z0-9_]+)([^}]*)\}/gi;
+      let match: RegExpExecArray | null;
+
+      while ((match = regex.exec(content)) !== null) {
+        const name = match[1];
+        const modifier = match[2] || "";
+
+        // If modifier includes default value (:- or -) or optional substitution (:+ or +), skip.
+        const hasDefault =
+          modifier.includes(":-") || modifier.includes("-") || modifier.includes(":+") || modifier.includes("+");
+        const requiresValue = modifier.includes(":?") || modifier.startsWith("?");
+
+        if (requiresValue) {
+          required.add(name);
+          continue;
+        }
+
+        if (!hasDefault) {
+          required.add(name);
+        }
+      }
+
+      return Array.from(required);
+    } catch (error) {
+      this.logger.warn(`Failed to parse compose env vars: ${error}`);
+      return [];
+    }
+  }
+
+  private getMissingEnvVars(
+    composeFile: string,
+    envVars: Record<string, string>,
+  ): string[] {
+    const requiredVars = this.extractRequiredEnvVars(composeFile);
+    return requiredVars.filter((key) => {
+      const inProject = envVars[key] !== undefined && envVars[key] !== "";
+      const inProcess = process.env[key] !== undefined && process.env[key] !== "";
+      return !inProject && !inProcess;
+    });
+  }
+
   private runCommand(
     command: string,
     args: string[],
@@ -297,7 +342,9 @@ export class ProjectService {
     }
   }
 
-  public async deployProject(name: string): Promise<void> {
+  public async deployProject(
+    name: string,
+  ): Promise<{ containerIds: string[]; output: string; command: string }> {
     const project = this.projects.get(name);
     if (!project) {
       throw new Error(`Project ${name} not found`);
@@ -311,6 +358,16 @@ export class ProjectService {
       const composeFile = this.resolveComposeFile(project);
       if (!composeFile) {
         throw new Error("docker-compose file not found in project");
+      }
+
+      const missingEnvVars = this.getMissingEnvVars(
+        composeFile,
+        project.environmentVars || {},
+      );
+      if (missingEnvVars.length > 0) {
+        const message = `Missing required environment variables: ${missingEnvVars.join(", ")}`;
+        this.logger.error(`Deploy blocked for ${name}: ${message}`);
+        throw new Error(message);
       }
 
       this.logger.info(
@@ -359,6 +416,8 @@ export class ProjectService {
         timestamp: new Date().toISOString(),
         status: "success",
         containerIds,
+        output: upResult.stdout || upResult.stderr || "",
+        command: upResult.command,
       });
       project.containers = containerIds;
 
@@ -367,6 +426,11 @@ export class ProjectService {
       this.saveProjects();
 
       this.logger.info(`Project ${name} deployed successfully`);
+      return {
+        containerIds,
+        output: upResult.stdout || upResult.stderr || "",
+        command: upResult.command,
+      };
     } catch (error) {
       project.status = "error";
       project.lastUpdated = new Date().toISOString();
@@ -375,6 +439,7 @@ export class ProjectService {
         status: "failed",
         containerIds: [],
         error: error.message,
+        output: error.message,
       });
       this.saveProjects();
 

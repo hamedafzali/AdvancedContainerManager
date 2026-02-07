@@ -332,24 +332,29 @@ export class DockerService {
 
       // Calculate CPU usage
       let cpuUsage = 0;
-      if (stats.cpu_stats.cpu_usage.total_usage > 0) {
+      const cpuStats = stats.cpu_stats || {};
+      const preCpuStats = stats.precpu_stats || {};
+      const cpuUsageStats = cpuStats.cpu_usage || {};
+      const preCpuUsageStats = preCpuStats.cpu_usage || {};
+      const perCpu = cpuUsageStats.percpu_usage || [];
+      const cpuCount = cpuStats.online_cpus || perCpu.length || 1;
+      if (cpuUsageStats.total_usage > 0 && preCpuUsageStats.total_usage > 0) {
         const cpuDelta =
-          stats.cpu_stats.cpu_usage.total_usage -
-          stats.precpu_stats.cpu_usage.total_usage;
+          cpuUsageStats.total_usage - preCpuUsageStats.total_usage;
         const systemDelta =
-          stats.cpu_stats.system_cpu_usage -
-          stats.precpu_stats.system_cpu_usage;
+          (cpuStats.system_cpu_usage || 0) -
+          (preCpuStats.system_cpu_usage || 0);
         if (systemDelta > 0) {
           cpuUsage =
             (cpuDelta / systemDelta) *
-            stats.cpu_stats.cpu_usage.percpu_usage.length *
+            cpuCount *
             100;
         }
       }
 
       // Calculate memory usage
       let memoryUsage = 0;
-      if (stats.memory_stats.limit > 0) {
+      if (stats.memory_stats && stats.memory_stats.limit > 0) {
         memoryUsage =
           (stats.memory_stats.usage / stats.memory_stats.limit) * 100;
       }
@@ -365,16 +370,23 @@ export class DockerService {
         }
       }
 
+      const blkio = stats.blkio_stats || {};
+      const blkioEntries = blkio.io_service_bytes_recursive || [];
+      const blockRead =
+        blkioEntries.find((b: any) => b.op === "Read")?.value || 0;
+      const blockWrite =
+        blkioEntries.find((b: any) => b.op === "Write")?.value || 0;
+
       return {
         timestamp: new Date().toISOString(),
         cpuPercent: Math.round(cpuUsage * 100) / 100,
         memoryPercent: Math.round(memoryUsage * 100) / 100,
-        memoryUsage: stats.memory_stats.usage,
-        memoryLimit: stats.memory_stats.limit,
+        memoryUsage: stats.memory_stats?.usage || 0,
+        memoryLimit: stats.memory_stats?.limit || 0,
         networkRx,
         networkTx,
-        blockRead: stats.blkio_stats.read_bytes || 0,
-        blockWrite: stats.blkio_stats.write_bytes || 0,
+        blockRead,
+        blockWrite,
       };
     } catch (error) {
       this.logger.error(

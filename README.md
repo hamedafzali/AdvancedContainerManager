@@ -17,6 +17,8 @@ advanced-container-manager/
 
 ## 🎯 Features
 
+> Note: Some features listed below are partial or in progress. See **Current Limitations** for accurate status.
+
 ### ✅ **Core Docker Management**
 
 - **Container Management** - Start, stop, restart, delete, pause, unpause containers
@@ -46,10 +48,10 @@ advanced-container-manager/
 
 ### ✅ **Enterprise Features**
 
-- **Security** - Rate limiting, audit logging, request tracking
+- **Security** - Rate limiting/audit logging planned (not fully wired)
 - **Backup & Restore** - Automated backup with compression and restore
 - **Health Monitoring** - Comprehensive system health checks
-- **Production Deployment** - Docker Compose with Redis and Nginx
+- **Production Deployment** - Docker Compose with Redis (no Nginx yet)
 - **API Documentation** - Complete REST API with OpenAPI specification
 
 ### ✅ **Professional UI**
@@ -129,6 +131,13 @@ advanced-container-manager/
 - `GET /api/terminal/sessions` - List terminal sessions
 - `POST /api/terminal/sessions/:sessionId/execute` - Execute command
 - `DELETE /api/terminal/sessions/:sessionId` - Close session
+
+## ⚠️ Current Limitations
+
+- `POST /system/restart` is not implemented.
+- Terminal is non-interactive (command execution only).
+- Rate limiting and audit logging are not fully wired in code.
+- Nginx is not included in the default `docker-compose.yml`.
 
 ### Settings Management
 

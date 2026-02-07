@@ -305,13 +305,19 @@ The Projects page manages Git-based projects with Docker integration:
 
 #### Deploy Projects
 1. Click the **Rocket** button to deploy the project
-2. Containers will be created and started
-3. The project status will update to "running"
+2. Deployment uses the project's `docker-compose.yml`
+3. Containers will be created and started (if required env vars are set)
+4. The project status will update to "running"
 
 #### Stop Projects
 1. Click the **Square** button to stop the project
 2. All project containers will be stopped
 3. The project status will change to "stopped"
+
+#### Project Logs
+1. Click the **Terminal/Logs** button on a project card
+2. A modal shows logs for all containers in the project
+3. Click **Refresh Logs** to re-fetch output
 
 #### Delete Projects
 1. Click the **Trash** button
@@ -337,7 +343,7 @@ The Terminal page provides direct access to container shells:
 
 #### Features
 - **Container Selection** - Choose from running containers
-- **Real-time Output** - Live command output
+- **Real-time Output** - Live command output (non-interactive)
 - **Command History** - Navigate through previous commands
 - **Copy/Download** - Save terminal output
 - **Maximize/Minimize** - Full-screen terminal mode
@@ -346,14 +352,17 @@ The Terminal page provides direct access to container shells:
 1. Select a container from the dropdown
 2. Click **Connect** to establish the session
 3. Type commands and press Enter to execute
-4. Use arrow keys to navigate command history
-5. Click **Disconnect** when finished
+4. Output appears in the terminal (or a message if no output)
+5. Use arrow keys to navigate command history
+6. Click **Disconnect** when finished
 
 #### Terminal Commands
 - **Basic Commands** - ls, cd, pwd, cat, etc.
 - **Process Management** - ps, kill, top, etc.
 - **Network Tools** - ping, curl, wget, etc.
 - **System Tools** - apt-get, yum, apk, etc.
+
+> Note: Terminal execution is **non-interactive** and relies on `/bin/sh` or `/bin/bash` inside the container.
 
 ---
 

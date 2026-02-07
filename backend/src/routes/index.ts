@@ -577,10 +577,11 @@ export function routes(
     "/projects/:name/deploy",
     asyncHandler(async (req, res) => {
       try {
-        await projectService.deployProject(req.params.name);
+        const result = await projectService.deployProject(req.params.name);
         res.json({
           success: true,
           message: `Project ${req.params.name} deployed successfully`,
+          data: result,
         });
       } catch (error) {
         logger.error(`Error deploying project ${req.params.name}:`, error);
@@ -950,7 +951,7 @@ export function routes(
 
   // Terminal routes
   router.post(
-    "/api/terminal/:containerId/session",
+    "/terminal/:containerId/session",
     asyncHandler(async (req, res) => {
       try {
         const { containerId } = req.params;
@@ -974,7 +975,7 @@ export function routes(
   );
 
   router.get(
-    "/api/terminal/sessions",
+    "/terminal/sessions",
     asyncHandler(async (req, res) => {
       try {
         const sessions = await terminalService.getSessions();
@@ -994,7 +995,7 @@ export function routes(
   );
 
   router.post(
-    "/api/terminal/sessions/:sessionId/execute",
+    "/terminal/sessions/:sessionId/execute",
     asyncHandler(async (req, res) => {
       try {
         const { sessionId } = req.params;
@@ -1020,7 +1021,7 @@ export function routes(
   );
 
   router.delete(
-    "/api/terminal/sessions/:sessionId",
+    "/terminal/sessions/:sessionId",
     asyncHandler(async (req, res) => {
       try {
         const { sessionId } = req.params;

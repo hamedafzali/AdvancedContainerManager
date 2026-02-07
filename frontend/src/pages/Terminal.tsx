@@ -83,11 +83,6 @@ export default function Terminal() {
       }));
 
       setContainers(transformedContainers);
-
-      // Auto-select first container if none selected
-      if (!selectedContainer && transformedContainers.length > 0) {
-        setSelectedContainer(transformedContainers[0].id);
-      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch containers",
@@ -117,7 +112,7 @@ export default function Terminal() {
       const response = await fetch(
         apiUrl(`/api/terminal/${containerId}/session`),
         {
-        method: "POST",
+          method: "POST",
         },
       );
 
@@ -126,9 +121,17 @@ export default function Terminal() {
       }
 
       const result = await response.json();
-      setCurrentSession(result.data.id);
+      const sessionId =
+        result?.data?.id || result?.id || result?.data?.sessionId;
+      if (!sessionId) {
+        throw new Error("Terminal session id not returned by server");
+      }
+      setCurrentSession(sessionId);
       setIsConnected(true);
-      addLine("success", `Connected to container ${containerId}`);
+      addLine(
+        "success",
+        `Connected to container ${containerId} (session ${sessionId})`,
+      );
 
       // Refresh sessions list
       await fetchSessions();
@@ -149,7 +152,7 @@ export default function Terminal() {
       const response = await fetch(
         apiUrl(`/api/terminal/sessions/${currentSession}`),
         {
-        method: "DELETE",
+          method: "DELETE",
         },
       );
 
@@ -172,7 +175,10 @@ export default function Terminal() {
 
   // Send command
   const sendCommand = async (command: string) => {
-    if (!isConnected || !currentSession) return;
+    if (!isConnected || !currentSession) {
+      addLine("error", "No active terminal session. Click Connect first.");
+      return;
+    }
 
     addLine("input", `$ ${command}`);
     setCurrentInput("");
@@ -189,18 +195,25 @@ export default function Terminal() {
         },
       );
 
-      if (!response.ok) {
-        throw new Error("Failed to execute command");
-      }
-
       const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Failed to execute command");
+      }
+      const payload = result?.data || result;
 
-      if (result.output) {
-        addLine("output", result.output);
+      const output = payload?.output ?? "";
+      const err = payload?.error ?? "";
+
+      if (output) {
+        addLine("output", output);
       }
 
-      if (result.error) {
-        addLine("error", result.error);
+      if (err) {
+        addLine("error", err);
+      }
+
+      if (!output && !err) {
+        addLine("info", "(command completed with no output)");
       }
     } catch (err) {
       addLine(
@@ -354,13 +367,6 @@ export default function Terminal() {
     fetchSessions();
   }, []);
 
-  // Auto-connect when container is selected
-  useEffect(() => {
-    if (selectedContainer && !isConnected) {
-      createSession(selectedContainer);
-    }
-  }, [selectedContainer]);
-
   const handleCopy = () => {
     const text = lines.map((line) => line.content).join("\n");
     navigator.clipboard.writeText(text);
@@ -416,7 +422,7 @@ export default function Terminal() {
   return (
     <div className={`min-h-screen bg-gray-900 ${isMaximized ? "" : "p-4"}`}>
       <div
-        className={`bg-gray-800 rounded-lg shadow-2xl border border-gray-700 ${isMaximized ? "h-screen" : "h-96"}`}
+        className={`bg-gray-800 rounded-lg shadow-2xl border border-gray-700 ${isMaximized ? "h-screen" : "h-[70vh]"}`}
       >
         {/* Header */}
         <div className="bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
@@ -438,7 +444,8 @@ export default function Terminal() {
               <select
                 value={selectedContainer}
                 onChange={(e) => setSelectedContainer(e.target.value)}
-                className="bg-gray-800 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isConnected}
+                className="bg-gray-800 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">Select container...</option>
                 {containers
@@ -451,22 +458,20 @@ export default function Terminal() {
               </select>
 
               {selectedContainer && (
-                <>
-                  <button
-                    onClick={
-                      isConnected
-                        ? closeSession
-                        : () => createSession(selectedContainer)
-                    }
-                    className={`px-3 py-1 text-sm rounded ${
-                      isConnected
-                        ? "bg-red-600 hover:bg-red-700"
-                        : "bg-green-600 hover:bg-green-700"
-                    } text-white transition-colors duration-200`}
-                  >
-                    {isConnected ? "Disconnect" : "Connect"}
-                  </button>
-                </>
+                <button
+                  onClick={
+                    isConnected
+                      ? closeSession
+                      : () => createSession(selectedContainer)
+                  }
+                  className={`px-3 py-1 text-sm rounded ${
+                    isConnected
+                      ? "bg-red-600 hover:bg-red-700"
+                      : "bg-green-600 hover:bg-green-700"
+                  } text-white transition-colors duration-200`}
+                >
+                  {isConnected ? "Disconnect" : "Connect"}
+                </button>
               )}
             </div>
           </div>
@@ -505,10 +510,15 @@ export default function Terminal() {
           ref={terminalRef}
           className="bg-black p-4 font-mono text-sm text-green-400 overflow-auto"
           style={{
-            height: isMaximized ? "calc(100vh - 60px)" : "calc(384px - 60px)",
+            height: isMaximized ? "calc(100vh - 60px)" : "calc(70vh - 60px)",
           }}
         >
-          {lines.map((line) => (
+          {lines.length === 0 && !isConnected ? (
+            <div className="text-gray-500 text-sm">
+              Select a container and click Connect to start a session.
+            </div>
+          ) : (
+            lines.map((line) => (
             <div key={line.id} className="flex">
               <span className="text-gray-500 mr-2 text-xs">
                 {new Date(line.timestamp).toLocaleTimeString()}
@@ -527,32 +537,30 @@ export default function Terminal() {
                 {line.content}
               </span>
             </div>
-          ))}
+            ))
+          )}
 
           {/* Input Line */}
-          <div className="flex items-center">
-            <span className="text-gray-500 mr-2 text-xs">
-              {new Date().toLocaleTimeString()}
-            </span>
-            <span className="text-blue-400">$</span>
-            <input
-              ref={inputRef}
-              type="text"
-              value={currentInput}
-              onChange={(e) => setCurrentInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="flex-1 bg-transparent outline-none text-green-400"
-              placeholder={
-                isConnected
-                  ? "Enter command..."
-                  : "Connect to a container first"
-              }
-              disabled={!isConnected}
-            />
-          </div>
+          {isConnected && (
+            <div className="flex items-center">
+              <span className="text-gray-500 mr-2 text-xs">
+                {new Date().toLocaleTimeString()}
+              </span>
+              <span className="text-blue-400">$</span>
+              <input
+                ref={inputRef}
+                type="text"
+                value={currentInput}
+                onChange={(e) => setCurrentInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="flex-1 bg-transparent outline-none text-green-400"
+                placeholder="Enter command..."
+              />
+            </div>
+          )}
 
           {/* Command Suggestions */}
-          {showSuggestions && commandSuggestions.length > 0 && (
+          {isConnected && showSuggestions && commandSuggestions.length > 0 && (
             <div className="absolute bottom-full left-0 mb-2 bg-gray-800 border border-gray-600 rounded-lg shadow-xl max-h-48 overflow-y-auto">
               {commandSuggestions.map((suggestion, index) => (
                 <div

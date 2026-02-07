@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.ProjectService = void 0;
 const fs = __importStar(require("fs"));
 const path = __importStar(require("path"));
+const child_process_1 = require("child_process");
 const simple_git_1 = require("simple-git");
 class ProjectService {
     constructor(config, logger) {
@@ -86,6 +87,68 @@ class ProjectService {
         catch (error) {
             this.logger.error("Error saving projects config:", error);
         }
+    }
+    resolveComposeFile(project) {
+        const explicit = project.composeFile
+            ? path.join(project.path, project.composeFile)
+            : null;
+        if (explicit && fs.existsSync(explicit)) {
+            return explicit;
+        }
+        const candidates = ["docker-compose.yml", "docker-compose.yaml"];
+        for (const candidate of candidates) {
+            const candidatePath = path.join(project.path, candidate);
+            if (fs.existsSync(candidatePath)) {
+                return candidatePath;
+            }
+        }
+        return null;
+    }
+    runCommand(command, args, cwd, extraEnv = {}) {
+        return new Promise((resolve, reject) => {
+            const child = (0, child_process_1.spawn)(command, args, {
+                cwd,
+                env: {
+                    ...process.env,
+                    ...extraEnv,
+                },
+            });
+            let stdout = "";
+            let stderr = "";
+            child.stdout.on("data", (data) => {
+                stdout += data.toString();
+            });
+            child.stderr.on("data", (data) => {
+                stderr += data.toString();
+            });
+            child.on("error", (error) => {
+                reject(error);
+            });
+            child.on("close", (code) => {
+                resolve({ stdout, stderr, code: code ?? 0 });
+            });
+        });
+    }
+    isComposeUnavailable(output) {
+        const message = output.toLowerCase();
+        return (message.includes("unknown shorthand flag") ||
+            message.includes("is not a docker command") ||
+            message.includes("docker: 'compose' is not a docker command") ||
+            message.includes("no such file or directory"));
+    }
+    async runCompose(project, args) {
+        const cwd = project.path;
+        const env = project.environmentVars;
+        const dockerResult = await this.runCommand("docker", args, cwd, env);
+        if (dockerResult.code === 0) {
+            return { ...dockerResult, command: "docker" };
+        }
+        const combined = `${dockerResult.stdout}\n${dockerResult.stderr}`;
+        if (!this.isComposeUnavailable(combined)) {
+            return { ...dockerResult, command: "docker" };
+        }
+        const composeResult = await this.runCommand("docker-compose", args, cwd, env);
+        return { ...composeResult, command: "docker-compose" };
     }
     async addProject(name, repoUrl, branch = "main", dockerfile = "Dockerfile", composeFile = "docker-compose.yml", environmentVars = {}) {
         try {
@@ -214,19 +277,46 @@ class ProjectService {
             throw new Error(`Project ${name} not found`);
         }
         try {
-            project.status = "running";
+            project.status = "building";
             project.lastUpdated = new Date().toISOString();
             this.saveProjects();
-            this.logger.info(`Deploying project: ${name}`);
-            // This would typically use Docker Compose to start services
-            // For now, we'll simulate the deployment
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+            const composeFile = this.resolveComposeFile(project);
+            if (!composeFile) {
+                throw new Error("docker-compose file not found in project");
+            }
+            this.logger.info(`Deploying project: ${name} using ${path.basename(composeFile)}`);
+            this.logger.info(`Project ${name} repo: ${project.repoUrl} branch: ${project.branch} path: ${project.path}`);
+            const upResult = await this.runCompose(project, [
+                "compose",
+                "-f",
+                composeFile,
+                "up",
+                "-d",
+                "--build",
+            ]);
+            if (upResult.code !== 0) {
+                this.logger.error(`Deploy failed for ${name} (${upResult.command}): ${upResult.stderr || upResult.stdout}`);
+                throw new Error(upResult.stderr || upResult.stdout || "Deployment failed");
+            }
+            const psResult = await this.runCompose(project, [
+                "compose",
+                "-f",
+                composeFile,
+                "ps",
+                "-q",
+            ]);
+            const containerIds = psResult.stdout
+                .split("\n")
+                .map((id) => id.trim())
+                .filter(Boolean);
+            this.logger.info(`Deploy output for ${name} (${upResult.command}): ${upResult.stdout || "no output"}`);
             // Add to deploy history
             project.deployHistory.push({
                 timestamp: new Date().toISOString(),
                 status: "success",
-                containerIds: [`container-${name}-1`, `container-${name}-2`],
+                containerIds,
             });
+            project.containers = containerIds;
             project.status = "running";
             project.lastUpdated = new Date().toISOString();
             this.saveProjects();
@@ -255,11 +345,24 @@ class ProjectService {
             project.status = "stopped";
             project.lastUpdated = new Date().toISOString();
             this.saveProjects();
-            this.logger.info(`Stopping project: ${name}`);
-            // This would typically use Docker Compose to stop services
-            await new Promise((resolve) => setTimeout(resolve, 2000));
+            const composeFile = this.resolveComposeFile(project);
+            if (!composeFile) {
+                throw new Error("docker-compose file not found in project");
+            }
+            this.logger.info(`Stopping project: ${name} using ${path.basename(composeFile)}`);
+            const downResult = await this.runCompose(project, [
+                "compose",
+                "-f",
+                composeFile,
+                "down",
+            ]);
+            if (downResult.code !== 0) {
+                this.logger.error(`Stop failed for ${name} (${downResult.command}): ${downResult.stderr || downResult.stdout}`);
+                throw new Error(downResult.stderr || downResult.stdout || "Stop failed");
+            }
             project.status = "stopped";
             project.lastUpdated = new Date().toISOString();
+            project.containers = [];
             this.saveProjects();
             this.logger.info(`Project ${name} stopped successfully`);
         }
@@ -270,6 +373,39 @@ class ProjectService {
             this.logger.error(`Error stopping project ${name}:`, error);
             throw error;
         }
+    }
+    async getProjectLogs(name, tail = 200) {
+        const project = this.projects.get(name);
+        if (!project) {
+            throw new Error(`Project ${name} not found`);
+        }
+        const composeFile = this.resolveComposeFile(project);
+        if (!composeFile) {
+            throw new Error("docker-compose file not found in project");
+        }
+        const psResult = await this.runCompose(project, [
+            "compose",
+            "-f",
+            composeFile,
+            "ps",
+            "-q",
+        ]);
+        if (psResult.code !== 0) {
+            throw new Error(psResult.stderr || psResult.stdout || "Failed to list containers");
+        }
+        const containerIds = psResult.stdout
+            .split("\n")
+            .map((id) => id.trim())
+            .filter(Boolean);
+        const logs = [];
+        for (const containerId of containerIds) {
+            const logResult = await this.runCommand("docker", ["logs", "--tail", String(tail), containerId], project.path, project.environmentVars);
+            logs.push({
+                containerId,
+                logs: logResult.stdout || logResult.stderr || "",
+            });
+        }
+        return logs;
     }
     async getProjectHealth(name) {
         const project = this.projects.get(name);

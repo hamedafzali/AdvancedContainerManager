@@ -89,41 +89,50 @@ class TerminalService {
         if (!session) {
             throw new Error(`Session ${sessionId} not found`);
         }
-        return new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new Error("Command timeout"));
-            }, 30000);
-            const cleanup = () => clearTimeout(timeout);
-            if (session.socket && session.socket.readyState === ws_1.WebSocket.OPEN) {
-                session.socket.send(JSON.stringify({
-                    type: "command",
-                    command,
-                    timestamp: new Date().toISOString(),
-                }));
-                const messageHandler = (data) => {
-                    try {
-                        const message = JSON.parse(data.toString());
-                        if (message.type === "output" || message.type === "error") {
-                            cleanup();
-                            resolve(message);
-                        }
+        try {
+            // Execute command directly using docker exec
+            const { spawn } = require("child_process");
+            return new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => {
+                    reject(new Error("Command timeout"));
+                }, 30000);
+                const cleanup = () => clearTimeout(timeout);
+                const dockerProcess = spawn("docker", ["exec", session.containerId, "bash", "-c", command], {
+                    stdio: ["pipe", "pipe", "pipe"],
+                    env: {
+                        ...process.env,
+                        TERM: "xterm-256color",
+                    },
+                });
+                let stdout = "";
+                let stderr = "";
+                dockerProcess.stdout?.on("data", (data) => {
+                    stdout += data.toString();
+                });
+                dockerProcess.stderr?.on("data", (data) => {
+                    stderr += data.toString();
+                });
+                dockerProcess.on("close", (code) => {
+                    cleanup();
+                    if (code === 0) {
+                        resolve({ output: stdout });
                     }
-                    catch (error) {
-                        cleanup();
-                        reject(error);
+                    else {
+                        resolve({ error: stderr || `Command failed with code ${code}` });
                     }
-                };
-                session.socket.once("message", messageHandler);
-                session.socket.on("error", (error) => {
+                });
+                dockerProcess.on("error", (error) => {
                     cleanup();
                     reject(error);
                 });
-            }
-            else {
-                cleanup();
-                reject(new Error(`Session ${sessionId} is not connected`));
-            }
-        });
+                // Update session activity
+                session.lastActivity = new Date();
+            });
+        }
+        catch (error) {
+            this.logger.error(`Error executing command: ${error}`);
+            throw error;
+        }
     }
     async connectToContainer(sessionId, socket) {
         const session = this.sessions.get(sessionId);

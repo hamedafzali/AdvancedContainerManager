@@ -11,7 +11,6 @@ const helmet_1 = __importDefault(require("helmet"));
 const compression_1 = __importDefault(require("compression"));
 const morgan_1 = __importDefault(require("morgan"));
 const dotenv_1 = __importDefault(require("dotenv"));
-const path_1 = __importDefault(require("path"));
 const logger_1 = require("./utils/logger");
 const metrics_collector_1 = require("./services/metrics-collector");
 const docker_service_1 = require("./services/docker-service");
@@ -30,7 +29,7 @@ class AdvancedContainerManager {
         this.server = (0, http_1.createServer)(this.app);
         this.io = new socket_io_1.Server(this.server, {
             cors: {
-                origin: this.config.debug ? "*" : false,
+                origin: process.env.SOCKET_ORIGIN || (this.config.debug ? "*" : false),
                 methods: ["GET", "POST"],
             },
         });
@@ -78,6 +77,8 @@ class AdvancedContainerManager {
         this.terminalService.start();
     }
     setupMiddleware() {
+        const corsOrigin = process.env.CORS_ORIGIN || (this.config.debug ? "*" : false);
+        const socketOrigin = process.env.SOCKET_ORIGIN || corsOrigin;
         // Security middleware
         this.app.use((0, helmet_1.default)({
             contentSecurityPolicy: {
@@ -86,13 +87,13 @@ class AdvancedContainerManager {
                     styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
                     scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
                     imgSrc: ["'self'", "data:", "https:"],
-                    connectSrc: ["'self'", "ws:", "wss:"],
+                    connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"],
                 },
             },
         }));
         // CORS
         this.app.use((0, cors_1.default)({
-            origin: this.config.debug ? "*" : false,
+            origin: corsOrigin,
             credentials: true,
         }));
         // Compression
@@ -123,10 +124,6 @@ class AdvancedContainerManager {
         });
         // API routes
         this.app.use("/api", (0, routes_1.routes)(this.dockerService, this.projectService, this.terminalService, this.metricsCollector));
-        // Serve frontend (SPA)
-        this.app.get("*", (req, res) => {
-            res.sendFile(path_1.default.join(__dirname, "public", "index.html"));
-        });
     }
     setupWebSocket() {
         this.io.on("connection", (socket) => {
