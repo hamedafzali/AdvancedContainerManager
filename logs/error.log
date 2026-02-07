@@ -1010,3 +1010,1411 @@ For more help on how to use Docker, head to https://docs.docker.com/go/guides/
     at Socket.socketCloseListener (node:_http_client:474:25)
     at Socket.emit (node:events:529:35)
     at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:36.519Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:36.520Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:38.531Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:38.532Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:40.539Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:40.539Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:41.541Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:41.541Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:42.546Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:42.550Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:43.549Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:43.549Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:44.588Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:44.589Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:46.599Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:46.600Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:46.612Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:46.612Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:48.623Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:48.624Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:50.642Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:50.643Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:51.663Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:51.663Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:52.664Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:52.665Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:53.672Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:53.673Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:54.708Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:54.710Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:56.727Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:56.727Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:56.734Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:56.734Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:01:58.745Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:01:58.745Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:00.761Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:00.763Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:01.783Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:01.787Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:02.778Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:02.779Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:03.798Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:03.800Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:05.826Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:05.827Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:06.862Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:06.862Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:07.843Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:07.844Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:08.877Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:08.878Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:10.903Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:10.905Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:11.937Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:11.938Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:12.921Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:12.922Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:13.951Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:13.954Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:14.994Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:14.995Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:17.006Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:17.008Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:17.026Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:17.026Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:19.036Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:19.037Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:21.054Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:21.057Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:22.088Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:22.089Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:23.074Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:23.076Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:24.104Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:24.106Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:25.159Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:25.159Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:27.168Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:27.169Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:27.188Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:27.189Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:29.198Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:29.199Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:31.217Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:31.218Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:32.246Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:32.246Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:33.235Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:33.236Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:34.254Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:34.255Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:35.332Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:35.333Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:37.342Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:37.344Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:37.362Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:37.362Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:39.384Z [ERROR]: Error fetching stats for container 11e7c301e26a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:39.385Z [ERROR]: Error getting stats for container 11e7c301e26a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:41.397Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:41.401Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:42.428Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:42.428Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:43.416Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:43.418Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:44.438Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:44.439Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:45.476Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:45.477Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:47.499Z [ERROR]: Error fetching stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:47.500Z [ERROR]: Error getting stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:47.502Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:47.502Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:49.511Z [ERROR]: Error fetching stats for container 11e7c301e26a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:49.512Z [ERROR]: Error getting stats for container 11e7c301e26a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:51.515Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:51.516Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:52.526Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:52.527Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:53.528Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:53.529Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:54.551Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:54.551Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:56.562Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:56.564Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:56.578Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:56.579Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:02:58.579Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:58.580Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:58.583Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:02:58.583Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:00.599Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:00.600Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:01.613Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:01.614Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:02.618Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:02.625Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:03.620Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:03.621Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:04.670Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:04.670Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:06.679Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:06.681Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:06.701Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:06.701Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:08.715Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:08.715Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:10.726Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:10.726Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:11.746Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:11.747Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:12.734Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:12.735Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:13.761Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:13.761Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:14.797Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:14.797Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:16.808Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:16.809Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:16.812Z [ERROR]: Error fetching stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:16.812Z [ERROR]: Error getting stats for container 4162860a7f0a: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:03:18.823Z [ERROR]: Error fetching stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:18.825Z [ERROR]: Error getting stats for container 11e7c301e26a: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:20.844Z [ERROR]: Error fetching stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:03:20.847Z [ERROR]: Error getting stats for container 7c19e1f4c3dc: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:16.581Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:16.583Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:18.602Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:18.604Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:20.615Z [ERROR]: Error fetching stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:20.616Z [ERROR]: Error getting stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:21.630Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:21.631Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:22.624Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:22.626Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:23.640Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:23.641Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:24.671Z [ERROR]: Error fetching stats for container 56ba31b69cdb: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:24.671Z [ERROR]: Error getting stats for container 56ba31b69cdb: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:25.685Z [ERROR]: Error fetching stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:25.686Z [ERROR]: Error getting stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:25.689Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:25.689Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:27.697Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:27.699Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:29.711Z [ERROR]: Error fetching stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:29.712Z [ERROR]: Error getting stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:31.726Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:31.728Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:36.973Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:36.974Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:38.984Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:38.985Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:41.006Z [ERROR]: Error fetching stats for container 56ba31b69cdb: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:41.007Z [ERROR]: Error getting stats for container 56ba31b69cdb: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:04:43.018Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:04:43.020Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:31.386Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:31.387Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:33.396Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:33.397Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:35.409Z [ERROR]: Error fetching stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:35.410Z [ERROR]: Error getting stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:36.441Z [ERROR]: Error fetching stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:36.442Z [ERROR]: Error getting stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:44.635Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:44.636Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:46.651Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:46.651Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:46.666Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:46.666Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:48.675Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:48.679Z [ERROR]: Error fetching stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:48.676Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:48.679Z [ERROR]: Error getting stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:50.701Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:50.702Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:50.708Z [ERROR]: Error fetching stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:50.708Z [ERROR]: Error getting stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:52.739Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:52.739Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:05:59.691Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:05:59.692Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:01.702Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:01.702Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:03.715Z [ERROR]: Error fetching stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:03.716Z [ERROR]: Error getting stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:04.757Z [ERROR]: Error fetching stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:04.758Z [ERROR]: Error getting stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:21.793Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:21.793Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:23.813Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:23.814Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:24.861Z [ERROR]: Error fetching stats for container 56ba31b69cdb: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:24.862Z [ERROR]: Error getting stats for container 56ba31b69cdb: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:26.868Z [ERROR]: Error fetching stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:26.868Z [ERROR]: Error getting stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:36.803Z [ERROR]: Error fetching stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:36.803Z [ERROR]: Error getting stats for container 1a79c1451d9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:06:38.814Z [ERROR]: Error fetching stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:38.817Z [ERROR]: Error getting stats for container aaa65f0474d0: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:40.839Z [ERROR]: Error fetching stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:40.840Z [ERROR]: Error getting stats for container 56ba31b69cdb: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:42.866Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:06:42.869Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:07:35.685Z [ERROR]: Error fetching stats for container 5ac038d67878: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:07:35.688Z [ERROR]: Error getting stats for container 5ac038d67878: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:07:37.702Z [ERROR]: Error fetching stats for container f1b187cb4c25: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:07:37.703Z [ERROR]: Error getting stats for container f1b187cb4c25: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:07:39.716Z [ERROR]: Error fetching stats for container 3d98dedd661f: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:07:39.717Z [ERROR]: Error getting stats for container 3d98dedd661f: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:07:41.728Z [ERROR]: Error fetching stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:07:41.728Z [ERROR]: Error getting stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:16.282Z [ERROR]: Error fetching stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:16.282Z [ERROR]: Error getting stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:18.293Z [ERROR]: Error fetching stats for container 5ac038d67878: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:18.294Z [ERROR]: Error getting stats for container 5ac038d67878: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:20.302Z [ERROR]: Error fetching stats for container f1b187cb4c25: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:20.302Z [ERROR]: Error getting stats for container f1b187cb4c25: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:22.312Z [ERROR]: Error fetching stats for container 3d98dedd661f: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:22.313Z [ERROR]: Error getting stats for container 3d98dedd661f: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:24.329Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:24.329Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:31.278Z [ERROR]: Error fetching stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:31.280Z [ERROR]: Error getting stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:33.294Z [ERROR]: Error fetching stats for container 5ac038d67878: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:33.295Z [ERROR]: Error getting stats for container 5ac038d67878: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:35.313Z [ERROR]: Error fetching stats for container f1b187cb4c25: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:35.313Z [ERROR]: Error getting stats for container f1b187cb4c25: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:36.344Z [ERROR]: Error fetching stats for container 3d98dedd661f: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:36.345Z [ERROR]: Error getting stats for container 3d98dedd661f: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:38.355Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:38.357Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:41.194Z [ERROR]: Error fetching stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:41.196Z [ERROR]: Error getting stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:43.215Z [ERROR]: Error fetching stats for container 5ac038d67878: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:43.217Z [ERROR]: Error getting stats for container 5ac038d67878: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:45.239Z [ERROR]: Error fetching stats for container f1b187cb4c25: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:45.240Z [ERROR]: Error getting stats for container f1b187cb4c25: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:12:46.282Z [ERROR]: Error fetching stats for container 3d98dedd661f: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:46.282Z [ERROR]: Error getting stats for container 3d98dedd661f: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:48.297Z [ERROR]: Error fetching stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:12:48.298Z [ERROR]: Error getting stats for container f0497d474e9c: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:13:20.913Z [ERROR]: Error fetching stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:13:20.914Z [ERROR]: Error getting stats for container ad33baf17146: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:13:22.928Z [ERROR]: Error fetching stats for container 5ac038d67878: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:13:22.929Z [ERROR]: Error getting stats for container 5ac038d67878: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:13:23.971Z [ERROR]: Error fetching stats for container f1b187cb4c25: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:13:23.972Z [ERROR]: Error getting stats for container f1b187cb4c25: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:13:25.988Z [ERROR]: Error fetching stats for container 3d98dedd661f: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:13:25.994Z [ERROR]: Error getting stats for container 3d98dedd661f: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:13:28.019Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:13:28.021Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:15:15.892Z [ERROR]: Error fetching stats for container 87a802bbb764: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:15:15.895Z [ERROR]: Error getting stats for container 87a802bbb764: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:15:17.906Z [ERROR]: Error fetching stats for container 581b335e849c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:15:17.907Z [ERROR]: Error getting stats for container 581b335e849c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:15:19.920Z [ERROR]: Error fetching stats for container 2e2f1b70a642: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:15:19.921Z [ERROR]: Error getting stats for container 2e2f1b70a642: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:15:21.936Z [ERROR]: Error fetching stats for container ad33baf17146: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:15:21.937Z [ERROR]: Error getting stats for container ad33baf17146: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:15:23.956Z [ERROR]: Error fetching stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:15:23.957Z [ERROR]: Error getting stats for container f0497d474e9c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:37.124Z [ERROR]: Error fetching stats for container 87a802bbb764: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:17:37.124Z [ERROR]: Error getting stats for container 87a802bbb764: Cannot read properties of undefined (reading 'length')\nTypeError: Cannot read properties of undefined (reading 'length')
+    at DockerService.getContainerStats (/app/dist/services/docker-service.js:282:68)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async /app/dist/routes/index.js:207:27
+2026-02-07T19:17:39.136Z [ERROR]: Error fetching stats for container 581b335e849c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
+2026-02-07T19:17:39.138Z [ERROR]: Error getting stats for container 581b335e849c: socket hang up\nError: socket hang up
+    at connResetException (node:internal/errors:720:14)
+    at Socket.socketCloseListener (node:_http_client:474:25)
+    at Socket.emit (node:events:529:35)
+    at Pipe.<anonymous> (node:net:350:12)
