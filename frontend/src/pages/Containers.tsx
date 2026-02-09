@@ -109,32 +109,33 @@ export default function Containers() {
     URL.revokeObjectURL(url);
   };
   const fetchContainers = async () => {
-    // Clear existing timeout
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
     }
 
-    // Debounce the fetch to prevent excessive calls
+    const shouldShowLoading = containers.length === 0;
+
     fetchTimeoutRef.current = setTimeout(async () => {
       try {
-        setLoading(true);
-      const response = await fetch(apiUrl("/api/containers"));
-      const text = await response.text();
-      if (!response.ok) {
-        throw new Error(text || "Failed to fetch containers");
-      }
+        if (shouldShowLoading) {
+          setLoading(true);
+        }
+        const response = await fetch(apiUrl("/api/containers"));
+        const text = await response.text();
+        if (!response.ok) {
+          throw new Error(text || "Failed to fetch containers");
+        }
 
-      let result: any = null;
-      try {
-        result = JSON.parse(text);
-      } catch (parseError) {
-        throw new Error(
-          `Invalid JSON from /api/containers. First 200 chars: ${text.slice(0, 200)}`,
-        );
-      }
+        let result: any = null;
+        try {
+          result = JSON.parse(text);
+        } catch (parseError) {
+          throw new Error(
+            `Invalid JSON from /api/containers. First 200 chars: ${text.slice(0, 200)}`,
+          );
+        }
         const data = result.data;
 
-        // Transform backend data to frontend format
         const transformedContainers = data.map(
           (container: any): Container => ({
             id: container.id,
@@ -142,8 +143,8 @@ export default function Containers() {
             image: container.image,
             status: container.status.toLowerCase(),
             ports: Object.keys(container.ports || {}).map((key) => key),
-            cpu: 0, // Will be updated by stats
-            memory: 0, // Will be updated by stats
+            cpu: 0,
+            memory: 0,
             uptime: container.startedAt
               ? new Date(container.startedAt).toLocaleString()
               : "Never started",
@@ -153,55 +154,59 @@ export default function Containers() {
 
         setContainers(transformedContainers);
 
-        // Fetch stats for running containers (limit to prevent excessive calls)
         const runningContainers = transformedContainers
           .filter((c: Container) => c.status === "running")
-          .slice(0, 5); // Limit to first 5 running containers
+          .slice(0, 5);
 
-        for (const container of runningContainers) {
-          try {
-          const statsResponse = await fetch(
-            apiUrl(`/api/containers/${container.id}/stats`),
-          );
-          if (statsResponse.ok) {
-            const statsText = await statsResponse.text();
-            let statsResult: any = null;
-            try {
-              statsResult = JSON.parse(statsText);
-            } catch {
-              continue;
+        const statsResults = await Promise.allSettled(
+          runningContainers.map(async (container) => {
+            const statsResponse = await fetch(
+              apiUrl(`/api/containers/${container.id}/stats`),
+            );
+            if (!statsResponse.ok) {
+              throw new Error(`Stats request failed for ${container.id}`);
             }
+            const statsText = await statsResponse.text();
+            const statsResult = JSON.parse(statsText);
             const stats = statsResult.data || statsResult;
-            // Update container with real stats
-            setContainers((prev) =>
-              prev.map((c: Container) =>
-                c.id === container.id
-                  ? {
-                      ...c,
-                      cpu: stats.cpuPercent || 0,
-                      memory:
-                        Math.round((stats.memoryUsage / 1024 / 1024) * 100) /
-                        100,
-                    }
-                  : c,
-              ),
-            );
+            return {
+              id: container.id,
+              cpu: stats.cpuPercent || 0,
+              memory:
+                Math.round((stats.memoryUsage / 1024 / 1024) * 100) / 100,
+            };
+          }),
+        );
+
+        const statsMap = new Map<string, { cpu: number; memory: number }>();
+        statsResults.forEach((result) => {
+          if (result.status === "fulfilled") {
+            statsMap.set(result.value.id, {
+              cpu: result.value.cpu,
+              memory: result.value.memory,
+            });
           }
-          } catch (statsError) {
-            console.error(
-              `Failed to fetch stats for container ${container.id}:`,
-              statsError,
-            );
-          }
+        });
+
+        if (statsMap.size > 0) {
+          setContainers((prev) =>
+            prev.map((container) =>
+              statsMap.has(container.id)
+                ? { ...container, ...statsMap.get(container.id)! }
+                : container,
+            ),
+          );
         }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Failed to fetch containers",
         );
       } finally {
-        setLoading(false);
+        if (shouldShowLoading) {
+          setLoading(false);
+        }
       }
-    }, 300); // 300ms debounce delay
+    }, 200);
   };
 
   useEffect(() => {
