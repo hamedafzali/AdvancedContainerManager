@@ -1,1 +1,12 @@
 logs/
+node_modules/
+backend/dist/
+frontend/dist/
+package-lock.json
+.env
+.env.local
+.env.production
+*.log
+.DS_Store
+.vscode/
+.idea/
