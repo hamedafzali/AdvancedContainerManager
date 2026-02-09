@@ -1702,10 +1702,10 @@ export function routes(
   router.post("/multi-cloud/deploy", async (req, res) => {
     try {
       const { providerName, config } = req.body;
-      const instance = await multiCloudService.deployInstance(
-        providerName,
-        config,
-      );
+      const instance = await multiCloudService.deployInstance({
+        ...(config || {}),
+        provider: providerName,
+      });
       res.json({ success: true, data: instance });
     } catch (error) {
       res.status(500).json({
