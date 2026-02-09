@@ -42,10 +42,14 @@ class AdvancedContainerManager {
     );
     this.app = express();
     this.server = createServer(this.app);
+    const socketCorsOrigin = this.resolveAllowedOrigins(
+      process.env.SOCKET_ORIGIN || process.env.CORS_ORIGIN || "",
+    );
     this.io = new SocketIOServer(this.server, {
       cors: {
-        origin: process.env.SOCKET_ORIGIN || (this.config.debug ? "*" : false),
+        origin: socketCorsOrigin,
         methods: ["GET", "POST"],
+        credentials: true,
       },
     });
 
@@ -103,9 +107,7 @@ class AdvancedContainerManager {
   }
 
   private setupMiddleware(): void {
-    const corsOrigin =
-      process.env.CORS_ORIGIN || (this.config.debug ? "*" : false);
-    const socketOrigin = process.env.SOCKET_ORIGIN || corsOrigin;
+    const corsOrigin = this.resolveAllowedOrigins(process.env.CORS_ORIGIN || "");
 
     // Security middleware
     this.app.use(
@@ -185,6 +187,47 @@ class AdvancedContainerManager {
         );
     });
 
+  }
+
+  private resolveAllowedOrigins(
+    rawOrigins: string,
+  ):
+    | boolean
+    | string
+    | string[]
+    | RegExp
+    | ((origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => void) {
+    const trimmed = rawOrigins.trim();
+    if (!trimmed) {
+      return true;
+    }
+
+    const origins = trimmed
+      .split(",")
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+
+    if (origins.length === 0) {
+      return true;
+    }
+
+    if (origins.includes("*") || origins.includes("auto")) {
+      return true;
+    }
+
+    return (origin, callback) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (origins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} not allowed by CORS`));
+    };
   }
 
   private setupWebSocket(): void {
