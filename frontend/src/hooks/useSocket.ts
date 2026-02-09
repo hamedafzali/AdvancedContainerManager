@@ -8,7 +8,23 @@ export function useSocket() {
 
   useEffect(() => {
     try {
-      const socketUrl = import.meta.env.VITE_SOCKET_URL || undefined;
+      const rawSocketUrl = import.meta.env.VITE_SOCKET_URL || "";
+      const defaultSocketUrl =
+        typeof window !== "undefined"
+          ? `${window.location.protocol}//${window.location.hostname}:5003`
+          : "";
+      const localhostSocketUrls = new Set([
+        "http://localhost:5003",
+        "http://127.0.0.1:5003",
+        "https://localhost:5003",
+        "https://127.0.0.1:5003",
+      ]);
+      const socketUrl =
+        !rawSocketUrl ||
+        rawSocketUrl === "auto" ||
+        localhostSocketUrls.has(rawSocketUrl)
+          ? defaultSocketUrl || undefined
+          : rawSocketUrl;
       socketRef.current = io(socketUrl, {
         path: "/socket.io",
         timeout: 5000,
