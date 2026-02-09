@@ -682,24 +682,95 @@ export class ProjectService {
     };
 
     try {
-      // This would typically check actual container health
-      // For now, we'll simulate health checks
-      const containerCount = project.containers.length || 0;
+      const composeFile = this.resolveComposeFile(project);
+      if (!composeFile) {
+        health.overall = "error";
+        health.issues.push("docker-compose file not found in project");
+        return health;
+      }
 
-      if (containerCount === 0) {
+      const psResult = await this.runCompose(project, [
+        "compose",
+        "-f",
+        composeFile,
+        "ps",
+        "-q",
+      ]);
+
+      if (psResult.code !== 0) {
+        health.overall = "error";
+        health.issues.push(psResult.stderr || psResult.stdout || "Failed to list containers");
+        return health;
+      }
+
+      const containerIds = psResult.stdout
+        .split("\n")
+        .map((id) => id.trim())
+        .filter(Boolean);
+
+      if (containerIds.length === 0) {
         health.overall = "no_containers";
         health.issues.push("No containers running");
-      } else {
-        // Simulate container health
-        for (let i = 0; i < containerCount; i++) {
-          const containerName = `${name}-container-${i + 1}`;
-          const containerHealth = {
-            name: containerName,
-            status: "running",
-            health: "healthy",
-          };
-          health.containers.push(containerHealth);
+        return health;
+      }
+
+      for (const containerId of containerIds) {
+        const inspectResult = await this.runCommand(
+          "docker",
+          ["inspect", containerId],
+          project.path,
+          project.environmentVars,
+        );
+
+        if (inspectResult.code !== 0) {
+          health.issues.push(
+            `Failed to inspect container ${containerId}: ${inspectResult.stderr || inspectResult.stdout}`,
+          );
+          continue;
         }
+
+        let inspectData: any[] = [];
+        try {
+          inspectData = JSON.parse(inspectResult.stdout || "[]");
+        } catch (parseError) {
+          health.issues.push(
+            `Invalid inspect data for container ${containerId}`,
+          );
+          continue;
+        }
+
+        const containerInfo = inspectData[0] || {};
+        const containerName = (containerInfo.Name || containerId).replace(
+          /^\//,
+          "",
+        );
+        const state = containerInfo.State || {};
+        const status = state.Status || "unknown";
+        const healthState = state.Health?.Status || "unknown";
+        const failingStreak = state.Health?.FailingStreak;
+
+        health.containers.push({
+          name: containerName,
+          status,
+          health: healthState,
+          failingStreak,
+        });
+
+        if (status !== "running") {
+          health.issues.push(
+            `Container ${containerName} status: ${status}`,
+          );
+        }
+
+        if (healthState === "unhealthy") {
+          health.issues.push(
+            `Container ${containerName} is unhealthy`,
+          );
+        }
+      }
+
+      if (health.issues.length > 0) {
+        health.overall = "unhealthy";
       }
     } catch (error) {
       health.overall = "error";
