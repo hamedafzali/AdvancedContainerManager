@@ -1324,7 +1324,7 @@ export function routes(
     "/api/backup/list",
     asyncHandler(async (req, res) => {
       try {
-        const backups = backupService.listBackups();
+        const backups = backupService.getBackups();
 
         res.json({
           success: true,
@@ -1386,7 +1386,13 @@ export function routes(
     "/api/backup/stats",
     asyncHandler(async (req, res) => {
       try {
-        const stats = backupService.getBackupStats();
+        const backups = backupService.getBackups();
+        const totalSize = backups.reduce((sum, b) => sum + b.size, 0);
+        const stats = {
+          totalBackups: backups.length,
+          totalSize,
+          latestBackup: backups[0]?.id || null,
+        };
 
         res.json({
           success: true,
