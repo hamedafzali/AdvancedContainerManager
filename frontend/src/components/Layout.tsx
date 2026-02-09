@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Package2,
@@ -35,6 +35,7 @@ const navigation = [
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
@@ -121,7 +122,10 @@ export default function Layout() {
 
               <ThemeToggle />
 
-              <button className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg shadow-md transition duration-300 flex items-center dark:bg-primary-700 dark:hover:bg-primary-800">
+              <button
+                onClick={() => navigate("/projects?add=1")}
+                className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-lg shadow-md transition duration-300 flex items-center dark:bg-primary-700 dark:hover:bg-primary-800"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 Quick Action
               </button>

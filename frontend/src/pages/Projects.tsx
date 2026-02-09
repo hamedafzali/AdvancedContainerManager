@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -55,6 +56,7 @@ interface Project {
 }
 
 export default function Projects() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -411,6 +413,15 @@ export default function Projects() {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get("add") === "1") {
+      setShowAddModal(true);
+      const next = new URLSearchParams(searchParams);
+      next.delete("add");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const getStatusIcon = (status: Project["status"]) => {
     switch (status) {
