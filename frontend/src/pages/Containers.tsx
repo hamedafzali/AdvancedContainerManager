@@ -158,7 +158,9 @@ export default function Containers() {
           .filter((c: Container) => c.status === "running")
           .slice(0, 5);
 
-        const statsResults = await Promise.allSettled(
+        type ContainerStats = { id: string; cpu: number; memory: number };
+        const statsResults: PromiseSettledResult<ContainerStats>[] =
+          await Promise.allSettled(
           runningContainers.map(async (container) => {
             const statsResponse = await fetch(
               apiUrl(`/api/containers/${container.id}/stats`),
@@ -179,7 +181,7 @@ export default function Containers() {
         );
 
         const statsMap = new Map<string, { cpu: number; memory: number }>();
-        statsResults.forEach((result) => {
+        statsResults.forEach((result: PromiseSettledResult<ContainerStats>) => {
           if (result.status === "fulfilled") {
             statsMap.set(result.value.id, {
               cpu: result.value.cpu,
