@@ -386,18 +386,60 @@ export class ProjectService {
       project.lastUpdated = new Date().toISOString();
       this.saveProjects();
 
-      // This would typically use Docker API to build the image
-      // For now, we'll simulate the build
       this.logger.info(`Building project: ${name}`);
 
-      // Simulate build time
-      await new Promise((resolve) => setTimeout(resolve, 5000));
+      let imageId: string | undefined;
+      let buildResult: { stdout: string; stderr: string; code: number; command: string };
 
-      // Add to build history
+      const composeFile = this.resolveComposeFile(project);
+      if (composeFile) {
+        const missingEnvVars = this.getMissingEnvVars(
+          composeFile,
+          project.environmentVars || {},
+        );
+        if (missingEnvVars.length > 0) {
+          throw new Error(
+            `Missing required environment variables: ${missingEnvVars.join(", ")}`,
+          );
+        }
+
+        buildResult = await this.runCompose(project, [
+          "compose",
+          "-f",
+          composeFile,
+          "build",
+        ]);
+      } else {
+        const dockerfile = project.dockerfile || "Dockerfile";
+        const dockerfilePath = path.join(project.path, dockerfile);
+        if (!fs.existsSync(dockerfilePath)) {
+          throw new Error(`Dockerfile not found: ${dockerfilePath}`);
+        }
+
+        imageId = `${name}:latest`;
+        buildResult = {
+          ...(await this.runCommand(
+            "docker",
+            ["build", "-f", dockerfilePath, "-t", imageId, "."],
+            project.path,
+            project.environmentVars,
+          )),
+          command: "docker",
+        };
+      }
+
+      if (buildResult.code !== 0) {
+        throw new Error(buildResult.stderr || buildResult.stdout || "Build failed");
+      }
+
+      this.logger.info(
+        `Build output for ${name} (${buildResult.command}): ${buildResult.stdout || "no output"}`,
+      );
+
       project.buildHistory.push({
         timestamp: new Date().toISOString(),
         status: "success",
-        imageId: `project-${name}:latest`,
+        imageId,
       });
 
       project.status = "built";
