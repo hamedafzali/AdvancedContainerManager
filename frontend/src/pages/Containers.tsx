@@ -65,17 +65,12 @@ export default function Containers() {
         throw new Error(text || "Failed to fetch logs");
       }
 
-      let parsed: any = null;
-      try {
-        parsed = JSON.parse(text);
-      } catch {
-        parsed = null;
-      }
-
-      if (parsed && parsed.data) {
-        setLogs(parsed.data);
+      if (text.trim()) {
+        // Handle Docker logs which are plain text with special characters
+        const logLines = text.split("\n").filter((line) => line.trim());
+        setLogs(logLines);
       } else {
-        setLogs(text.split("\n"));
+        setLogs(["No logs available"]);
       }
     } catch (err) {
       setLogsError(err instanceof Error ? err.message : "Failed to fetch logs");
