@@ -584,6 +584,31 @@ Create a new project.
 }
 ```
 
+### PUT /api/projects/:name
+Update project environment variables.
+
+**Request Body:**
+```json
+{
+  "environmentVars": {
+    "TELEGRAM_BOT_TOKEN": "your-token"
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "name": "my-project",
+    "environmentVars": {
+      "TELEGRAM_BOT_TOKEN": "your-token"
+    }
+  }
+}
+```
+
 ### POST /api/projects/:name/build
 Build a project.
 
@@ -592,6 +617,20 @@ Build a project.
 {
   "success": true,
   "message": "Project build started"
+}
+```
+
+### POST /api/projects/:name/sync
+Pull the latest version from the project's git repository.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "output": "Pulled origin/main. Changes: 1, Insertions: 2, Deletions: 0",
+    "updated": true
+  }
 }
 ```
 

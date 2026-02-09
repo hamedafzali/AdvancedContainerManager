@@ -58,6 +58,7 @@ export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
@@ -69,6 +70,11 @@ export default function Projects() {
   const [showDeployLogs, setShowDeployLogs] = useState(false);
   const [deployLogs, setDeployLogs] = useState<string>("");
   const [deployLogsTitle, setDeployLogsTitle] = useState<string>("");
+  const [showEnvModal, setShowEnvModal] = useState(false);
+  const [envProject, setEnvProject] = useState<Project | null>(null);
+  const [envEditor, setEnvEditor] = useState<
+    Array<{ key: string; value: string }>
+  >([]);
   const [newProject, setNewProject] = useState({
     name: "",
     repository: "",
@@ -86,6 +92,7 @@ export default function Projects() {
         throw new Error(result?.message || "Failed to fetch projects");
       }
       setProjects(result.data || []);
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch projects");
     } finally {
@@ -138,7 +145,9 @@ export default function Projects() {
       });
       setShowAddModal(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to add project");
+      setActionError(
+        err instanceof Error ? err.message : "Failed to add project",
+      );
     }
   };
 
@@ -172,6 +181,75 @@ export default function Projects() {
     });
   };
 
+  const openEnvModal = (project: Project) => {
+    setEnvProject(project);
+    const entries = Object.entries(project.environmentVars || {}).map(
+      ([key, value]) => ({ key, value }),
+    );
+    setEnvEditor(entries.length > 0 ? entries : [{ key: "", value: "" }]);
+    setShowEnvModal(true);
+  };
+
+  const addEnvEditorRow = () => {
+    setEnvEditor((prev) => [...prev, { key: "", value: "" }]);
+  };
+
+  const removeEnvEditorRow = (index: number) => {
+    setEnvEditor((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateEnvEditorRow = (
+    index: number,
+    field: "key" | "value",
+    value: string,
+  ) => {
+    setEnvEditor((prev) =>
+      prev.map((env, i) => (i === index ? { ...env, [field]: value } : env)),
+    );
+  };
+
+  const handleSaveEnvVars = async () => {
+    if (!envProject) {
+      return;
+    }
+
+    try {
+      const envVarsObject = envEditor.reduce(
+        (acc, env) => {
+          if (env.key) {
+            acc[env.key] = env.value ?? "";
+          }
+          return acc;
+        },
+        {} as Record<string, string>,
+      );
+
+      const response = await fetch(apiUrl(`/api/projects/${envProject.name}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          environmentVars: envVarsObject,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Failed to update environment vars");
+      }
+
+      await fetchProjects();
+      setShowEnvModal(false);
+      setEnvProject(null);
+      setEnvEditor([]);
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to update environment vars",
+      );
+    }
+  };
+
   // Build project
   const handleBuildProject = async (projectName: string) => {
     try {
@@ -189,7 +267,41 @@ export default function Projects() {
 
       await fetchProjects();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to build project");
+      setActionError(
+        err instanceof Error ? err.message : "Failed to build project",
+      );
+    }
+  };
+
+  const handleSyncProject = async (projectName: string) => {
+    try {
+      setDeployLogs("");
+      setDeployLogsTitle(`Sync Logs: ${projectName}`);
+      setShowDeployLogs(true);
+      const response = await fetch(
+        apiUrl(`/api/projects/${projectName}/sync`),
+        {
+          method: "POST",
+        },
+      );
+
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result?.message || "Failed to sync project");
+      }
+
+      const output = result?.data?.output || "(no output)";
+      const updated =
+        typeof result?.data?.updated === "boolean"
+          ? `Updated: ${result.data.updated}`
+          : "";
+      setDeployLogs([output, updated].filter(Boolean).join("\n"));
+      await fetchProjects();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to sync project";
+      setActionError(message);
+      setDeployLogs(message);
     }
   };
 
@@ -220,7 +332,7 @@ export default function Projects() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to deploy project";
-      setError(message);
+      setActionError(message);
       setDeployLogs(message);
     }
   };
@@ -242,7 +354,9 @@ export default function Projects() {
 
       await fetchProjects();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to stop project");
+      setActionError(
+        err instanceof Error ? err.message : "Failed to stop project",
+      );
     }
   };
 
@@ -256,7 +370,9 @@ export default function Projects() {
       }
       setProjectLogs(result.data || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch logs");
+      setActionError(
+        err instanceof Error ? err.message : "Failed to fetch logs",
+      );
     } finally {
       setLogsLoading(false);
     }
@@ -286,7 +402,9 @@ export default function Projects() {
 
       await fetchProjects();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete project");
+      setActionError(
+        err instanceof Error ? err.message : "Failed to delete project",
+      );
     }
   };
 
@@ -373,6 +491,17 @@ export default function Projects() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {actionError && (
+          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 flex items-center justify-between">
+            <div className="text-sm">{actionError}</div>
+            <button
+              onClick={() => setActionError(null)}
+              className="text-red-600 hover:text-red-800 text-sm"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-3xl font-light text-gray-900 tracking-tight">
             Projects
@@ -420,6 +549,13 @@ export default function Projects() {
                     <Code2 className="w-4 h-4" />
                   </button>
                   <button
+                    onClick={() => handleSyncProject(project.name)}
+                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors duration-200"
+                    title="Sync Repo"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleDeployProject(project.name)}
                     className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-200"
                     title="Deploy"
@@ -439,6 +575,13 @@ export default function Projects() {
                     title="Logs"
                   >
                     <Terminal className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => openEnvModal(project)}
+                    className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"
+                    title="Environment Vars"
+                  >
+                    <Settings className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handleDeleteProject(project.name)}
@@ -720,6 +863,91 @@ export default function Projects() {
                 className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
               >
                 Refresh Logs
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEnvModal && envProject && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-2xl w-full m-4">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Settings className="w-5 h-5 text-gray-600" />
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Environment Vars: {envProject.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => {
+                  setShowEnvModal(false);
+                  setEnvProject(null);
+                  setEnvEditor([]);
+                }}
+                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                title="Close"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[60vh] overflow-auto">
+              <div className="space-y-3">
+                {envEditor.map((env, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      placeholder="KEY"
+                      value={env.key}
+                      onChange={(e) =>
+                        updateEnvEditorRow(index, "key", e.target.value)
+                      }
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="VALUE"
+                      value={env.value}
+                      onChange={(e) =>
+                        updateEnvEditorRow(index, "value", e.target.value)
+                      }
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      onClick={() => removeEnvEditorRow(index)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                      title="Remove"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4">
+                <button
+                  onClick={addEnvEditorRow}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Add Variable
+                </button>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                onClick={() => {
+                  setShowEnvModal(false);
+                  setEnvProject(null);
+                  setEnvEditor([]);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveEnvVars}
+                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
+              >
+                Save
               </button>
             </div>
           </div>

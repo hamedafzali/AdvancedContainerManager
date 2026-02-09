@@ -11,6 +11,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    allowedHosts: ['host'],
     proxy: {
       '/api': {
         target: 'http://localhost:5003',
@@ -22,6 +23,9 @@ export default defineConfig({
         ws: true,
       },
     },
+  },
+  preview: {
+    allowedHosts: ['host'],
   },
   build: {
     outDir: 'dist',

@@ -554,6 +554,29 @@ export function routes(
     }),
   );
 
+  router.put(
+    "/projects/:name",
+    asyncHandler(async (req, res) => {
+      try {
+        const { environmentVars = {} } = req.body;
+        const project = projectService.updateProjectEnvironmentVars(
+          req.params.name,
+          environmentVars,
+        );
+        res.json({
+          success: true,
+          data: project,
+        });
+      } catch (error) {
+        logger.error(`Error updating project ${req.params.name}:`, error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
   router.post(
     "/projects/:name/build",
     asyncHandler(async (req, res) => {
@@ -565,6 +588,25 @@ export function routes(
         });
       } catch (error) {
         logger.error(`Error building project ${req.params.name}:`, error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.post(
+    "/projects/:name/sync",
+    asyncHandler(async (req, res) => {
+      try {
+        const result = await projectService.pullLatestProject(req.params.name);
+        res.json({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        logger.error(`Error syncing project ${req.params.name}:`, error);
         res.status(500).json({
           success: false,
           message: error.message,

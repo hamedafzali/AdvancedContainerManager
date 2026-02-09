@@ -258,6 +258,84 @@ export class ProjectService {
     return this.projects;
   }
 
+  public async pullLatestProject(
+    name: string,
+  ): Promise<{ output: string; updated: boolean }> {
+    const project = this.projects.get(name);
+    if (!project) {
+      throw new Error(`Project ${name} not found`);
+    }
+
+    if (!fs.existsSync(project.path)) {
+      throw new Error(`Project path not found: ${project.path}`);
+    }
+
+    try {
+      const composeFile = this.resolveComposeFile(project);
+      if (composeFile) {
+        this.logger.info(
+          `Stopping project ${name} before sync using ${path.basename(composeFile)}`,
+        );
+        const downResult = await this.runCompose(project, [
+          "compose",
+          "-f",
+          composeFile,
+          "down",
+        ]);
+        if (downResult.code !== 0) {
+          this.logger.warn(
+            `Failed to stop ${name} before sync: ${downResult.stderr || downResult.stdout}`,
+          );
+        } else {
+          project.status = "stopped";
+          project.containers = [];
+          this.saveProjects();
+        }
+      }
+
+      const git = simpleGit();
+      const repo = git.cwd(project.path);
+      const status = await repo.status();
+      const before = status.current || project.branch || "main";
+
+      const pullResult = await repo.pull("origin", before);
+      const summary = [
+        pullResult?.summary?.changes || 0,
+        pullResult?.summary?.insertions || 0,
+        pullResult?.summary?.deletions || 0,
+      ];
+      const updated = summary.some((val) => val > 0);
+
+      project.lastUpdated = new Date().toISOString();
+      this.saveProjects();
+
+      const output = `Pulled origin/${before}. Changes: ${pullResult?.summary?.changes || 0}, Insertions: ${pullResult?.summary?.insertions || 0}, Deletions: ${pullResult?.summary?.deletions || 0}`;
+      this.logger.info(`Project ${name} updated: ${output}`);
+
+      return { output, updated };
+    } catch (error) {
+      this.logger.error(`Error pulling latest for project ${name}:`, error);
+      throw error;
+    }
+  }
+
+  public updateProjectEnvironmentVars(
+    name: string,
+    environmentVars: Record<string, string>,
+  ): ProjectInfo {
+    const project = this.projects.get(name);
+    if (!project) {
+      throw new Error(`Project ${name} not found`);
+    }
+
+    project.environmentVars = environmentVars || {};
+    project.lastUpdated = new Date().toISOString();
+    this.saveProjects();
+
+    this.logger.info(`Updated environment variables for project ${name}`);
+    return project;
+  }
+
   public getProject(name: string): ProjectInfo | undefined {
     return this.projects.get(name);
   }
