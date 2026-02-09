@@ -533,14 +533,17 @@ export default function Projects() {
               key={index}
               className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <div className="flex items-center min-w-0">
                   {getStatusIcon(project.status)}
-                  <h3 className="ml-2 text-lg font-semibold text-gray-900">
+                  <h3
+                    className="ml-2 text-lg font-semibold text-gray-900 truncate max-w-[12rem] sm:max-w-[16rem] lg:max-w-[14rem]"
+                    title={project.name}
+                  >
                     {project.name}
                   </h3>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
                   <button
                     onClick={() => handleBuildProject(project.name)}
                     className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
@@ -600,10 +603,13 @@ export default function Projects() {
                     href={project.repoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 flex items-center"
+                    className="text-blue-600 hover:text-blue-800 flex items-center max-w-[10rem] sm:max-w-[14rem] truncate"
+                    title={project.repoUrl}
                   >
                     <ExternalLink className="w-3 h-3 mr-1" />
-                    {project.repoUrl.split("/").pop()}
+                    <span className="truncate">
+                      {project.repoUrl.split("/").pop()}
+                    </span>
                   </a>
                 </div>
 

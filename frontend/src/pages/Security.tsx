@@ -115,12 +115,26 @@ export default function Security() {
           fetch(apiUrl("/api/security/metrics")),
         ]);
 
+      const parseResponse = async (response: Response) => {
+        const text = await response.text();
+        if (!response.ok) {
+          throw new Error(text || "Failed to fetch security data");
+        }
+        try {
+          return JSON.parse(text);
+        } catch (parseError) {
+          throw new Error(
+            `Invalid JSON from ${response.url}. First 200 chars: ${text.slice(0, 200)}`,
+          );
+        }
+      };
+
       const [scansData, alertsData, policiesData, metricsData] =
         await Promise.all([
-          scansResponse.json(),
-          alertsResponse.json(),
-          policiesResponse.json(),
-          metricsResponse.json(),
+          parseResponse(scansResponse),
+          parseResponse(alertsResponse),
+          parseResponse(policiesResponse),
+          parseResponse(metricsResponse),
         ]);
 
       setScans(scansData.data || []);
