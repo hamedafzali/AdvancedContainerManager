@@ -42,11 +42,20 @@ RUN apk add --no-cache \
     docker \
     docker-cli \
     docker-compose \
-    trivy \
     curl \
     bash \
+    tar \
     && rm -rf /var/cache/apk/* \
     && ln -sf python3 /usr/bin/python
+
+# Install Trivy (Alpine repo may not include it)
+RUN TRIVY_VERSION=0.51.1 \
+    && curl -sSL -o /tmp/trivy.tar.gz \
+      https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz \
+    && tar -xzf /tmp/trivy.tar.gz -C /tmp \
+    && mv /tmp/trivy /usr/local/bin/trivy \
+    && chmod +x /usr/local/bin/trivy \
+    && rm -f /tmp/trivy.tar.gz
 
 WORKDIR /app
 
