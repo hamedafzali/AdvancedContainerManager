@@ -145,9 +145,12 @@ export default function Containers() {
             ports: Object.keys(container.ports || {}).map((key) => key),
             cpu: 0,
             memory: 0,
-            uptime: container.startedAt
-              ? new Date(container.startedAt).toLocaleString()
-              : "Never started",
+            uptime:
+              container.status === "running"
+                ? "Running"
+                : container.startedAt
+                  ? new Date(container.startedAt).toLocaleString()
+                  : "Never started",
             created: new Date(container.created * 1000).toLocaleString(),
           }),
         );
@@ -161,24 +164,24 @@ export default function Containers() {
         type ContainerStats = { id: string; cpu: number; memory: number };
         const statsResults: PromiseSettledResult<ContainerStats>[] =
           await Promise.allSettled(
-          runningContainers.map(async (container: Container) => {
-            const statsResponse = await fetch(
-              apiUrl(`/api/containers/${container.id}/stats`),
-            );
-            if (!statsResponse.ok) {
-              throw new Error(`Stats request failed for ${container.id}`);
-            }
-            const statsText = await statsResponse.text();
-            const statsResult = JSON.parse(statsText);
-            const stats = statsResult.data || statsResult;
-            return {
-              id: container.id,
-              cpu: stats.cpuPercent || 0,
-              memory:
-                Math.round((stats.memoryUsage / 1024 / 1024) * 100) / 100,
-            };
-          }),
-        );
+            runningContainers.map(async (container: Container) => {
+              const statsResponse = await fetch(
+                apiUrl(`/api/containers/${container.id}/stats`),
+              );
+              if (!statsResponse.ok) {
+                throw new Error(`Stats request failed for ${container.id}`);
+              }
+              const statsText = await statsResponse.text();
+              const statsResult = JSON.parse(statsText);
+              const stats = statsResult.data || statsResult;
+              return {
+                id: container.id,
+                cpu: stats.cpuPercent || 0,
+                memory:
+                  Math.round((stats.memoryUsage / 1024 / 1024) * 100) / 100,
+              };
+            }),
+          );
 
         const statsMap = new Map<string, { cpu: number; memory: number }>();
         statsResults.forEach((result: PromiseSettledResult<ContainerStats>) => {
