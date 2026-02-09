@@ -27,7 +27,30 @@ export function routes(
   const securityService = new SecurityService(logger);
   const aiOptimizer = new AIOptimizer(dockerService, metricsCollector, logger);
   const multiCloudService = new MultiCloudService(logger);
-  const analyticsService = new AnalyticsService(logger);
+  const analyticsService = new AnalyticsService(logger, metricsCollector);
+
+  router.use((req, res, next) => {
+    const start = Date.now();
+    res.on("finish", () => {
+      const duration = Date.now() - start;
+      if (req.path.startsWith("/health")) {
+        return;
+      }
+      auditService.logAction({
+        action: `${req.method} ${req.path}`,
+        resource: "api",
+        details: {
+          statusCode: res.statusCode,
+          durationMs: duration,
+        },
+        ip: req.ip,
+        userAgent: req.get("user-agent"),
+        success: res.statusCode < 400,
+        level: res.statusCode >= 500 ? "error" : res.statusCode >= 400 ? "warn" : "info",
+      });
+    });
+    next();
+  });
 
   // System routes
   router.get(
