@@ -426,6 +426,29 @@ export class DockerService {
     }
   }
 
+  async updateContainerResources(
+    containerId: string,
+    resources: { memoryBytes?: number; nanoCpus?: number; cpuShares?: number },
+  ): Promise<void> {
+    try {
+      const container = await this.docker.getContainer(containerId);
+      await container.update({
+        Memory: resources.memoryBytes,
+        NanoCpus: resources.nanoCpus,
+        CpuShares: resources.cpuShares,
+      });
+      this.logger.info(
+        `Updated container ${containerId} resources: ${JSON.stringify(resources)}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error updating resources for container ${containerId}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   // Image Management
   async getAllImages(): Promise<ImageInfo[]> {
     try {

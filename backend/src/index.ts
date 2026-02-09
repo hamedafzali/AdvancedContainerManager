@@ -90,8 +90,12 @@ class AdvancedContainerManager {
   }
 
   private initializeServices(): void {
-    this.metricsCollector = new MetricsCollector(this.config, this.logger);
     this.dockerService = new DockerService(this.config, this.logger);
+    this.metricsCollector = new MetricsCollector(
+      this.config,
+      this.logger,
+      this.dockerService,
+    );
     this.projectService = new ProjectService(this.config, this.logger);
     this.terminalService = new TerminalService(this.config, this.logger);
     this.healthService = new HealthService(this.logger);

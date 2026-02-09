@@ -1,4 +1,8 @@
 import { Logger } from "../utils/logger";
+import { execFile } from "child_process";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
 
 export interface SecurityScan {
   id: string;
@@ -345,23 +349,14 @@ export class SecurityService {
       this.logger.info(`Performing security scan ${scan.id}`);
       
       scan.status = 'running';
-      
-      // Simulate scan delay
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Generate mock vulnerabilities
-      scan.vulnerabilities = await this.generateVulnerabilities(scan.imageName);
-      
-      // Generate mock compliance checks
-      scan.compliance = await this.generateComplianceChecks();
-      
-      // Calculate summary and risk score
+
+      const vulnerabilities = await this.runTrivyScan(scan.imageName);
+      scan.vulnerabilities = vulnerabilities;
+      scan.compliance = [];
       scan.summary = this.calculateVulnerabilitySummary(scan.vulnerabilities);
       scan.riskScore = this.calculateRiskScore(scan.vulnerabilities, scan.compliance);
-      
       scan.status = 'completed';
-      
-      // Generate alerts based on scan results
+
       await this.generateScanAlerts(scan);
       
       this.logger.info(`Security scan ${scan.id} completed successfully`);
@@ -372,69 +367,61 @@ export class SecurityService {
     }
   }
 
-  private async generateVulnerabilities(imageName: string): Promise<Vulnerability[]> {
-    // Mock vulnerability generation - in real implementation, this would use tools like Trivy, Clair, etc.
-    const vulnerabilities: Vulnerability[] = [];
-    const numVulnerabilities = Math.floor(Math.random() * 20) + 5;
-    
-    for (let i = 0; i < numVulnerabilities; i++) {
-      const severity = this.getRandomSeverity();
-      vulnerabilities.push({
-        id: `vuln-${Date.now()}-${i}`,
-        severity,
-        title: `Vulnerability ${i + 1}`,
-        description: `Security vulnerability found in package`,
-        package: `package-${i}`,
-        version: `1.${i}.0`,
-        fixedVersion: `1.${i}.1`,
-        cveId: `CVE-2024-${String(i + 1).padStart(4, '0')}`,
-        cvssScore: this.getCvssScore(severity),
-        references: [`https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-${String(i + 1).padStart(4, '0')}`],
-        category: this.getVulnerabilityCategory(),
-      });
+  private async runTrivyScan(imageName: string): Promise<Vulnerability[]> {
+    const trivyPath = process.env.TRIVY_PATH || "trivy";
+    try {
+      const { stdout } = await execFileAsync(
+        trivyPath,
+        ["image", "--quiet", "--format", "json", imageName],
+        { maxBuffer: 10 * 1024 * 1024 },
+      );
+
+      const data = JSON.parse(stdout || "{}");
+      const results = Array.isArray(data.Results) ? data.Results : [];
+      const vulns: Vulnerability[] = [];
+
+      for (const result of results) {
+        const vulnerabilities = Array.isArray(result.Vulnerabilities)
+          ? result.Vulnerabilities
+          : [];
+        for (const vuln of vulnerabilities) {
+          vulns.push({
+            id: vuln.VulnerabilityID || `vuln-${Date.now()}`,
+            severity: (vuln.Severity || "info").toLowerCase(),
+            title: vuln.Title || vuln.VulnerabilityID || "Vulnerability",
+            description: vuln.Description || "",
+            package: vuln.PkgName || "unknown",
+            version: vuln.InstalledVersion || "unknown",
+            fixedVersion: vuln.FixedVersion,
+            cveId: vuln.VulnerabilityID,
+            cvssScore: this.extractCvssScore(vuln),
+            references: vuln.References || [],
+            category: vuln.Class || "Package",
+          });
+        }
+      }
+
+      return vulns;
+    } catch (error) {
+      this.logger.error(`Trivy scan failed for ${imageName}:`, error);
+      throw new Error(
+        `Trivy scan failed. Ensure trivy is installed in the backend container.`,
+      );
     }
-    
-    return vulnerabilities;
   }
 
-  private async generateComplianceChecks(): Promise<ComplianceCheck[]> {
-    // Mock compliance checks - in real implementation, this would use CIS benchmarks, etc.
-    const checks: ComplianceCheck[] = [
-      {
-        name: 'Root user not used',
-        status: Math.random() > 0.3 ? 'pass' : 'fail',
-        description: 'Container should not run as root user',
-        category: 'Container Security',
-        severity: 'high',
-        recommendation: 'Configure container to run as non-root user',
-      },
-      {
-        name: 'Sensitive data not in environment',
-        status: Math.random() > 0.2 ? 'pass' : 'fail',
-        description: 'No sensitive data should be stored in environment variables',
-        category: 'Data Protection',
-        severity: 'critical',
-        recommendation: 'Use secrets management for sensitive data',
-      },
-      {
-        name: 'Minimal base image',
-        status: Math.random() > 0.4 ? 'pass' : 'warning',
-        description: 'Use minimal base images to reduce attack surface',
-        category: 'Image Security',
-        severity: 'medium',
-        recommendation: 'Use distroless or alpine base images',
-      },
-      {
-        name: 'Health check configured',
-        status: Math.random() > 0.3 ? 'pass' : 'fail',
-        description: 'Container should have health check configured',
-        category: 'Operational Security',
-        severity: 'low',
-        recommendation: 'Add HEALTHCHECK instruction to Dockerfile',
-      },
-    ];
-    
-    return checks;
+  private extractCvssScore(vuln: any): number | undefined {
+    const cvss = vuln.CVSS || {};
+    const sources = Object.values(cvss) as any[];
+    for (const source of sources) {
+      if (source && typeof source.V3Score === "number") {
+        return source.V3Score;
+      }
+      if (source && typeof source.V2Score === "number") {
+        return source.V2Score;
+      }
+    }
+    return undefined;
   }
 
   private calculateVulnerabilitySummary(vulnerabilities: Vulnerability[]): SecurityScan['summary'] {
@@ -624,48 +611,7 @@ export class SecurityService {
     });
   }
 
-  private getRandomSeverity(): Vulnerability['severity'] {
-    const severities: Vulnerability['severity'][] = ['critical', 'high', 'medium', 'low', 'info'];
-    const weights = [0.1, 0.2, 0.3, 0.3, 0.1]; // Weighted random selection
-    
-    const random = Math.random();
-    let cumulative = 0;
-    
-    for (let i = 0; i < severities.length; i++) {
-      cumulative += weights[i];
-      if (random < cumulative) {
-        return severities[i];
-      }
-    }
-    
-    return 'info';
-  }
-
-  private getCvssScore(severity: Vulnerability['severity']): number {
-    switch (severity) {
-      case 'critical': return 9.0 + Math.random() * 1.0;
-      case 'high': return 7.0 + Math.random() * 2.0;
-      case 'medium': return 4.0 + Math.random() * 3.0;
-      case 'low': return 1.0 + Math.random() * 3.0;
-      case 'info': return 0.0 + Math.random() * 1.0;
-      default: return 0.0;
-    }
-  }
-
   private getVulnerabilityCategory(): string {
-    const categories = [
-      'Privilege Escalation',
-      'Information Disclosure',
-      'Denial of Service',
-      'Code Execution',
-      'Cross-Site Scripting',
-      'SQL Injection',
-      'Buffer Overflow',
-      'Cryptographic Issues',
-      'Input Validation',
-      'Authentication Bypass',
-    ];
-    
-    return categories[Math.floor(Math.random() * categories.length)];
+    return "Package";
   }
 }

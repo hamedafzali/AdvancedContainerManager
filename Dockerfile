@@ -42,6 +42,7 @@ RUN apk add --no-cache \
     docker \
     docker-cli \
     docker-compose \
+    trivy \
     curl \
     bash \
     && rm -rf /var/cache/apk/* \

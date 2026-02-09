@@ -1,10 +1,12 @@
 import * as si from "systeminformation";
 import { SystemMetrics, ContainerMetrics, AppConfig } from "../types";
 import { Logger } from "../utils/logger";
+import { DockerService } from "./docker-service";
 
 export class MetricsCollector {
   private config: AppConfig;
   private logger: Logger;
+  private dockerService?: DockerService;
   private intervalId: NodeJS.Timeout | null = null;
   private metricsHistory: Map<string, ContainerMetrics[]> = new Map();
   private systemMetricsHistory: SystemMetrics[] = [];
@@ -17,9 +19,10 @@ export class MetricsCollector {
   private metricsBuffer: SystemMetrics[] = [];
   private bufferSize: number = 100;
 
-  constructor(config: AppConfig, logger: Logger) {
+  constructor(config: AppConfig, logger: Logger, dockerService?: DockerService) {
     this.config = config;
     this.logger = logger;
+    this.dockerService = dockerService;
     this.startTime = Date.now();
     this.initializeRedis();
     this.initializeAlertThresholds();
@@ -212,19 +215,11 @@ export class MetricsCollector {
     containerId: string,
   ): Promise<ContainerMetrics> {
     try {
-      // This would typically use Docker API
-      // For now, return mock data
-      const metrics: ContainerMetrics = {
-        timestamp: new Date().toISOString(),
-        cpuPercent: Math.random() * 80,
-        memoryPercent: Math.random() * 80,
-        memoryUsage: Math.floor(Math.random() * 1024 * 1024 * 1024), // Random up to 1GB
-        memoryLimit: 1024 * 1024 * 1024, // 1GB
-        networkRx: Math.floor(Math.random() * 1024 * 1024),
-        networkTx: Math.floor(Math.random() * 1024 * 1024),
-        blockRead: Math.floor(Math.random() * 1024 * 1024),
-        blockWrite: Math.floor(Math.random() * 1024 * 1024),
-      };
+      if (!this.dockerService) {
+        throw new Error("Docker service is not available for container metrics");
+      }
+
+      const metrics = await this.dockerService.getContainerStats(containerId);
 
       // Store metrics
       await this.storeContainerMetrics(containerId, metrics);

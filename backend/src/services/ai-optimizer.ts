@@ -4,6 +4,7 @@ import { DockerService } from "./docker-service";
 import { MetricsCollector } from "./metrics-collector";
 
 export interface OptimizationRecommendation {
+  id: string;
   type: "resource" | "performance" | "security" | "cost";
   priority: "low" | "medium" | "high" | "critical";
   containerId?: string;
@@ -15,6 +16,11 @@ export interface OptimizationRecommendation {
     cpu?: number;
     memory?: number;
     cost?: number;
+  };
+  resourceAdjustments?: {
+    memoryBytes?: number;
+    nanoCpus?: number;
+    cpuShares?: number;
   };
 }
 
@@ -131,10 +137,20 @@ export class AIOptimizer {
     metrics: ContainerMetrics,
   ): OptimizationRecommendation[] {
     const recommendations: OptimizationRecommendation[] = [];
+    const memoryLimit = container.resources?.memoryLimit || 0;
+    const cpuQuota = container.resources?.cpuQuota || 0;
+    const cpuPeriod = container.resources?.cpuPeriod || 0;
+    const cpuShares = container.resources?.cpuShares || 0;
+
+    const currentCpus =
+      cpuQuota > 0 && cpuPeriod > 0 ? cpuQuota / cpuPeriod : 0;
+    const currentNanoCpus =
+      currentCpus > 0 ? Math.round(currentCpus * 1e9) : undefined;
 
     // CPU optimization
     if (metrics.cpuPercent > 80) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "resource",
         priority: "high",
         containerId: container.id,
@@ -144,9 +160,16 @@ export class AIOptimizer {
           "Consider increasing CPU allocation or optimizing application code",
         expectedImpact: "Improved performance and stability",
         estimatedSavings: { cpu: metrics.cpuPercent - 70 },
+        resourceAdjustments:
+          currentNanoCpus && currentNanoCpus > 0
+            ? { nanoCpus: Math.round(currentNanoCpus * 1.25) }
+            : cpuShares > 0
+              ? { cpuShares: Math.round(cpuShares * 1.25) }
+              : undefined,
       });
     } else if (metrics.cpuPercent < 10) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "resource",
         priority: "medium",
         containerId: container.id,
@@ -155,12 +178,19 @@ export class AIOptimizer {
         recommendation: "Consider reducing CPU allocation to save costs",
         expectedImpact: "Reduced resource costs",
         estimatedSavings: { cpu: 50 - metrics.cpuPercent, cost: 10 },
+        resourceAdjustments:
+          currentNanoCpus && currentNanoCpus > 0
+            ? { nanoCpus: Math.round(currentNanoCpus * 0.7) }
+            : cpuShares > 0
+              ? { cpuShares: Math.max(2, Math.round(cpuShares * 0.7)) }
+              : undefined,
       });
     }
 
     // Memory optimization
     if (metrics.memoryPercent > 85) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "resource",
         priority: "critical",
         containerId: container.id,
@@ -170,9 +200,21 @@ export class AIOptimizer {
           "Increase memory allocation or investigate memory leaks",
         expectedImpact: "Prevent out-of-memory errors",
         estimatedSavings: { memory: metrics.memoryPercent - 75 },
+        resourceAdjustments:
+          memoryLimit > 0
+            ? { memoryBytes: Math.round(memoryLimit * 1.25) }
+            : undefined,
       });
     } else if (metrics.memoryPercent < 20) {
+      const targetLimit =
+        memoryLimit > 0
+          ? Math.max(
+              Math.round(metrics.memoryUsage * 1.2),
+              Math.round(memoryLimit * 0.7),
+            )
+          : undefined;
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "resource",
         priority: "medium",
         containerId: container.id,
@@ -181,6 +223,8 @@ export class AIOptimizer {
         recommendation: "Consider reducing memory allocation",
         expectedImpact: "Reduced memory costs",
         estimatedSavings: { memory: 40 - metrics.memoryPercent, cost: 15 },
+        resourceAdjustments:
+          targetLimit && memoryLimit > 0 ? { memoryBytes: targetLimit } : undefined,
       });
     }
 
@@ -197,6 +241,7 @@ export class AIOptimizer {
     if (metrics.networkRx > 1000000000 || metrics.networkTx > 1000000000) {
       // > 1GB
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "performance",
         priority: "medium",
         containerId: container.id,
@@ -211,6 +256,7 @@ export class AIOptimizer {
     if (metrics.blockRead > 100000000 || metrics.blockWrite > 100000000) {
       // > 100MB
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "performance",
         priority: "medium",
         containerId: container.id,
@@ -241,6 +287,7 @@ export class AIOptimizer {
 
     if (exposedSensitivePorts.length > 0) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "security",
         priority: "high",
         containerId: container.id,
@@ -258,6 +305,7 @@ export class AIOptimizer {
       container.labels["security.scan"] !== "enabled"
     ) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "security",
         priority: "medium",
         containerId: container.id,
@@ -290,6 +338,7 @@ export class AIOptimizer {
       metrics.memoryPercent < 10
     ) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "cost",
         priority: "medium",
         containerId: container.id,
@@ -305,6 +354,7 @@ export class AIOptimizer {
     // Check for over-provisioned resources
     if (metrics.cpuPercent < 30 && metrics.memoryPercent < 40) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "cost",
         priority: "low",
         containerId: container.id,
@@ -328,6 +378,7 @@ export class AIOptimizer {
     // System-wide resource optimization
     if (systemMetrics.cpuPercent > 80) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "resource",
         priority: "high",
         title: "High System CPU Usage",
@@ -339,6 +390,7 @@ export class AIOptimizer {
 
     if (systemMetrics.memoryPercent > 85) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "resource",
         priority: "critical",
         title: "High System Memory Usage",
@@ -352,6 +404,7 @@ export class AIOptimizer {
     const runningContainers = containers.filter((c) => c.status === "running");
     if (runningContainers.length > 10) {
       recommendations.push({
+        id: `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         type: "cost",
         priority: "medium",
         title: "Container Consolidation Opportunity",
@@ -437,17 +490,49 @@ export class AIOptimizer {
     recommendationId: string,
   ): Promise<boolean> {
     try {
-      // Implementation for automatically applying optimization recommendations
       this.logger.info(
         `Applying optimization recommendation: ${recommendationId}`,
       );
 
-      // This would integrate with container orchestration to apply optimizations
-      // For now, return true to indicate successful application
+      const recommendation = this.findRecommendation(recommendationId);
+      if (!recommendation) {
+        throw new Error("Recommendation not found");
+      }
+
+      if (!recommendation.containerId) {
+        throw new Error("Recommendation is not tied to a container");
+      }
+
+      if (
+        recommendation.type !== "resource" ||
+        !recommendation.resourceAdjustments
+      ) {
+        throw new Error("Recommendation does not support auto-apply");
+      }
+
+      await this.dockerService.updateContainerResources(
+        recommendation.containerId,
+        recommendation.resourceAdjustments,
+      );
+
       return true;
     } catch (error) {
       this.logger.error("Error applying optimization recommendation:", error);
       return false;
     }
+  }
+
+  private findRecommendation(
+    recommendationId: string,
+  ): OptimizationRecommendation | null {
+    for (const entry of this.optimizationHistory) {
+      const match = entry.recommendations.find(
+        (rec) => rec.id === recommendationId,
+      );
+      if (match) {
+        return match;
+      }
+    }
+    return null;
   }
 }
