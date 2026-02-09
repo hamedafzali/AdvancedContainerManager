@@ -641,7 +641,13 @@ export default function Containers() {
                         <button className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200">
                           <Terminal className="w-4 h-4" />
                         </button>
-                        <button className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200">
+                        <button
+                          onClick={() => {
+                            setSelectedContainer(container);
+                            setShowLogsModal(true);
+                          }}
+                          className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"
+                        >
                           <Settings className="w-4 h-4" />
                         </button>
                         <button
