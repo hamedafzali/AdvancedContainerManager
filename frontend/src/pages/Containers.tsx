@@ -136,7 +136,7 @@ export default function Containers() {
         }
         const data = result.data;
 
-        const transformedContainers = data.map(
+        const transformedContainers: Container[] = data.map(
           (container: any): Container => ({
             id: container.id,
             name: container.name,
@@ -161,7 +161,7 @@ export default function Containers() {
         type ContainerStats = { id: string; cpu: number; memory: number };
         const statsResults: PromiseSettledResult<ContainerStats>[] =
           await Promise.allSettled(
-          runningContainers.map(async (container) => {
+          runningContainers.map(async (container: Container) => {
             const statsResponse = await fetch(
               apiUrl(`/api/containers/${container.id}/stats`),
             );
