@@ -19,6 +19,7 @@ const Projects = lazy(() => import("@/pages/Projects"));
 const Images = lazy(() => import("@/pages/Images"));
 const Networks = lazy(() => import("@/pages/Networks"));
 const Volumes = lazy(() => import("@/pages/Volumes"));
+const Tunnels = lazy(() => import("@/pages/Tunnels"));
 const Terminal = lazy(() => import("@/pages/Terminal"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
@@ -53,6 +54,7 @@ function AppWithSocket() {
           <Route path="images" element={<Images />} />
           <Route path="networks" element={<Networks />} />
           <Route path="volumes" element={<Volumes />} />
+          <Route path="tunnels" element={<Tunnels />} />
           <Route path="terminal/:containerId?" element={<Terminal />} />
           <Route path="settings" element={<Settings />} />
           <Route path="analytics" element={<Analytics />} />

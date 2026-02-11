@@ -11,9 +11,10 @@ import path from "path";
 import { AppConfig } from "./types";
 import { Logger, LogLevel } from "./utils/logger";
 import { MetricsCollector } from "./services/metrics-collector";
-import { DockerService } from "./services/docker-service";
-import { ProjectService } from "./services/project-service";
-import { TerminalService } from "./services/terminal-service";
+import DockerService from "./services/docker-service";
+import ProjectService from "./services/project-service";
+import { TunnelService } from "./services/tunnel-service";
+import TerminalService from "./services/terminal-service";
 import { WebSocketHandler } from "./services/websocket-handler";
 import { HealthService } from "./services/health-service";
 import { errorHandler } from "./middleware/error-handler";
@@ -31,6 +32,7 @@ class AdvancedContainerManager {
   private metricsCollector: MetricsCollector;
   private dockerService: DockerService;
   private projectService: ProjectService;
+  private tunnelService: TunnelService;
   private terminalService: TerminalService;
   private wsHandler: WebSocketHandler;
   private healthService: HealthService;
@@ -97,6 +99,7 @@ class AdvancedContainerManager {
       this.dockerService,
     );
     this.projectService = new ProjectService(this.config, this.logger);
+    this.tunnelService = new TunnelService();
     this.terminalService = new TerminalService(this.config, this.logger);
     this.healthService = new HealthService(this.logger);
     this.wsHandler = new WebSocketHandler(
@@ -111,7 +114,9 @@ class AdvancedContainerManager {
   }
 
   private setupMiddleware(): void {
-    const corsOrigin = this.resolveAllowedOrigins(process.env.CORS_ORIGIN || "");
+    const corsOrigin = this.resolveAllowedOrigins(
+      process.env.CORS_ORIGIN || "",
+    );
 
     // Security middleware
     this.app.use(
@@ -158,6 +163,7 @@ class AdvancedContainerManager {
       routes(
         this.dockerService,
         this.projectService,
+        this.tunnelService,
         this.terminalService,
         this.metricsCollector,
       ),
@@ -190,7 +196,6 @@ class AdvancedContainerManager {
           res.status(500).json({ success: false, message: error.message }),
         );
     });
-
   }
 
   private resolveAllowedOrigins(
@@ -200,7 +205,10 @@ class AdvancedContainerManager {
     | string
     | string[]
     | RegExp
-    | ((origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => void) {
+    | ((
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void,
+      ) => void) {
     const trimmed = rawOrigins.trim();
     if (!trimmed) {
       return true;

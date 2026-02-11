@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { DockerService } from "../services/docker-service";
 import { ProjectService } from "../services/project-service";
+import { TunnelService } from "../services/tunnel-service";
 import { TerminalService } from "../services/terminal-service";
 import { MetricsCollector } from "../services/metrics-collector";
 import { Logger, LogLevel } from "../utils/logger";
@@ -16,6 +17,7 @@ import { SecurityService } from "../services/security-service";
 export function routes(
   dockerService: DockerService,
   projectService: ProjectService,
+  tunnelService: TunnelService,
   terminalService: TerminalService,
   metricsCollector: MetricsCollector,
 ): Router {
@@ -1999,6 +2001,79 @@ export function routes(
       } catch (error) {
         logger.error(`Health check ${req.params.checkName} failed:`, error);
         res.status(400).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  // Cloudflare Tunnel endpoints
+  router.post(
+    "/tunnels/create",
+    asyncHandler(async (req, res) => {
+      try {
+        const { name, port, domain } = req.body;
+
+        if (!name || !port) {
+          return res.status(400).json({
+            success: false,
+            message: "Name and port are required",
+          });
+        }
+
+        const tunnelUrl = await tunnelService.createTunnel(name, port, domain);
+        res.json({
+          success: true,
+          data: {
+            url: tunnelUrl,
+            name,
+            port,
+            domain,
+          },
+        });
+      } catch (error) {
+        logger.error("Failed to create tunnel:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.get(
+    "/tunnels",
+    asyncHandler(async (req, res) => {
+      try {
+        const tunnels = tunnelService.getTunnels();
+        res.json({
+          success: true,
+          data: tunnels,
+        });
+      } catch (error) {
+        logger.error("Failed to fetch tunnels:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.delete(
+    "/tunnels/:name",
+    asyncHandler(async (req, res) => {
+      try {
+        const { name } = req.params;
+        await tunnelService.stopTunnel(name);
+        res.json({
+          success: true,
+          message: `Tunnel ${name} stopped successfully`,
+        });
+      } catch (error) {
+        logger.error(`Failed to stop tunnel ${req.params.name}:`, error);
+        res.status(500).json({
           success: false,
           message: error.message,
         });
