@@ -29,8 +29,8 @@ services:
       - PORT=5003
       - HOST=0.0.0.0
       - DEBUG=true
-      - CORS_ORIGIN=http://host:3000
-      - SOCKET_ORIGIN=http://host:3000
+      - CORS_ORIGIN=http://localhost:3000,http://host:3000
+      - SOCKET_ORIGIN=http://localhost:3000,http://host:3000
       - LOG_LEVEL=info
       - REDIS_HOST=redis
       - REDIS_PORT=6379
