@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, ExternalLink, Play, Square, Globe, AlertCircle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import {
+  Plus,
+  Trash2,
+  ExternalLink,
+  Play,
+  Square,
+  Globe,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 
 interface Tunnel {
   id: string;
@@ -7,7 +16,7 @@ interface Tunnel {
   url: string;
   port: number;
   domain?: string;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   createdAt: string;
 }
 
@@ -17,23 +26,32 @@ export default function Tunnels() {
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newTunnel, setNewTunnel] = useState({
-    name: '',
-    port: '',
-    domain: ''
+    name: "",
+    port: "",
+    domain: "",
   });
 
   const fetchTunnels = async () => {
     try {
-      const response = await fetch('/api/tunnels');
+      const response = await fetch("/api/tunnels");
       const data = await response.json();
       if (data.success) {
         setTunnels(data.data);
+        setError(null); // Clear any previous errors
       } else {
         setError(data.message);
       }
     } catch (error) {
-      console.error('Failed to fetch tunnels:', error);
-      setError('Failed to fetch tunnels');
+      console.error("Failed to fetch tunnels:", error);
+      // Only show error if it's a real network error, not empty state
+      if (
+        error instanceof TypeError &&
+        error.message.includes("Failed to fetch")
+      ) {
+        setError("Network connection error");
+      } else {
+        setError(null); // Clear error for other cases
+      }
     }
   };
 
@@ -46,7 +64,7 @@ export default function Tunnels() {
   const createTunnel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTunnel.name || !newTunnel.port) {
-      setError('Name and port are required');
+      setError("Name and port are required");
       return;
     }
 
@@ -54,31 +72,34 @@ export default function Tunnels() {
     setError(null);
 
     try {
-      const response = await fetch('/api/tunnels/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/tunnels/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: newTunnel.name,
           port: parseInt(newTunnel.port),
-          domain: newTunnel.domain || undefined
-        })
+          domain: newTunnel.domain || undefined,
+        }),
       });
 
       const data = await response.json();
       if (data.success) {
-        setTunnels(prev => [...prev, {
-          ...data.data,
-          status: 'active',
-          createdAt: new Date().toISOString()
-        }]);
-        setNewTunnel({ name: '', port: '', domain: '' });
+        setTunnels((prev) => [
+          ...prev,
+          {
+            ...data.data,
+            status: "active",
+            createdAt: new Date().toISOString(),
+          },
+        ]);
+        setNewTunnel({ name: "", port: "", domain: "" });
         setShowCreateForm(false);
       } else {
         setError(data.message);
       }
     } catch (error) {
-      console.error('Failed to create tunnel:', error);
-      setError('Failed to create tunnel');
+      console.error("Failed to create tunnel:", error);
+      setError("Failed to create tunnel");
     } finally {
       setLoading(false);
     }
@@ -86,16 +107,18 @@ export default function Tunnels() {
 
   const deleteTunnel = async (name: string) => {
     try {
-      const response = await fetch(`/api/tunnels/${name}`, { method: 'DELETE' });
+      const response = await fetch(`/api/tunnels/${name}`, {
+        method: "DELETE",
+      });
       const data = await response.json();
       if (data.success) {
-        setTunnels(prev => prev.filter(t => t.name !== name));
+        setTunnels((prev) => prev.filter((t) => t.name !== name));
       } else {
         setError(data.message);
       }
     } catch (error) {
-      console.error('Failed to delete tunnel:', error);
-      setError('Failed to delete tunnel');
+      console.error("Failed to delete tunnel:", error);
+      setError("Failed to delete tunnel");
     }
   };
 
@@ -107,9 +130,10 @@ export default function Tunnels() {
             Cloudflare Tunnels
           </h1>
           <p className="text-gray-600 mb-6">
-            Expose your containers to the internet securely through Cloudflare tunnels
+            Expose your containers to the internet securely through Cloudflare
+            tunnels
           </p>
-          
+
           <button
             onClick={() => setShowCreateForm(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
@@ -140,7 +164,9 @@ export default function Tunnels() {
                 <input
                   type="text"
                   value={newTunnel.name}
-                  onChange={(e) => setNewTunnel(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e) =>
+                    setNewTunnel((prev) => ({ ...prev, name: e.target.value }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="my-container-tunnel"
                   required
@@ -153,7 +179,9 @@ export default function Tunnels() {
                 <input
                   type="number"
                   value={newTunnel.port}
-                  onChange={(e) => setNewTunnel(prev => ({ ...prev, port: e.target.value }))}
+                  onChange={(e) =>
+                    setNewTunnel((prev) => ({ ...prev, port: e.target.value }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="3000"
                   required
@@ -166,7 +194,12 @@ export default function Tunnels() {
                 <input
                   type="text"
                   value={newTunnel.domain}
-                  onChange={(e) => setNewTunnel(prev => ({ ...prev, domain: e.target.value }))}
+                  onChange={(e) =>
+                    setNewTunnel((prev) => ({
+                      ...prev,
+                      domain: e.target.value,
+                    }))
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="yourdomain.com"
                 />
@@ -219,25 +252,30 @@ export default function Tunnels() {
           ) : (
             <div className="space-y-4">
               {tunnels.map((tunnel) => (
-                <div key={tunnel.id} className="border border-gray-200 rounded-lg p-4">
+                <div
+                  key={tunnel.id}
+                  className="border border-gray-200 rounded-lg p-4"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-medium text-gray-900">
                           {tunnel.name}
                         </h3>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          tunnel.status === 'active' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {tunnel.status === 'active' ? (
+                        <span
+                          className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            tunnel.status === "active"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {tunnel.status === "active" ? (
                             <>
                               <CheckCircle className="w-3 h-3 inline mr-1" />
                               Active
                             </>
                           ) : (
-                            'Inactive'
+                            "Inactive"
                           )}
                         </span>
                       </div>
@@ -260,7 +298,9 @@ export default function Tunnels() {
                     </div>
                     <div className="flex space-x-2">
                       <button
-                        onClick={() => window.open(`https://${tunnel.url}`, '_blank')}
+                        onClick={() =>
+                          window.open(`https://${tunnel.url}`, "_blank")
+                        }
                         className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700"
                         title="Open in new tab"
                       >
