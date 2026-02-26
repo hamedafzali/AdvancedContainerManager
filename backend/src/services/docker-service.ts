@@ -294,6 +294,42 @@ export class DockerService {
     }
   }
 
+  async updateContainerPorts(
+    containerId: string,
+    ports: Array<{ hostPort?: number; port: string }>,
+  ): Promise<void> {
+    try {
+      const container = await this.docker.getContainer(containerId);
+
+      // Stop the container
+      await container.stop();
+
+      // Recreate container with new port mappings
+      const config = container.inspect();
+      const portBindings = ports.reduce((acc, port) => {
+        const [containerPort, hostPort] = port.port.split(":");
+        acc[containerPort] = [
+          { HostPort: port.hostPort || parseInt(hostPort) },
+        ];
+        return acc;
+      }, {});
+
+      await container.restart({
+        PortBindings: portBindings,
+      });
+
+      this.logger.info(
+        `Container ${containerId} port mappings updated successfully`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error updating container ports ${containerId}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   async getContainerLogs(
     containerId: string,
     options: {
@@ -345,10 +381,7 @@ export class DockerService {
           (cpuStats.system_cpu_usage || 0) -
           (preCpuStats.system_cpu_usage || 0);
         if (systemDelta > 0) {
-          cpuUsage =
-            (cpuDelta / systemDelta) *
-            cpuCount *
-            100;
+          cpuUsage = (cpuDelta / systemDelta) * cpuCount * 100;
         }
       }
 
@@ -583,9 +616,7 @@ export class DockerService {
       status: (normalizedStatus as ContainerInfo["status"]) || "created",
       image: container?.Image || container?.Config?.Image || "unknown",
       created:
-        container?.Created ||
-        container?.CreatedAt ||
-        new Date().toISOString(),
+        container?.Created || container?.CreatedAt || new Date().toISOString(),
       startedAt: container?.State?.StartedAt || "",
       finishedAt: container?.State?.FinishedAt || "",
       exitCode: container?.State?.ExitCode || 0,

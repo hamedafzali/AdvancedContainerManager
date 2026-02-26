@@ -18,6 +18,9 @@ import {
   Download,
   Copy,
   X,
+  Edit3,
+  Save,
+  ArrowUpDown,
 } from "lucide-react";
 import { apiUrl } from "@/utils/api";
 
@@ -47,6 +50,12 @@ export default function Containers() {
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(false);
+  const [showPortModal, setShowPortModal] = useState(false);
+  const [selectedContainerForPorts, setSelectedContainerForPorts] =
+    useState<Container | null>(null);
+  const [portModifications, setPortModifications] = useState<
+    Record<string, { hostPort?: number; containerPort: number }>
+  >({});
 
   // Debouncing ref to prevent excessive API calls
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -637,15 +646,6 @@ export default function Containers() {
                           <Terminal className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
-                            setSelectedContainer(container);
-                            setShowLogsModal(true);
-                          }}
-                          className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"
-                        >
-                          <Settings className="w-4 h-4" />
-                        </button>
-                        <button
                           onClick={() =>
                             handleContainerAction(container.id, "delete")
                           }
@@ -734,6 +734,120 @@ export default function Containers() {
                   <span>No logs available</span>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Port Modification Modal */}
+      {showPortModal && selectedContainerForPorts && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Modify Port Mapping - {selectedContainerForPorts.name}
+              </h2>
+              <button
+                onClick={() => setShowPortModal(false)}
+                className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="border border-gray-200 rounded-lg p-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">
+                  Current Port Configuration
+                </h3>
+                <div className="space-y-3">
+                  {selectedContainerForPorts.ports.map((port, index) => (
+                    <div key={index} className="space-y-2">
+                      <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
+                        <span className="text-sm text-gray-600">{port}</span>
+                        <span className="text-sm text-gray-500 ml-2">
+                          {selectedContainerForPorts.name}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="number"
+                          placeholder="New host port"
+                          className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          onChange={(e) => {
+                            const newPortModifications = {
+                              ...portModifications,
+                            };
+                            const portKey = `${selectedContainerForPorts.id}-${port}`;
+                            newPortModifications[portKey] = {
+                              ...portModifications[portKey],
+                              hostPort: e.target.value
+                                ? parseInt(e.target.value)
+                                : undefined,
+                            };
+                            setPortModifications(newPortModifications);
+                          }}
+                        />
+                        <button
+                          onClick={async () => {
+                            try {
+                              const response = await fetch(
+                                `/api/containers/${selectedContainerForPorts.id}/ports`,
+                                {
+                                  method: "PUT",
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
+                                  body: JSON.stringify({
+                                    ports: selectedContainerForPorts.ports.map(
+                                      (p) => {
+                                        const portKey = `${selectedContainerForPorts.id}-${p}`;
+                                        const modification =
+                                          portModifications[portKey];
+                                        return {
+                                          hostPort: modification?.hostPort,
+                                          port: p,
+                                        };
+                                      },
+                                    ),
+                                  }),
+                                },
+                              );
+
+                              if (response.ok) {
+                                setShowPortModal(false);
+                                setPortModifications({});
+                                // Refresh containers to show updated ports
+                                fetchContainers();
+                              } else {
+                                alert("Failed to update port mapping");
+                              }
+                            } catch (error) {
+                              console.error(
+                                "Error updating port mapping:",
+                                error,
+                              );
+                              alert("Error updating port mapping");
+                            }
+                          }}
+                          className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm"
+                        >
+                          Apply Changes
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 pt-4">
+              <button
+                onClick={() => setShowPortModal(false)}
+                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

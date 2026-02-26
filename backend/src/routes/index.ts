@@ -225,6 +225,46 @@ export function routes(
     }),
   );
 
+  router.put(
+    "/containers/:id/ports",
+    asyncHandler(async (req, res) => {
+      try {
+        const { ports } = req.body;
+        const containerId = req.params.id;
+
+        if (!ports || !Array.isArray(ports)) {
+          return res.status(400).json({
+            success: false,
+            message: "Ports array is required",
+          });
+        }
+
+        // Update container port mappings
+        const result = await dockerService.updateContainerPorts(
+          containerId,
+          ports,
+        );
+
+        logger.info(`Updated port mappings for container: ${containerId}`);
+
+        res.json({
+          success: true,
+          message: "Container port mappings updated successfully",
+          data: result,
+        });
+      } catch (error) {
+        logger.error(
+          `Failed to update port mappings for container ${req.params.id}:`,
+          error,
+        );
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
   router.delete(
     "/containers/:id",
     asyncHandler(async (req, res) => {
