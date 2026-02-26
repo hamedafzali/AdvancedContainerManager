@@ -33,6 +33,12 @@ interface Project {
   status: "configured" | "building" | "running" | "stopped" | "failed";
   createdAt: string;
   lastUpdated: string;
+  ports: Array<{
+    service: string;
+    containerPort: number;
+    hostPort?: number;
+    protocol: string;
+  }>;
   buildHistory: Array<{
     timestamp: string;
     status: string;
@@ -247,7 +253,9 @@ export default function Projects() {
       setEnvEditor([]);
     } catch (err) {
       setActionError(
-        err instanceof Error ? err.message : "Failed to update environment vars",
+        err instanceof Error
+          ? err.message
+          : "Failed to update environment vars",
       );
     }
   };
@@ -647,6 +655,25 @@ export default function Projects() {
                     {project.containers.length}
                   </span>
                 </div>
+
+                {project.ports && project.ports.length > 0 && (
+                  <div className="flex items-start justify-between text-sm">
+                    <span className="text-gray-500">Ports:</span>
+                    <div className="text-right space-y-1">
+                      {project.ports.map((port, portIndex) => (
+                        <div key={portIndex} className="font-medium text-xs">
+                          <span className="text-blue-600">
+                            {port.hostPort ? `${port.hostPort}:` : ""}
+                            {port.containerPort}
+                          </span>
+                          <span className="text-gray-400 ml-1">
+                            {port.service}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Resources:</span>

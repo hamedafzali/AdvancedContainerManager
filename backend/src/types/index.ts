@@ -105,6 +105,12 @@ export interface ProjectInfo {
   status: "configured" | "building" | "built" | "running" | "stopped" | "error";
   createdAt: string;
   lastUpdated: string;
+  ports: Array<{
+    service: string;
+    containerPort: number;
+    hostPort?: number;
+    protocol: string;
+  }>;
   buildHistory: Array<{
     timestamp: string;
     status: string;

@@ -3,6 +3,7 @@ import * as path from "path";
 import * as os from "os";
 import { spawn } from "child_process";
 import { simpleGit } from "simple-git";
+import * as yaml from "js-yaml";
 import { ProjectInfo, ProjectHealth, AppConfig } from "../types";
 import { Logger } from "../utils/logger";
 
@@ -96,8 +97,12 @@ export class ProjectService {
 
         // If modifier includes default value (:- or -) or optional substitution (:+ or +), skip.
         const hasDefault =
-          modifier.includes(":-") || modifier.includes("-") || modifier.includes(":+") || modifier.includes("+");
-        const requiresValue = modifier.includes(":?") || modifier.startsWith("?");
+          modifier.includes(":-") ||
+          modifier.includes("-") ||
+          modifier.includes(":+") ||
+          modifier.includes("+");
+        const requiresValue =
+          modifier.includes(":?") || modifier.startsWith("?");
 
         if (requiresValue) {
           required.add(name);
@@ -123,9 +128,78 @@ export class ProjectService {
     const requiredVars = this.extractRequiredEnvVars(composeFile);
     return requiredVars.filter((key) => {
       const inProject = envVars[key] !== undefined && envVars[key] !== "";
-      const inProcess = process.env[key] !== undefined && process.env[key] !== "";
+      const inProcess =
+        process.env[key] !== undefined && process.env[key] !== "";
       return !inProject && !inProcess;
     });
+  }
+
+  private extractPortsFromCompose(composeFile: string): Array<{
+    service: string;
+    containerPort: number;
+    hostPort?: number;
+    protocol: string;
+  }> {
+    try {
+      const content = fs.readFileSync(composeFile, "utf8");
+      const compose = yaml.load(content) as any;
+      const ports: Array<{
+        service: string;
+        containerPort: number;
+        hostPort?: number;
+        protocol: string;
+      }> = [];
+
+      if (compose.services) {
+        for (const [serviceName, service] of Object.entries(compose.services)) {
+          const serviceConfig = service as any;
+          if (serviceConfig.ports) {
+            for (const portMapping of serviceConfig.ports) {
+              let containerPort: number;
+              let hostPort: number | undefined;
+              let protocol = "tcp";
+
+              if (typeof portMapping === "string") {
+                // Handle string format: "hostPort:containerPort/protocol" or "containerPort/protocol"
+                const parts = portMapping.split(":");
+                const portProtocol = parts[parts.length - 1];
+                const portParts = portProtocol.split("/");
+
+                if (parts.length === 2) {
+                  // Format: "hostPort:containerPort/protocol"
+                  hostPort = parseInt(parts[0]);
+                  containerPort = parseInt(portParts[0]);
+                } else {
+                  // Format: "containerPort/protocol"
+                  containerPort = parseInt(portParts[0]);
+                }
+
+                protocol = portParts[1] || "tcp";
+              } else if (typeof portMapping === "object") {
+                // Handle object format: { target: containerPort, published: hostPort, protocol: "tcp" }
+                containerPort = portMapping.target;
+                hostPort = portMapping.published;
+                protocol = portMapping.protocol || "tcp";
+              }
+
+              if (containerPort && !isNaN(containerPort)) {
+                ports.push({
+                  service: serviceName,
+                  containerPort,
+                  hostPort,
+                  protocol,
+                });
+              }
+            }
+          }
+        }
+      }
+
+      return ports;
+    } catch (error) {
+      this.logger.warn(`Failed to extract ports from compose file: ${error}`);
+      return [];
+    }
   }
 
   private runCommand(
@@ -177,7 +251,12 @@ export class ProjectService {
   private async runCompose(
     project: ProjectInfo,
     args: string[],
-  ): Promise<{ stdout: string; stderr: string; code: number; command: string }> {
+  ): Promise<{
+    stdout: string;
+    stderr: string;
+    code: number;
+    command: string;
+  }> {
     const cwd = project.path;
     const env = project.environmentVars;
 
@@ -191,7 +270,12 @@ export class ProjectService {
       return { ...dockerResult, command: "docker" };
     }
 
-    const composeResult = await this.runCommand("docker-compose", args, cwd, env);
+    const composeResult = await this.runCommand(
+      "docker-compose",
+      args,
+      cwd,
+      env,
+    );
     return { ...composeResult, command: "docker-compose" };
   }
 
@@ -220,6 +304,9 @@ export class ProjectService {
       }
 
       // Create project info
+      const composeFilePath = path.join(projectPath, composeFile);
+      const ports = this.extractPortsFromCompose(composeFilePath);
+
       const project: ProjectInfo = {
         name,
         repoUrl,
@@ -232,6 +319,7 @@ export class ProjectService {
         status: "configured",
         createdAt: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
+        ports,
         buildHistory: [],
         deployHistory: [],
         healthChecks: [],
@@ -389,7 +477,12 @@ export class ProjectService {
       this.logger.info(`Building project: ${name}`);
 
       let imageId: string | undefined;
-      let buildResult: { stdout: string; stderr: string; code: number; command: string };
+      let buildResult: {
+        stdout: string;
+        stderr: string;
+        code: number;
+        command: string;
+      };
 
       const composeFile = this.resolveComposeFile(project);
       if (composeFile) {
@@ -429,7 +522,9 @@ export class ProjectService {
       }
 
       if (buildResult.code !== 0) {
-        throw new Error(buildResult.stderr || buildResult.stdout || "Build failed");
+        throw new Error(
+          buildResult.stderr || buildResult.stdout || "Build failed",
+        );
       }
 
       this.logger.info(
@@ -643,7 +738,9 @@ export class ProjectService {
     ]);
 
     if (psResult.code !== 0) {
-      throw new Error(psResult.stderr || psResult.stdout || "Failed to list containers");
+      throw new Error(
+        psResult.stderr || psResult.stdout || "Failed to list containers",
+      );
     }
 
     const containerIds = psResult.stdout
@@ -699,7 +796,9 @@ export class ProjectService {
 
       if (psResult.code !== 0) {
         health.overall = "error";
-        health.issues.push(psResult.stderr || psResult.stdout || "Failed to list containers");
+        health.issues.push(
+          psResult.stderr || psResult.stdout || "Failed to list containers",
+        );
         return health;
       }
 
@@ -757,15 +856,11 @@ export class ProjectService {
         });
 
         if (status !== "running") {
-          health.issues.push(
-            `Container ${containerName} status: ${status}`,
-          );
+          health.issues.push(`Container ${containerName} status: ${status}`);
         }
 
         if (healthState === "unhealthy") {
-          health.issues.push(
-            `Container ${containerName} is unhealthy`,
-          );
+          health.issues.push(`Container ${containerName} is unhealthy`);
         }
       }
 
