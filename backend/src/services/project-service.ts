@@ -158,29 +158,10 @@ export class ProjectService {
               let containerPort: number;
               let hostPort: number | undefined;
               let protocol = "tcp";
-
-              if (typeof portMapping === "string") {
-                // Handle string format: "hostPort:containerPort/protocol" or "containerPort/protocol"
-                const parts = portMapping.split(":");
-                const portProtocol = parts[parts.length - 1];
-                const portParts = portProtocol.split("/");
-
-                if (parts.length === 2) {
-                  // Format: "hostPort:containerPort/protocol"
-                  hostPort = parseInt(parts[0]);
-                  containerPort = parseInt(portParts[0]);
-                } else {
-                  // Format: "containerPort/protocol"
-                  containerPort = parseInt(portParts[0]);
-                }
-
-                protocol = portParts[1] || "tcp";
-              } else if (typeof portMapping === "object") {
-                // Handle object format: { target: containerPort, published: hostPort, protocol: "tcp" }
-                containerPort = portMapping.target;
-                hostPort = portMapping.published;
-                protocol = portMapping.protocol || "tcp";
-              }
+              const parsed = this.parsePortMapping(portMapping);
+              containerPort = parsed.containerPort;
+              hostPort = parsed.hostPort;
+              protocol = parsed.protocol;
 
               if (containerPort && !isNaN(containerPort)) {
                 ports.push({
@@ -277,6 +258,39 @@ export class ProjectService {
       env,
     );
     return { ...composeResult, command: "docker-compose" };
+  }
+
+  private async runPostDeploySeedHook(
+    project: ProjectInfo,
+  ): Promise<{ output: string; executed: boolean }> {
+    const scriptPath = path.join(project.path, "scripts", "seed-mongo.sh");
+    if (!fs.existsSync(scriptPath)) {
+      return { output: "", executed: false };
+    }
+
+    this.logger.info(`Running post-deploy seed hook for ${project.name}`);
+    const result = await this.runCommand(
+      "sh",
+      [scriptPath],
+      project.path,
+      project.environmentVars || {},
+    );
+
+    const combined = [result.stdout, result.stderr].filter(Boolean).join("\n");
+    if (result.code !== 0) {
+      this.logger.warn(
+        `Post-deploy seed hook failed for ${project.name}: ${combined || "no output"}`,
+      );
+      return {
+        output: `Post-deploy seed failed (exit ${result.code}). ${combined}`,
+        executed: true,
+      };
+    }
+
+    this.logger.info(
+      `Post-deploy seed hook succeeded for ${project.name}: ${combined || "no output"}`,
+    );
+    return { output: combined, executed: true };
   }
 
   public async addProject(
@@ -424,6 +438,276 @@ export class ProjectService {
     return project;
   }
 
+  private validatePort(port: number): void {
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new Error(`Invalid port value: ${port}`);
+    }
+  }
+
+  private getPortKey(containerPort: number, protocol: string): string {
+    return `${containerPort}/${(protocol || "tcp").toLowerCase()}`;
+  }
+
+  private parsePortMapping(portMapping: any): {
+    containerPort: number;
+    hostPort?: number;
+    protocol: string;
+  } {
+    if (typeof portMapping === "string") {
+      const [rawMapping, rawProtocol] = portMapping.split("/");
+      const segments = rawMapping.split(":");
+      const containerPort = parseInt(segments[segments.length - 1], 10);
+      const hostPort =
+        segments.length >= 2
+          ? parseInt(segments[segments.length - 2], 10)
+          : undefined;
+      return {
+        containerPort,
+        hostPort: hostPort !== undefined && !isNaN(hostPort) ? hostPort : undefined,
+        protocol: (rawProtocol || "tcp").toLowerCase(),
+      };
+    }
+
+    if (portMapping && typeof portMapping === "object") {
+      const containerPort = parseInt(String(portMapping.target), 10);
+      const hostPort = parseInt(String(portMapping.published), 10);
+      return {
+        containerPort,
+        hostPort: !isNaN(hostPort) ? hostPort : undefined,
+        protocol: String(portMapping.protocol || "tcp").toLowerCase(),
+      };
+    }
+
+    return { containerPort: NaN, hostPort: undefined, protocol: "tcp" };
+  }
+
+  private async getUsedHostPortsFromDocker(): Promise<Set<number>> {
+    const usedPorts = new Set<number>();
+    try {
+      const result = await this.runCommand(
+        "docker",
+        ["ps", "--format", "{{.Ports}}"],
+        process.cwd(),
+      );
+      if (result.code !== 0) {
+        return usedPorts;
+      }
+
+      const lines = (result.stdout || "").split("\n").filter(Boolean);
+      for (const line of lines) {
+        const matches = line.matchAll(/:(\d+)->/g);
+        for (const match of matches) {
+          const port = parseInt(match[1], 10);
+          if (!isNaN(port)) {
+            usedPorts.add(port);
+          }
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to inspect Docker used ports: ${error}`);
+    }
+    return usedPorts;
+  }
+
+  private formatPortMapping(
+    hostPort: number,
+    containerPort: number,
+    protocol: string,
+  ): string {
+    const normalizedProtocol = (protocol || "tcp").toLowerCase();
+    return `${hostPort}:${containerPort}/${normalizedProtocol}`;
+  }
+
+  public async updateProjectSettings(
+    name: string,
+    payload: {
+      environmentVars?: Record<string, string>;
+      composeFile?: string;
+      portUpdates?: Array<{
+        service: string;
+        containerPort: number;
+        protocol?: string;
+        hostPort: number;
+      }>;
+    },
+  ): Promise<ProjectInfo> {
+    const project = this.projects.get(name);
+    if (!project) {
+      throw new Error(`Project ${name} not found`);
+    }
+
+    const environmentVars = payload.environmentVars ?? project.environmentVars;
+    const requestedComposeFile = payload.composeFile?.trim();
+
+    if (requestedComposeFile) {
+      const absoluteComposePath = path.join(project.path, requestedComposeFile);
+      if (!fs.existsSync(absoluteComposePath)) {
+        throw new Error(`Compose file not found: ${requestedComposeFile}`);
+      }
+      project.composeFile = requestedComposeFile;
+    }
+
+    const composeFile = this.resolveComposeFile(project);
+    if (!composeFile) {
+      throw new Error("docker-compose file not found in project");
+    }
+
+    if (payload.portUpdates && payload.portUpdates.length > 0) {
+      const content = fs.readFileSync(composeFile, "utf8");
+      const compose = yaml.load(content) as any;
+      if (!compose || typeof compose !== "object" || !compose.services) {
+        throw new Error("Invalid compose file structure: services not found");
+      }
+
+      const composeServices = compose.services as Record<string, any>;
+      const updateByServiceAndPort = new Map<
+        string,
+        { service: string; containerPort: number; protocol: string; hostPort: number }
+      >();
+
+      for (const update of payload.portUpdates) {
+        const protocol = (update.protocol || "tcp").toLowerCase();
+        this.validatePort(update.containerPort);
+        this.validatePort(update.hostPort);
+        const key = `${update.service}:${this.getPortKey(update.containerPort, protocol)}`;
+        updateByServiceAndPort.set(key, {
+          ...update,
+          protocol,
+        });
+      }
+
+      for (const [serviceName, serviceConfig] of Object.entries(composeServices)) {
+        if (!serviceConfig || !Array.isArray(serviceConfig.ports)) {
+          continue;
+        }
+
+        serviceConfig.ports = serviceConfig.ports.map((portMapping: any) => {
+          const parsed = this.parsePortMapping(portMapping);
+          const containerPort = parsed.containerPort;
+          const protocol = parsed.protocol;
+
+          if (!containerPort || isNaN(containerPort)) {
+            return portMapping;
+          }
+
+          const updateKey = `${serviceName}:${this.getPortKey(containerPort, protocol)}`;
+          const update = updateByServiceAndPort.get(updateKey);
+          if (!update) {
+            return portMapping;
+          }
+
+          if (typeof portMapping === "string") {
+            return this.formatPortMapping(
+              update.hostPort,
+              update.containerPort,
+              update.protocol,
+            );
+          }
+
+          return {
+            ...portMapping,
+            target: update.containerPort,
+            published: update.hostPort,
+            protocol: update.protocol,
+          };
+        });
+      }
+
+      const prospectivePorts: Array<{
+        service: string;
+        containerPort: number;
+        hostPort?: number;
+        protocol: string;
+      }> = [];
+      for (const [serviceName, serviceConfig] of Object.entries(composeServices)) {
+        if (!serviceConfig || !Array.isArray(serviceConfig.ports)) {
+          continue;
+        }
+
+        for (const portMapping of serviceConfig.ports) {
+          const parsed = this.parsePortMapping(portMapping);
+          if (!isNaN(parsed.containerPort)) {
+            prospectivePorts.push({
+              service: serviceName,
+              containerPort: parsed.containerPort,
+              hostPort: parsed.hostPort,
+              protocol: parsed.protocol,
+            });
+          }
+        }
+      }
+
+      const hostPortToServices = new Map<number, string[]>();
+      for (const entry of prospectivePorts) {
+        if (!entry.hostPort) {
+          continue;
+        }
+        if (!hostPortToServices.has(entry.hostPort)) {
+          hostPortToServices.set(entry.hostPort, []);
+        }
+        hostPortToServices
+          .get(entry.hostPort)
+          ?.push(`${entry.service}:${entry.containerPort}/${entry.protocol}`);
+      }
+
+      const duplicateInCompose: string[] = [];
+      for (const [hostPort, refs] of hostPortToServices.entries()) {
+        if (refs.length > 1) {
+          duplicateInCompose.push(`Port ${hostPort} is duplicated in ${refs.join(", ")}`);
+        }
+      }
+      if (duplicateInCompose.length > 0) {
+        throw new Error(duplicateInCompose.join("; "));
+      }
+
+      const conflictsWithProjects: string[] = [];
+      for (const [projectName, otherProject] of this.projects.entries()) {
+        if (projectName === name) {
+          continue;
+        }
+        for (const otherPort of otherProject.ports || []) {
+          if (!otherPort.hostPort) {
+            continue;
+          }
+          if (hostPortToServices.has(otherPort.hostPort)) {
+            conflictsWithProjects.push(
+              `Port ${otherPort.hostPort} conflicts with project ${projectName} (${otherPort.service})`,
+            );
+          }
+        }
+      }
+      if (conflictsWithProjects.length > 0) {
+        throw new Error(conflictsWithProjects.join("; "));
+      }
+
+      const dockerUsedPorts = await this.getUsedHostPortsFromDocker();
+      const conflictsWithRunningContainers: string[] = [];
+      for (const hostPort of hostPortToServices.keys()) {
+        if (dockerUsedPorts.has(hostPort)) {
+          conflictsWithRunningContainers.push(
+            `Port ${hostPort} is currently used by a running container`,
+          );
+        }
+      }
+
+      if (conflictsWithRunningContainers.length > 0) {
+        this.logger.warn(
+          `Port usage conflicts detected for ${name}: ${conflictsWithRunningContainers.join("; ")}`,
+        );
+      }
+
+      fs.writeFileSync(composeFile, yaml.dump(compose, { noRefs: true }), "utf8");
+    }
+
+    project.environmentVars = environmentVars || {};
+    project.ports = this.extractPortsFromCompose(composeFile);
+    project.lastUpdated = new Date().toISOString();
+    this.saveProjects();
+
+    this.logger.info(`Updated settings for project ${name}`);
+    return project;
+  }
+
   public getProject(name: string): ProjectInfo | undefined {
     return this.projects.get(name);
   }
@@ -445,6 +729,57 @@ export class ProjectService {
     try {
       const project = this.projects.get(name);
       if (project) {
+        // Best-effort runtime cleanup before deleting files/config.
+        // 1) Prefer compose down when compose file exists.
+        // 2) Fallback to removing tracked container IDs directly.
+        try {
+          const composeFile = this.resolveComposeFile(project);
+          if (composeFile) {
+            this.logger.info(
+              `Cleaning runtime for project ${name} using ${path.basename(composeFile)}`,
+            );
+            const downResult = await this.runCompose(project, [
+              "compose",
+              "-f",
+              composeFile,
+              "down",
+              "--remove-orphans",
+            ]);
+
+            if (downResult.code !== 0) {
+              this.logger.warn(
+                `Compose cleanup failed for ${name}: ${downResult.stderr || downResult.stdout}`,
+              );
+            }
+          }
+        } catch (cleanupError) {
+          this.logger.warn(
+            `Compose cleanup error for project ${name}: ${cleanupError}`,
+          );
+        }
+
+        if (Array.isArray(project.containers) && project.containers.length > 0) {
+          for (const containerId of project.containers) {
+            try {
+              const rmResult = await this.runCommand(
+                "docker",
+                ["rm", "-f", containerId],
+                project.path,
+                project.environmentVars,
+              );
+              if (rmResult.code !== 0) {
+                this.logger.warn(
+                  `Failed to remove container ${containerId} for ${name}: ${rmResult.stderr || rmResult.stdout}`,
+                );
+              }
+            } catch (containerError) {
+              this.logger.warn(
+                `Container cleanup error (${containerId}) for ${name}: ${containerError}`,
+              );
+            }
+          }
+        }
+
         // Remove project directory
         if (fs.existsSync(project.path)) {
           await fs.promises.rm(project.path, { recursive: true, force: true });
@@ -626,12 +961,20 @@ export class ProjectService {
         `Deploy output for ${name} (${upResult.command}): ${upResult.stdout || "no output"}`,
       );
 
+      const seedHook = await this.runPostDeploySeedHook(project);
+      const deployOutput = [
+        upResult.stdout || upResult.stderr || "",
+        seedHook.executed ? `\n[post-deploy-seed]\n${seedHook.output}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n");
+
       // Add to deploy history
       project.deployHistory.push({
         timestamp: new Date().toISOString(),
         status: "success",
         containerIds,
-        output: upResult.stdout || upResult.stderr || "",
+        output: deployOutput,
         command: upResult.command,
       });
       project.containers = containerIds;
@@ -643,7 +986,7 @@ export class ProjectService {
       this.logger.info(`Project ${name} deployed successfully`);
       return {
         containerIds,
-        output: upResult.stdout || upResult.stderr || "",
+        output: deployOutput,
         command: upResult.command,
       };
     } catch (error) {
