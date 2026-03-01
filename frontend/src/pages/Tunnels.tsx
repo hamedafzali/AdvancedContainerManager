@@ -18,10 +18,17 @@ interface Tunnel {
   domain?: string;
   status: "active" | "inactive";
   createdAt: string;
+  mode?: "quick" | "hostname";
+}
+
+interface TunnelStatus {
+  cloudflaredInstalled: boolean;
+  activeTunnels: number;
 }
 
 export default function Tunnels() {
   const [tunnels, setTunnels] = useState<Tunnel[]>([]);
+  const [status, setStatus] = useState<TunnelStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -55,8 +62,21 @@ export default function Tunnels() {
     }
   };
 
+  const fetchStatus = async () => {
+    try {
+      const response = await fetch("/api/tunnels/status");
+      const data = await response.json();
+      if (data.success) {
+        setStatus(data.data);
+      }
+    } catch (error) {
+      console.error("Failed to fetch tunnel status:", error);
+    }
+  };
+
   useEffect(() => {
     fetchTunnels();
+    fetchStatus();
     const interval = setInterval(fetchTunnels, 5000); // Refresh every 5 seconds
     return () => clearInterval(interval);
   }, []);
@@ -94,6 +114,7 @@ export default function Tunnels() {
         ]);
         setNewTunnel({ name: "", port: "", domain: "" });
         setShowCreateForm(false);
+        fetchStatus();
       } else {
         setError(data.message);
       }
@@ -113,6 +134,7 @@ export default function Tunnels() {
       const data = await response.json();
       if (data.success) {
         setTunnels((prev) => prev.filter((t) => t.name !== name));
+        fetchStatus();
       } else {
         setError(data.message);
       }
@@ -134,6 +156,33 @@ export default function Tunnels() {
             tunnels
           </p>
 
+          <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-gray-700">
+                Cloudflare Agent
+              </span>
+              <span
+                className={`text-xs px-2 py-1 rounded-full ${
+                  status?.cloudflaredInstalled
+                    ? "bg-green-100 text-green-700"
+                    : "bg-yellow-100 text-yellow-700"
+                }`}
+              >
+                {status?.cloudflaredInstalled ? "Installed" : "Not Installed"}
+              </span>
+            </div>
+            <p className="text-xs text-gray-500 mb-2">
+              {status?.cloudflaredInstalled
+                ? "You can create quick tunnels directly from this menu."
+                : "Install cloudflared on the server running Container Manager, then refresh this page."}
+            </p>
+            {!status?.cloudflaredInstalled && (
+              <pre className="bg-gray-900 text-gray-100 rounded p-2 text-xs overflow-auto">
+                brew install cloudflared
+              </pre>
+            )}
+          </div>
+
           <button
             onClick={() => setShowCreateForm(true)}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 flex items-center gap-2"
@@ -154,7 +203,7 @@ export default function Tunnels() {
         {showCreateForm && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Create New Tunnel
+              Create New Tunnel (Menu)
             </h2>
             <form onSubmit={createTunnel} className="space-y-4">
               <div>
@@ -174,7 +223,7 @@ export default function Tunnels() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Container Port
+                  Running App Port
                 </label>
                 <input
                   type="number"
@@ -186,6 +235,9 @@ export default function Tunnels() {
                   placeholder="3000"
                   required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Use the host port of your running container (example: 3001).
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -203,6 +255,9 @@ export default function Tunnels() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="yourdomain.com"
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Leave empty for quick temporary URL (`trycloudflare.com`).
+                </p>
               </div>
               <div className="flex gap-3">
                 <button
@@ -281,10 +336,13 @@ export default function Tunnels() {
                       </div>
                       <div className="space-y-1 text-sm">
                         <p className="text-blue-600 font-medium">
-                          {tunnel.url}
+                          https://{tunnel.url}
                         </p>
                         <p className="text-gray-600">
                           Local: localhost:{tunnel.port}
+                        </p>
+                        <p className="text-gray-600 text-xs">
+                          Mode: {tunnel.mode || "quick"}
                         </p>
                         {tunnel.domain && (
                           <p className="text-gray-600">

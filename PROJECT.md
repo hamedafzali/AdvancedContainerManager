@@ -1,37 +1,65 @@
-# Advanced Container Manager - Project Status
+# Advanced Container Manager - Project Review and Enhancement Log
 
 ## Status: In Progress
 
-This repository previously claimed 100% completion. That was inaccurate. This file reflects the current, verified state of the codebase and runtime behavior.
+This file tracks verified behavior from code and recent improvements.
 
-## What Works
-- Core Docker management: containers, images, networks, volumes
-- System metrics (basic), health check (`/health`)
-- Project management with Git clone and **real deploy via Docker Compose**
-- Project logs in the app (`/api/projects/:name/logs`)
-- Terminal command execution via `docker exec` (non-interactive)
-- Web UI with real-time updates (where data exists)
+## Review Summary
 
-## Known Gaps
-- `POST /system/restart` is not implemented
-- Rate limiting and audit logging are not wired in
-- Nginx is not included in `docker-compose.yml`
-- “Advanced monitoring” features are partial (alerting, baselines, anomaly detection)
-- Terminal is non-interactive; some containers may not have `/bin/sh` or `/bin/bash`
+### Strong Areas
+- Core Docker management flows are functional (`containers`, `images`, `networks`, `volumes`)
+- Project lifecycle exists end-to-end (`add`, `build`, `sync`, `deploy`, `stop`, `logs`, `health`)
+- Compose-based deployment is real (not mocked) via `docker compose`/`docker-compose` fallback
+- Frontend structure is clear and modular with route-based pages
 
-## API Status (Summary)
-Implemented:
+### Key Gaps Found
+- Global app settings endpoints (`/api/settings*`) are still placeholder/in-memory behavior
+- Some docs imply completed features that are still partial or mocked
+- Port conflicts were not managed at project-compose editing level
+- Project update API previously only handled environment variables
+
+## Implemented Enhancement (This Update)
+
+### Project Compose Settings Update
+Added real project settings update capability through existing project update flow:
+- Endpoint: `PUT /api/projects/:name`
+- Now supports:
+  - `environmentVars` updates (existing)
+  - `composeFile` update (switch compose file used by project)
+  - `portUpdates` update for compose service port mappings
+
+### Port Conflict Handling
+Added validation during compose port updates:
+- Rejects invalid port values (must be `1..65535`)
+- Rejects duplicate host ports inside the same compose file
+- Rejects host-port conflicts with other managed projects in app config
+- Detects conflicts with currently running Docker containers and logs warnings
+
+### Frontend UX Update (Projects Settings Modal)
+Enhanced project settings modal to allow:
+- Editing compose file path
+- Editing detected compose host ports per service/container/protocol mapping
+- Saving compose settings and environment vars in one action
+
+## Current API Reality (High-Level)
+
+Implemented and active:
 - `/health`
 - `/api/system/metrics`, `/api/system/metrics/history`
 - `/api/containers`, `/api/containers/:id/*`
 - `/api/images`, `/api/networks`, `/api/volumes`
-- `/api/projects`, `/api/projects/:name/*` (including logs)
-- `/api/terminal/*` (session + execute)
+- `/api/projects`, `/api/projects/:name/*` (including logs, deploy, compose settings update)
+- `/api/terminal/*`
 
-Not implemented (documented previously but missing in code):
-- `/system/restart`
+Still partial or mocked:
+- `/api/settings*` persistence and restore behavior
+- Some multi-cloud and analytics paths return placeholder responses
 
-## Next Steps (Suggested)
-1. Finish terminal UX + error handling
-2. Improve project deploy feedback (surface compose errors/env missing)
-3. Align remaining docs with actual behavior
+## Suggested Next Enhancements
+1. Persist `/api/settings` to disk (same config store as projects) with schema validation
+2. Add a dedicated API endpoint to return full compose config diff before applying changes
+3. Add explicit “port availability check” endpoint that reports:
+   - managed project conflicts
+   - running container conflicts
+   - host process conflicts (optional via `lsof`/`ss`)
+4. Add automated tests for `ProjectService.updateProjectSettings` validation paths

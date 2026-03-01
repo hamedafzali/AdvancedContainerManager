@@ -48,14 +48,29 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/* \
     && ln -sf python3 /usr/bin/python
 
-# Install Trivy (Alpine repo may not include it)
-RUN TRIVY_VERSION=0.51.1 \
-    && curl -sSL -o /tmp/trivy.tar.gz \
-      https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz \
-    && tar -xzf /tmp/trivy.tar.gz -C /tmp \
-    && mv /tmp/trivy /usr/local/bin/trivy \
-    && chmod +x /usr/local/bin/trivy \
-    && rm -f /tmp/trivy.tar.gz
+# Install Trivy (best-effort; build should not fail if upstream is unavailable)
+ARG TRIVY_VERSION=""
+RUN set -eux; \
+    ARCH="$(apk --print-arch)"; \
+    case "$ARCH" in \
+      x86_64) TRIVY_ARCH="64bit" ;; \
+      aarch64) TRIVY_ARCH="ARM64" ;; \
+      *) echo "Unsupported architecture for Trivy: $ARCH" && exit 1 ;; \
+    esac; \
+    if [ -n "$TRIVY_VERSION" ]; then \
+      TRIVY_URL="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-${TRIVY_ARCH}.tar.gz"; \
+    else \
+      TRIVY_URL="https://github.com/aquasecurity/trivy/releases/latest/download/trivy_Linux-${TRIVY_ARCH}.tar.gz"; \
+    fi; \
+    if curl -fL --retry 5 --retry-delay 2 --retry-all-errors -o /tmp/trivy.tar.gz "$TRIVY_URL" \
+      && tar -tzf /tmp/trivy.tar.gz >/dev/null \
+      && tar -xzf /tmp/trivy.tar.gz -C /tmp \
+      && install -m 0755 /tmp/trivy /usr/local/bin/trivy; then \
+      trivy --version; \
+    else \
+      echo "Warning: Trivy installation skipped (download not available)"; \
+    fi; \
+    rm -f /tmp/trivy.tar.gz /tmp/trivy
 
 WORKDIR /app
 

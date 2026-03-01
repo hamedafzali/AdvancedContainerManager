@@ -817,10 +817,18 @@ export function routes(
     "/projects/:name",
     asyncHandler(async (req, res) => {
       try {
-        const { environmentVars = {} } = req.body;
-        const project = projectService.updateProjectEnvironmentVars(
+        const {
+          environmentVars = {},
+          composeFile,
+          portUpdates = [],
+        } = req.body;
+        const project = await projectService.updateProjectSettings(
           req.params.name,
-          environmentVars,
+          {
+            environmentVars,
+            composeFile,
+            portUpdates,
+          },
         );
         res.json({
           success: true,
@@ -2074,6 +2082,25 @@ export function routes(
         });
       } catch (error) {
         logger.error("Failed to create tunnel:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.get(
+    "/tunnels/status",
+    asyncHandler(async (req, res) => {
+      try {
+        const status = await tunnelService.getStatus();
+        res.json({
+          success: true,
+          data: status,
+        });
+      } catch (error) {
+        logger.error("Failed to fetch tunnel status:", error);
         res.status(500).json({
           success: false,
           message: error.message,

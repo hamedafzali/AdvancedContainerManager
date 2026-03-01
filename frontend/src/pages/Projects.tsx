@@ -83,6 +83,15 @@ export default function Projects() {
   const [envEditor, setEnvEditor] = useState<
     Array<{ key: string; value: string }>
   >([]);
+  const [composeFileEditor, setComposeFileEditor] = useState("");
+  const [portEditor, setPortEditor] = useState<
+    Array<{
+      service: string;
+      containerPort: number;
+      protocol: string;
+      hostPort: string;
+    }>
+  >([]);
   const [newProject, setNewProject] = useState({
     name: "",
     repository: "",
@@ -195,6 +204,18 @@ export default function Projects() {
       ([key, value]) => ({ key, value }),
     );
     setEnvEditor(entries.length > 0 ? entries : [{ key: "", value: "" }]);
+    setComposeFileEditor(project.composeFile || "docker-compose.yml");
+    setPortEditor(
+      (project.ports || []).map((port) => ({
+        service: port.service,
+        containerPort: port.containerPort,
+        protocol: port.protocol || "tcp",
+        hostPort:
+          port.hostPort !== undefined && port.hostPort !== null
+            ? String(port.hostPort)
+            : "",
+      })),
+    );
     setShowEnvModal(true);
   };
 
@@ -239,6 +260,21 @@ export default function Projects() {
         },
         body: JSON.stringify({
           environmentVars: envVarsObject,
+          composeFile: composeFileEditor,
+          portUpdates: portEditor
+            .filter((port) => port.hostPort.trim() !== "")
+            .map((port) => ({
+              service: port.service,
+              containerPort: port.containerPort,
+              protocol: port.protocol || "tcp",
+              hostPort: parseInt(port.hostPort, 10),
+            }))
+            .filter(
+              (port) =>
+                Number.isInteger(port.hostPort) &&
+                port.hostPort >= 1 &&
+                port.hostPort <= 65535,
+            ),
         }),
       });
 
@@ -251,6 +287,8 @@ export default function Projects() {
       setShowEnvModal(false);
       setEnvProject(null);
       setEnvEditor([]);
+      setComposeFileEditor("");
+      setPortEditor([]);
     } catch (err) {
       setActionError(
         err instanceof Error
@@ -928,6 +966,8 @@ export default function Projects() {
                   setShowEnvModal(false);
                   setEnvProject(null);
                   setEnvEditor([]);
+                  setComposeFileEditor("");
+                  setPortEditor([]);
                 }}
                 className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
                 title="Close"
@@ -936,7 +976,70 @@ export default function Projects() {
               </button>
             </div>
             <div className="p-6 max-h-[60vh] overflow-auto">
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Compose File
+                </label>
+                <input
+                  type="text"
+                  value={composeFileEditor}
+                  onChange={(e) => setComposeFileEditor(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="docker-compose.yml"
+                />
+              </div>
+
+              <div className="mb-6">
+                <div className="text-sm font-medium text-gray-700 mb-2">
+                  Port Mappings
+                </div>
+                {portEditor.length === 0 ? (
+                  <div className="text-sm text-gray-500">
+                    No ports detected in compose file.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {portEditor.map((port, index) => (
+                      <div
+                        key={`${port.service}-${port.containerPort}-${port.protocol}-${index}`}
+                        className="grid grid-cols-4 gap-2 items-center"
+                      >
+                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 truncate">
+                          {port.service}
+                        </div>
+                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700">
+                          {port.containerPort}/{port.protocol}
+                        </div>
+                        <input
+                          type="number"
+                          min={1}
+                          max={65535}
+                          value={port.hostPort}
+                          onChange={(e) =>
+                            setPortEditor((prev) =>
+                              prev.map((p, i) =>
+                                i === index
+                                  ? { ...p, hostPort: e.target.value }
+                                  : p,
+                              ),
+                            )
+                          }
+                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          placeholder="Host port"
+                        />
+                        <div className="text-xs text-gray-500">
+                          Leave blank to keep unchanged
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="space-y-3">
+                <div className="text-sm font-medium text-gray-700">
+                  Environment Variables
+                </div>
                 {envEditor.map((env, index) => (
                   <div key={index} className="flex items-center space-x-2">
                     <input
@@ -991,7 +1094,7 @@ export default function Projects() {
                 onClick={handleSaveEnvVars}
                 className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
               >
-                Save
+                Save Settings
               </button>
             </div>
           </div>
