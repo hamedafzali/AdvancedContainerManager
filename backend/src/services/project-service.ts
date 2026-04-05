@@ -476,9 +476,12 @@ export class ProjectService {
       const git = simpleGit();
 
       if (fs.existsSync(projectPath)) {
-        // Pull latest changes
-        await git.cwd(projectPath).pull();
-        this.logger.info(`Pulled latest changes for project: ${name}`);
+        // Ensure the repository is attached to the requested branch before syncing
+        const repo = git.cwd(projectPath);
+        await repo.fetch("origin", branch);
+        await repo.checkout(["-B", branch, `origin/${branch}`]);
+        await repo.pull("origin", branch, { "--ff-only": null });
+        this.logger.info(`Synced existing project on branch ${branch}: ${name}`);
       } else {
         // Clone new repository
         await git.clone(repoUrl, projectPath, ["--branch", branch]);
@@ -575,6 +578,11 @@ export class ProjectService {
         pullResult?.summary?.deletions || 0,
       ];
       const updated = summary.some((val) => val > 0);
+
+      const refreshedComposeFile = this.resolveComposeFile(project);
+      if (refreshedComposeFile && fs.existsSync(refreshedComposeFile)) {
+        project.ports = this.extractPortsFromCompose(refreshedComposeFile);
+      }
 
       project.lastUpdated = new Date().toISOString();
       this.saveProjects();
