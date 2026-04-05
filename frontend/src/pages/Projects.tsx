@@ -101,6 +101,37 @@ export default function Projects() {
     environmentVars: [] as Array<{ key: string; value: string }>,
   });
 
+  const formatSyncLog = (
+    projectName: string,
+    requestedAt: string,
+    status: number,
+    payload: {
+      success?: boolean;
+      message?: string;
+      data?: { output?: string; updated?: boolean };
+    } | null,
+  ) => {
+    const lines = [
+      `Project: ${projectName}`,
+      `Requested: ${requestedAt}`,
+      `HTTP Status: ${status}`,
+    ];
+
+    if (payload?.data?.output) {
+      lines.push(`Result: ${payload.data.output}`);
+    }
+
+    if (typeof payload?.data?.updated === "boolean") {
+      lines.push(`Updated: ${payload.data.updated}`);
+    }
+
+    if (payload?.message) {
+      lines.push(`Message: ${payload.message}`);
+    }
+
+    return lines.join("\n");
+  };
+
   // Fetch projects from backend
   const fetchProjects = async () => {
     try {
@@ -330,34 +361,44 @@ export default function Projects() {
   };
 
   const handleSyncProject = async (projectName: string) => {
+    const requestedAt = new Date().toLocaleString();
     try {
+      setActionError(null);
       setDeployLogs("");
-      setDeployLogsTitle(`Sync Logs: ${projectName}`);
+      setDeployLogsTitle(`Sync Logs: ${projectName} (${requestedAt})`);
       setShowDeployLogs(true);
       const response = await fetch(
         apiUrl(`/api/projects/${projectName}/sync`),
         {
           method: "POST",
+          cache: "no-store",
+          headers: {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
         },
       );
 
-      const result = await response.json();
+      const result = await response.json().catch(() => null);
+      const logOutput = formatSyncLog(
+        projectName,
+        requestedAt,
+        response.status,
+        result,
+      );
+
       if (!response.ok) {
-        throw new Error(result?.message || "Failed to sync project");
+        setDeployLogs(logOutput);
+        throw new Error(result?.message || `Failed to sync project (${response.status})`);
       }
 
-      const output = result?.data?.output || "(no output)";
-      const updated =
-        typeof result?.data?.updated === "boolean"
-          ? `Updated: ${result.data.updated}`
-          : "";
-      setDeployLogs([output, updated].filter(Boolean).join("\n"));
+      setDeployLogs(logOutput);
       await fetchProjects();
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Failed to sync project";
       setActionError(message);
-      setDeployLogs(message);
+      setDeployLogs((prev) => prev || `Project: ${projectName}\nRequested: ${requestedAt}\nResult: ${message}`);
     }
   };
 
