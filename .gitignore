@@ -10,3 +10,7 @@ package-lock.json
 .DS_Store
 .vscode/
 .idea/
+data/db/*
+!data/db/.gitkeep
+data/projects/*
+!data/projects/.gitkeep
