@@ -587,13 +587,14 @@ export class ProjectService {
         status = await repo.status();
       }
 
-      const pullResult = await repo.pull("origin", before);
-      const summary = [
-        pullResult?.summary?.changes || 0,
-        pullResult?.summary?.insertions || 0,
-        pullResult?.summary?.deletions || 0,
-      ];
-      const updated = summary.some((val) => val > 0);
+      await repo.fetch("origin", before);
+      const localHead = (await repo.revparse(["HEAD"])).trim();
+      const remoteHead = (await repo.revparse([`origin/${before}`])).trim();
+      const updated = localHead !== remoteHead;
+
+      if (updated) {
+        await repo.reset(["--hard", `origin/${before}`]);
+      }
 
       const refreshedComposeFile = this.resolveComposeFile(project);
       if (refreshedComposeFile && fs.existsSync(refreshedComposeFile)) {
@@ -605,9 +606,11 @@ export class ProjectService {
 
       const output = [
         discardedChanges
-          ? "Discarded local tracked changes before pull."
+          ? "Discarded local tracked changes before sync."
           : "",
-        `Pulled origin/${before}. Changes: ${pullResult?.summary?.changes || 0}, Insertions: ${pullResult?.summary?.insertions || 0}, Deletions: ${pullResult?.summary?.deletions || 0}`,
+        updated
+          ? `Synced project to origin/${before} (${localHead.slice(0, 7)} -> ${remoteHead.slice(0, 7)}).`
+          : `Already up to date with origin/${before} (${remoteHead.slice(0, 7)}).`,
       ]
         .filter(Boolean)
         .join(" ");
