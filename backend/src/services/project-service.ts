@@ -568,8 +568,24 @@ export class ProjectService {
 
       const git = simpleGit();
       const repo = git.cwd(project.path);
-      const status = await repo.status();
+      let status = await repo.status();
       const before = status.current || project.branch || "main";
+
+      const hasTrackedChanges =
+        status.modified.length > 0 ||
+        status.created.length > 0 ||
+        status.deleted.length > 0 ||
+        status.renamed.length > 0;
+
+      let discardedChanges = false;
+      if (hasTrackedChanges) {
+        this.logger.warn(
+          `Discarding local tracked changes before syncing project ${name}`,
+        );
+        await repo.reset(["--hard", "HEAD"]);
+        discardedChanges = true;
+        status = await repo.status();
+      }
 
       const pullResult = await repo.pull("origin", before);
       const summary = [
@@ -587,7 +603,14 @@ export class ProjectService {
       project.lastUpdated = new Date().toISOString();
       this.saveProjects();
 
-      const output = `Pulled origin/${before}. Changes: ${pullResult?.summary?.changes || 0}, Insertions: ${pullResult?.summary?.insertions || 0}, Deletions: ${pullResult?.summary?.deletions || 0}`;
+      const output = [
+        discardedChanges
+          ? "Discarded local tracked changes before pull."
+          : "",
+        `Pulled origin/${before}. Changes: ${pullResult?.summary?.changes || 0}, Insertions: ${pullResult?.summary?.insertions || 0}, Deletions: ${pullResult?.summary?.deletions || 0}`,
+      ]
+        .filter(Boolean)
+        .join(" ");
       this.logger.info(`Project ${name} updated: ${output}`);
 
       return { output, updated };
