@@ -83,6 +83,8 @@ export default function Projects() {
   const [envEditor, setEnvEditor] = useState<
     Array<{ key: string; value: string }>
   >([]);
+  const [repoUrlEditor, setRepoUrlEditor] = useState("");
+  const [branchEditor, setBranchEditor] = useState("");
   const [composeFileEditor, setComposeFileEditor] = useState("");
   const [portEditor, setPortEditor] = useState<
     Array<{
@@ -204,6 +206,8 @@ export default function Projects() {
       ([key, value]) => ({ key, value }),
     );
     setEnvEditor(entries.length > 0 ? entries : [{ key: "", value: "" }]);
+    setRepoUrlEditor(project.repoUrl || "");
+    setBranchEditor(project.branch || "main");
     setComposeFileEditor(project.composeFile || "docker-compose.yml");
     setPortEditor(
       (project.ports || []).map((port) => ({
@@ -259,6 +263,8 @@ export default function Projects() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          repoUrl: repoUrlEditor.trim(),
+          branch: branchEditor.trim() || "main",
           environmentVars: envVarsObject,
           composeFile: composeFileEditor,
           portUpdates: portEditor
@@ -287,6 +293,8 @@ export default function Projects() {
       setShowEnvModal(false);
       setEnvProject(null);
       setEnvEditor([]);
+      setRepoUrlEditor("");
+      setBranchEditor("");
       setComposeFileEditor("");
       setPortEditor([]);
     } catch (err) {
@@ -966,6 +974,8 @@ export default function Projects() {
                   setShowEnvModal(false);
                   setEnvProject(null);
                   setEnvEditor([]);
+                  setRepoUrlEditor("");
+                  setBranchEditor("");
                   setComposeFileEditor("");
                   setPortEditor([]);
                 }}
@@ -976,6 +986,33 @@ export default function Projects() {
               </button>
             </div>
             <div className="p-6 max-h-[60vh] overflow-auto">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Repository URL
+                  </label>
+                  <input
+                    type="text"
+                    value={repoUrlEditor}
+                    onChange={(e) => setRepoUrlEditor(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://github.com/user/repo"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Branch
+                  </label>
+                  <input
+                    type="text"
+                    value={branchEditor}
+                    onChange={(e) => setBranchEditor(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="main"
+                  />
+                </div>
+              </div>
+
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Compose File
@@ -1085,6 +1122,8 @@ export default function Projects() {
                   setShowEnvModal(false);
                   setEnvProject(null);
                   setEnvEditor([]);
+                  setRepoUrlEditor("");
+                  setBranchEditor("");
                 }}
                 className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
               >

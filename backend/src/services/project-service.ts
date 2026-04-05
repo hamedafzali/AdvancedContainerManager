@@ -768,6 +768,8 @@ export class ProjectService {
   public async updateProjectSettings(
     name: string,
     payload: {
+      repoUrl?: string;
+      branch?: string;
       environmentVars?: Record<string, string>;
       composeFile?: string;
       portUpdates?: Array<{
@@ -781,6 +783,16 @@ export class ProjectService {
     const project = this.projects.get(name);
     if (!project) {
       throw new Error(`Project ${name} not found`);
+    }
+
+    const requestedRepoUrl = payload.repoUrl?.trim();
+    if (requestedRepoUrl !== undefined) {
+      project.repoUrl = requestedRepoUrl;
+    }
+
+    const requestedBranch = payload.branch?.trim();
+    if (requestedBranch !== undefined && requestedBranch.length > 0) {
+      project.branch = requestedBranch;
     }
 
     const environmentVars = payload.environmentVars ?? project.environmentVars;
