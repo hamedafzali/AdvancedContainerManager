@@ -461,6 +461,49 @@ export class ProjectService {
     return { output: combined, executed: true };
   }
 
+  private async ensureProjectRepo(
+    project: ProjectInfo,
+  ): Promise<{ recovered: boolean; note?: string }> {
+    const gitDir = path.join(project.path, ".git");
+    if (fs.existsSync(gitDir)) {
+      return { recovered: false };
+    }
+
+    const probe = await this.runCommand(
+      "git",
+      ["rev-parse", "--is-inside-work-tree"],
+      project.path,
+      project.environmentVars,
+    ).catch(() => ({ stdout: "", stderr: "", code: 1 }));
+
+    if (probe.code === 0 && probe.stdout.trim() === "true") {
+      return { recovered: false };
+    }
+
+    if (!project.repoUrl) {
+      throw new Error(
+        `Project ${project.name} repository is missing and cannot be recovered automatically`,
+      );
+    }
+
+    let note = `Recovered broken project repo from ${project.repoUrl}.`;
+    if (fs.existsSync(project.path)) {
+      const backupPath = `${project.path}.broken-${Date.now()}`;
+      fs.renameSync(project.path, backupPath);
+      note = `Recovered broken project repo from ${project.repoUrl}. Previous folder moved to ${backupPath}.`;
+      this.logger.warn(
+        `Project ${project.name} repository folder was invalid. Moved to ${backupPath}`,
+      );
+    }
+
+    fs.mkdirSync(path.dirname(project.path), { recursive: true });
+    const git = simpleGit();
+    await git.clone(project.repoUrl, project.path, ["--branch", project.branch || "main"]);
+    this.logger.info(`Recovered project repository for ${project.name}`);
+
+    return { recovered: true, note };
+  }
+
   public async addProject(
     name: string,
     repoUrl: string,
@@ -544,6 +587,7 @@ export class ProjectService {
     }
 
     try {
+      const recovery = await this.ensureProjectRepo(project);
       const composeFile = this.resolveComposeFile(project);
       if (composeFile) {
         this.logger.info(
@@ -605,6 +649,7 @@ export class ProjectService {
       this.saveProjects();
 
       const output = [
+        recovery.note || "",
         discardedChanges
           ? "Discarded local tracked changes before sync."
           : "",
