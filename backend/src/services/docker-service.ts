@@ -482,6 +482,172 @@ export class DockerService {
     }
   }
 
+  private async ensureImage(imageName: string): Promise<void> {
+    try {
+      await this.docker.getImage(imageName).inspect();
+      return;
+    } catch (_error) {
+      // image missing, pull it
+    }
+
+    const stream = await this.docker.pull(imageName);
+    await new Promise<void>((resolve, reject) => {
+      this.docker.modem.followProgress(stream, (err: Error | null) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  }
+
+  private async execInContainer(
+    containerId: string,
+    command: string,
+  ): Promise<void> {
+    const container = await this.docker.getContainer(containerId);
+    const exec = await container.exec({
+      Cmd: ["sh", "-lc", command],
+      AttachStdout: true,
+      AttachStderr: true,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      exec.start((err: Error | null, stream: NodeJS.ReadableStream) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+
+        stream.on("data", (chunk) => {
+          const text = chunk.toString();
+          if (text.trim()) {
+            this.logger.info(`[container:${containerId}] ${text.trim()}`);
+          }
+        });
+
+        stream.on("error", reject);
+        stream.on("end", () => resolve());
+      });
+    });
+  }
+
+  private detectPackageManager(osRelease: string): "apk" | "apt" | "unknown" {
+    const normalized = osRelease.toLowerCase();
+    if (normalized.includes("id=alpine")) {
+      return "apk";
+    }
+    if (
+      normalized.includes("id=ubuntu") ||
+      normalized.includes("id=debian") ||
+      normalized.includes("id=linuxmint")
+    ) {
+      return "apt";
+    }
+    return "unknown";
+  }
+
+  public async createContainerFromWizard(options: {
+    name?: string;
+    image: string;
+    ports?: Array<{
+      containerPort: number;
+      hostPort?: number;
+      protocol?: "tcp" | "udp";
+    }>;
+    env?: Record<string, string>;
+    packages?: string[];
+    command?: string;
+  }): Promise<{ id: string; name: string }> {
+    const image = options.image.trim();
+    if (!image) {
+      throw new Error("Image is required");
+    }
+
+    await this.ensureImage(image);
+
+    const exposedPorts: Record<string, {}> = {};
+    const portBindings: Record<string, Array<{ HostPort: string }>> = {};
+    (options.ports || []).forEach((port) => {
+      const protocol = port.protocol || "tcp";
+      const key = `${port.containerPort}/${protocol}`;
+      exposedPorts[key] = {};
+      if (port.hostPort) {
+        portBindings[key] = [{ HostPort: String(port.hostPort) }];
+      }
+    });
+
+    const envList = Object.entries(options.env || {}).map(
+      ([key, value]) => `${key}=${value}`,
+    );
+
+    const defaultCommand = options.command?.trim()
+      ? ["sh", "-lc", options.command]
+      : ["sh", "-lc", "sleep infinity"];
+
+    const container = await this.docker.createContainer({
+      name: options.name?.trim() || undefined,
+      Image: image,
+      Env: envList.length > 0 ? envList : undefined,
+      Cmd: defaultCommand,
+      ExposedPorts: Object.keys(exposedPorts).length ? exposedPorts : undefined,
+      HostConfig: {
+        PortBindings: Object.keys(portBindings).length ? portBindings : undefined,
+      },
+    });
+
+    await container.start();
+
+    if (options.packages && options.packages.length > 0) {
+      const osRelease = await new Promise<string>(async (resolve) => {
+        try {
+          const containerId = container.id;
+          const tmp = await this.docker.getContainer(containerId).exec({
+            Cmd: ["sh", "-lc", "cat /etc/os-release || true"],
+            AttachStdout: true,
+            AttachStderr: true,
+          });
+          tmp.start((err: Error | null, stream: NodeJS.ReadableStream) => {
+            if (err) {
+              resolve("");
+              return;
+            }
+            let data = "";
+            stream.on("data", (chunk) => (data += chunk.toString()));
+            stream.on("end", () => resolve(data));
+            stream.on("error", () => resolve(""));
+          });
+        } catch (_error) {
+          resolve("");
+        }
+      });
+
+      const manager = this.detectPackageManager(osRelease);
+      if (manager === "apk") {
+        await this.execInContainer(
+          container.id,
+          `apk add --no-cache ${options.packages.join(" ")}`,
+        );
+      } else if (manager === "apt") {
+        await this.execInContainer(
+          container.id,
+          `apt-get update && apt-get install -y ${options.packages.join(" ")}`,
+        );
+      } else {
+        throw new Error(
+          "Unsupported base image for package install. Use alpine/ubuntu/debian or supply a custom command.",
+        );
+      }
+    }
+
+    this.logger.info(
+      `Created container from wizard: ${container.id} (${options.name || image})`,
+    );
+
+    return { id: container.id.substring(0, 12), name: options.name || image };
+  }
+
   // Image Management
   async getAllImages(): Promise<ImageInfo[]> {
     try {

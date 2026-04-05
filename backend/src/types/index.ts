@@ -205,6 +205,9 @@ export interface AppConfig {
   redis: RedisConfig;
   projectsDir: string;
   configPath: string;
+  databasePath: string;
+  legacyProjectsDir?: string;
+  legacyConfigPath?: string;
   websocketTimeout: number;
   terminalTimeout: number;
   maxTerminalSessions: number;

@@ -26,6 +26,17 @@ export default defineConfig({
   },
   preview: {
     allowedHosts: ["host", "localhost"],
+    proxy: {
+      "/api": {
+        target: "http://advanced-container-manager:5003",
+        changeOrigin: true,
+      },
+      "/socket.io": {
+        target: "http://advanced-container-manager:5003",
+        changeOrigin: true,
+        ws: true,
+      },
+    },
   },
   build: {
     outDir: "dist",

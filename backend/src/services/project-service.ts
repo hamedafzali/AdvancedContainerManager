@@ -7,11 +7,17 @@ import * as yaml from "js-yaml";
 import { ProjectInfo, ProjectHealth, AppConfig } from "../types";
 import { Logger } from "../utils/logger";
 
+const Database = require("better-sqlite3");
+
 export class ProjectService {
   private config: AppConfig;
   private logger: Logger;
   private projectsDir: string;
   private configPath: string;
+  private databasePath: string;
+  private legacyProjectsDir: string;
+  private legacyConfigPath: string;
+  private database: any;
   private projects: Map<string, ProjectInfo> = new Map();
 
   constructor(config: AppConfig, logger: Logger) {
@@ -19,7 +25,12 @@ export class ProjectService {
     this.logger = logger;
     this.projectsDir = config.projectsDir;
     this.configPath = config.configPath;
+    this.databasePath = config.databasePath;
+    this.legacyProjectsDir = config.legacyProjectsDir || this.projectsDir;
+    this.legacyConfigPath = config.legacyConfigPath || this.configPath;
     this.ensureDirectories();
+    this.database = new Database(this.databasePath);
+    this.initializeDatabase();
     this.loadProjects();
   }
 
@@ -29,22 +40,151 @@ export class ProjectService {
         fs.mkdirSync(this.projectsDir, { recursive: true });
         this.logger.info(`Created projects directory: ${this.projectsDir}`);
       }
+
+      const databaseDir = path.dirname(this.databasePath);
+      if (!fs.existsSync(databaseDir)) {
+        fs.mkdirSync(databaseDir, { recursive: true });
+        this.logger.info(`Created database directory: ${databaseDir}`);
+      }
     } catch (error) {
       this.logger.error(`Error creating projects directory: ${error}`);
     }
   }
 
-  private loadProjects(): void {
+  private initializeDatabase(): void {
     try {
-      if (fs.existsSync(this.configPath)) {
-        const data = fs.readFileSync(this.configPath, "utf8");
-        const config = JSON.parse(data);
+      this.database.exec(`
+        CREATE TABLE IF NOT EXISTS projects (
+          name TEXT PRIMARY KEY,
+          payload TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `);
+    } catch (error) {
+      this.logger.error("Error initializing projects database:", error);
+      throw error;
+    }
+  }
 
-        if (config.projects) {
-          this.projects = new Map(Object.entries(config.projects));
-          this.logger.info(`Loaded ${this.projects.size} projects from config`);
+  private copyDirectoryIfMissing(sourceDir: string, targetDir: string): void {
+    if (!fs.existsSync(sourceDir) || sourceDir === targetDir) {
+      return;
+    }
+
+    const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const sourcePath = path.join(sourceDir, entry.name);
+      const targetPath = path.join(targetDir, entry.name);
+      if (!fs.existsSync(targetPath)) {
+        fs.cpSync(sourcePath, targetPath, { recursive: true });
+        this.logger.info(`Migrated legacy project folder: ${entry.name}`);
+      }
+    }
+  }
+
+  private normalizeImportedProject(name: string, project: Partial<ProjectInfo>): ProjectInfo {
+    const projectPath = path.join(this.projectsDir, name);
+    const composeFile = project.composeFile || "docker-compose.yml";
+    const composeFilePath = path.join(projectPath, composeFile);
+    const createdAt = project.createdAt || new Date().toISOString();
+    const lastUpdated = project.lastUpdated || createdAt;
+
+    return {
+      name,
+      repoUrl: project.repoUrl || "",
+      branch: project.branch || "main",
+      path: projectPath,
+      dockerfile: project.dockerfile || "Dockerfile",
+      composeFile,
+      environmentVars: project.environmentVars || {},
+      containers: project.containers || [],
+      status: project.status || "configured",
+      createdAt,
+      lastUpdated,
+      ports: fs.existsSync(composeFilePath)
+        ? this.extractPortsFromCompose(composeFilePath)
+        : project.ports || [],
+      buildHistory: project.buildHistory || [],
+      deployHistory: project.deployHistory || [],
+      healthChecks: project.healthChecks || [],
+      autoRestart: project.autoRestart || false,
+      resourceLimits: project.resourceLimits || {
+        memory: "512m",
+        cpu: "0.5",
+      },
+    };
+  }
+
+  private migrateLegacyProjects(): void {
+    this.copyDirectoryIfMissing(this.legacyProjectsDir, this.projectsDir);
+
+    let imported = false;
+    try {
+      if (
+        fs.existsSync(this.legacyConfigPath) &&
+        fs.statSync(this.legacyConfigPath).isFile()
+      ) {
+        const data = fs.readFileSync(this.legacyConfigPath, "utf8");
+        const config = JSON.parse(data);
+        if (config.projects && typeof config.projects === "object") {
+          for (const [name, rawProject] of Object.entries(config.projects)) {
+            this.projects.set(
+              name,
+              this.normalizeImportedProject(name, rawProject as Partial<ProjectInfo>),
+            );
+          }
+          imported = this.projects.size > 0;
+          if (imported) {
+            this.logger.info(
+              `Imported ${this.projects.size} legacy projects from config file`,
+            );
+          }
         }
       }
+    } catch (error) {
+      this.logger.warn(`Legacy config import failed: ${error}`);
+    }
+
+    if (!imported && fs.existsSync(this.projectsDir)) {
+      const entries = fs.readdirSync(this.projectsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) {
+          continue;
+        }
+        const name = entry.name;
+        this.projects.set(name, this.normalizeImportedProject(name, { name }));
+      }
+      if (this.projects.size > 0) {
+        this.logger.info(
+          `Reconstructed ${this.projects.size} projects from project folders`,
+        );
+      }
+    }
+
+    if (this.projects.size > 0) {
+      this.saveProjects();
+    }
+  }
+
+  private loadProjects(): void {
+    try {
+      const rows = this.database
+        .prepare("SELECT name, payload FROM projects ORDER BY name")
+        .all() as Array<{ name: string; payload: string }>;
+
+      if (rows.length === 0) {
+        this.migrateLegacyProjects();
+        return;
+      }
+
+      this.projects = new Map(
+        rows.map((row) => [row.name, JSON.parse(row.payload) as ProjectInfo]),
+      );
+      this.logger.info(`Loaded ${this.projects.size} projects from database`);
     } catch (error) {
       this.logger.error("Error loading projects config:", error);
       this.projects = new Map();
@@ -53,12 +193,37 @@ export class ProjectService {
 
   private saveProjects(): void {
     try {
-      const config = {
-        projects: Object.fromEntries(this.projects),
-        settings: {},
-      };
+      const upsert = this.database.prepare(`
+        INSERT INTO projects (name, payload, updated_at)
+        VALUES (@name, @payload, @updated_at)
+        ON CONFLICT(name) DO UPDATE SET
+          payload = excluded.payload,
+          updated_at = excluded.updated_at
+      `);
+      const remove = this.database.prepare(
+        "DELETE FROM projects WHERE name = ?",
+      );
+      const existingRows = this.database
+        .prepare("SELECT name FROM projects")
+        .all() as Array<{ name: string }>;
 
-      fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
+      const transaction = this.database.transaction(() => {
+        for (const [name, project] of this.projects.entries()) {
+          upsert.run({
+            name,
+            payload: JSON.stringify(project),
+            updated_at: project.lastUpdated || new Date().toISOString(),
+          });
+        }
+
+        for (const row of existingRows) {
+          if (!this.projects.has(row.name)) {
+            remove.run(row.name);
+          }
+        }
+      });
+
+      transaction();
       this.logger.debug("Projects configuration saved");
     } catch (error) {
       this.logger.error("Error saving projects config:", error);
@@ -240,8 +405,11 @@ export class ProjectService {
   }> {
     const cwd = project.path;
     const env = project.environmentVars;
+    const dockerArgs = args;
+    const dockerComposeArgs =
+      args[0] === "compose" ? args.slice(1) : args;
 
-    const dockerResult = await this.runCommand("docker", args, cwd, env);
+    const dockerResult = await this.runCommand("docker", dockerArgs, cwd, env);
     if (dockerResult.code === 0) {
       return { ...dockerResult, command: "docker" };
     }
@@ -253,7 +421,7 @@ export class ProjectService {
 
     const composeResult = await this.runCommand(
       "docker-compose",
-      args,
+      dockerComposeArgs,
       cwd,
       env,
     );

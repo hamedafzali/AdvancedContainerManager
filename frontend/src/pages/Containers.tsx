@@ -56,6 +56,17 @@ export default function Containers() {
   const [portModifications, setPortModifications] = useState<
     Record<string, { hostPort?: number; containerPort: number }>
   >({});
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [createForm, setCreateForm] = useState({
+    name: "",
+    image: "alpine:latest",
+    containerPort: "",
+    hostPort: "",
+    envText: "",
+    packagesText: "",
+    command: "",
+  });
 
   // Debouncing ref to prevent excessive API calls
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -268,6 +279,82 @@ export default function Containers() {
     }
   };
 
+  const createContainer = async () => {
+    setCreateError(null);
+
+    if (!createForm.image.trim()) {
+      setCreateError("Image is required");
+      return;
+    }
+
+    const env: Record<string, string> = {};
+    createForm.envText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .forEach((line) => {
+        const [key, ...rest] = line.split("=");
+        if (key) {
+          env[key.trim()] = rest.join("=").trim();
+        }
+      });
+
+    const packages = createForm.packagesText
+      .split(/[,\s]+/)
+      .map((pkg) => pkg.trim())
+      .filter(Boolean);
+
+    const ports =
+      createForm.containerPort.trim() !== ""
+        ? [
+            {
+              containerPort: parseInt(createForm.containerPort, 10),
+              hostPort:
+                createForm.hostPort.trim() !== ""
+                  ? parseInt(createForm.hostPort, 10)
+                  : undefined,
+              protocol: "tcp",
+            },
+          ]
+        : [];
+
+    try {
+      const response = await fetch(apiUrl("/api/containers/create"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: createForm.name.trim() || undefined,
+          image: createForm.image.trim(),
+          ports,
+          env,
+          packages,
+          command: createForm.command.trim() || undefined,
+        }),
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result?.message || "Failed to create container");
+      }
+
+      setShowCreateModal(false);
+      setCreateForm({
+        name: "",
+        image: "alpine:latest",
+        containerPort: "",
+        hostPort: "",
+        envText: "",
+        packagesText: "",
+        command: "",
+      });
+      await fetchContainers();
+    } catch (err) {
+      setCreateError(
+        err instanceof Error ? err.message : "Failed to create container",
+      );
+    }
+  };
+
   const handleContainerAction = useCallback(
     async (
       containerId: string,
@@ -415,7 +502,10 @@ export default function Containers() {
                   Manage and monitor Docker containers
                 </p>
               </div>
-              <button className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-light rounded-lg transition-colors duration-200">
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-light rounded-lg transition-colors duration-200"
+              >
                 <Plus className="w-4 h-4 mr-2" />
                 New Container
               </button>
@@ -847,6 +937,172 @@ export default function Containers() {
                 className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-2xl w-full m-4">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Create Empty Container
+              </h3>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                title="Close"
+              >
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4 max-h-[70vh] overflow-auto">
+              {createError && (
+                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+                  {createError}
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Image
+                </label>
+                <select
+                  value={createForm.image}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      image: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="alpine:latest">alpine:latest</option>
+                  <option value="ubuntu:latest">ubuntu:latest</option>
+                  <option value="debian:latest">debian:latest</option>
+                  <option value="node:20-alpine">node:20-alpine</option>
+                  <option value="node:20-bookworm">node:20-bookworm</option>
+                </select>
+                <input
+                  type="text"
+                  value={createForm.image}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      image: e.target.value,
+                    }))
+                  }
+                  className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="custom-image:tag"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Container Port
+                  </label>
+                  <input
+                    type="number"
+                    value={createForm.containerPort}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        containerPort: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="8080"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Host Port (optional)
+                  </label>
+                  <input
+                    type="number"
+                    value={createForm.hostPort}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({
+                        ...prev,
+                        hostPort: e.target.value,
+                      }))
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="3001"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Packages (optional)
+                </label>
+                <input
+                  type="text"
+                  value={createForm.packagesText}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      packagesText: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="nodejs npm curl"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Space or comma separated. Supports alpine/ubuntu/debian
+                  package managers.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Environment Variables (optional)
+                </label>
+                <textarea
+                  value={createForm.envText}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      envText: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[90px]"
+                  placeholder="KEY=value"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Command (optional)
+                </label>
+                <input
+                  type="text"
+                  value={createForm.command}
+                  onChange={(e) =>
+                    setCreateForm((prev) => ({
+                      ...prev,
+                      command: e.target.value,
+                    }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="bash -lc 'echo hello'"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  If empty, container will run `sleep infinity`.
+                </p>
+              </div>
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={createContainer}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
+              >
+                Create
               </button>
             </div>
           </div>

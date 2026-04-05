@@ -169,6 +169,49 @@ export function routes(
   );
 
   router.post(
+    "/containers/create",
+    asyncHandler(async (req, res) => {
+      try {
+        const {
+          name,
+          image,
+          ports = [],
+          env = {},
+          packages = [],
+          command,
+        } = req.body || {};
+
+        if (!image) {
+          return res.status(400).json({
+            success: false,
+            message: "Image is required",
+          });
+        }
+
+        const created = await dockerService.createContainerFromWizard({
+          name,
+          image,
+          ports,
+          env,
+          packages,
+          command,
+        });
+
+        res.json({
+          success: true,
+          data: created,
+        });
+      } catch (error) {
+        logger.error("Error creating container:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.post(
     "/containers/:id/start",
     asyncHandler(async (req, res) => {
       try {

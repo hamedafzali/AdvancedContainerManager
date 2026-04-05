@@ -197,9 +197,9 @@ export class BackupService {
       }
 
       if (config.includeSettings) {
-        const configPath = process.env.CONFIG_PATH || "/tmp/advanced_manager_config.json";
-        if (existsSync(configPath) && statSync(configPath).isFile()) {
-          copyFileSync(configPath, join(backupPath, "config.json"));
+        const databasePath = process.env.DATABASE_PATH || "/data/db/manager.sqlite";
+        if (existsSync(databasePath) && statSync(databasePath).isFile()) {
+          copyFileSync(databasePath, join(backupPath, "manager.sqlite"));
           backupData.data.settings = true;
         }
       }
@@ -299,8 +299,14 @@ export class BackupService {
       }
 
       if (config.includeSettings && existsSync(join(backupPath, "config.json"))) {
-        const configPath = process.env.CONFIG_PATH || "/tmp/advanced_manager_config.json";
-        copyFileSync(join(backupPath, "config.json"), configPath);
+        const databasePath = process.env.DATABASE_PATH || "/data/db/manager.sqlite";
+        copyFileSync(join(backupPath, "config.json"), databasePath);
+      } else if (
+        config.includeSettings &&
+        existsSync(join(backupPath, "manager.sqlite"))
+      ) {
+        const databasePath = process.env.DATABASE_PATH || "/data/db/manager.sqlite";
+        copyFileSync(join(backupPath, "manager.sqlite"), databasePath);
       }
 
       if (config.includeLogs && existsSync(join(backupPath, "logs"))) {

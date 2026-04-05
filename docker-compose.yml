@@ -35,8 +35,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
-      - PROJECTS_DIR=/tmp/advanced_manager_projects
-      - CONFIG_PATH=/tmp/advanced_manager_config.json
+      - PROJECTS_DIR=/data/projects
+      - DATABASE_PATH=/data/db/manager.sqlite
+      - LEGACY_PROJECTS_DIR=/tmp/advanced_manager_projects
+      - LEGACY_CONFIG_PATH=/tmp/advanced_manager_config.json
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
       - WEBSOCKET_TIMEOUT=300000
       - TERMINAL_TIMEOUT=3600000
@@ -44,6 +46,8 @@ services:
       - METRICS_INTERVAL=5000
       - METRICS_RETENTION=24
     volumes:
+      - ./data/projects:/data/projects
+      - ./data/db:/data/db
       - /tmp/advanced_manager_projects:/tmp/advanced_manager_projects
       - /tmp/advanced_manager_config.json:/tmp/advanced_manager_config.json
       - ./logs:/app/logs
