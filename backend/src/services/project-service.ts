@@ -100,7 +100,12 @@ export class ProjectService {
       path: projectPath,
       dockerfile: project.dockerfile || "Dockerfile",
       composeFile,
-      environmentVars: project.environmentVars || {},
+      environmentVars: fs.existsSync(composeFilePath)
+        ? {
+            ...this.extractDefinedEnvVars(composeFilePath),
+            ...(project.environmentVars || {}),
+          }
+        : project.environmentVars || {},
       containers: project.containers || [],
       status: project.status || "configured",
       createdAt,
@@ -297,6 +302,107 @@ export class ProjectService {
         process.env[key] !== undefined && process.env[key] !== "";
       return !inProject && !inProcess;
     });
+  }
+
+  private resolveComposeValue(rawValue: unknown): string {
+    if (rawValue === undefined || rawValue === null) {
+      return "";
+    }
+
+    const value = String(rawValue);
+    const defaultMatch = value.match(/^\$\{[A-Z0-9_]+:-(.*)\}$/i);
+    return defaultMatch ? defaultMatch[1] : value;
+  }
+
+  private parseEnvFile(envFilePath: string): Record<string, string> {
+    const envVars: Record<string, string> = {};
+    if (!fs.existsSync(envFilePath) || !fs.statSync(envFilePath).isFile()) {
+      return envVars;
+    }
+
+    for (const rawLine of fs.readFileSync(envFilePath, "utf8").split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith("#")) {
+        continue;
+      }
+
+      const separatorIndex = line.indexOf("=");
+      if (separatorIndex === -1) {
+        envVars[line] = "";
+        continue;
+      }
+
+      const key = line.slice(0, separatorIndex).trim();
+      const value = line.slice(separatorIndex + 1).trim();
+      envVars[key] = value.replace(/^['"]|['"]$/g, "");
+    }
+
+    return envVars;
+  }
+
+  private extractDefinedEnvVars(composeFile: string): Record<string, string> {
+    try {
+      const composeDir = path.dirname(composeFile);
+      const content = fs.readFileSync(composeFile, "utf8");
+      const compose = yaml.load(content) as any;
+      const envVars: Record<string, string> = {};
+
+      const assign = (key: string, value: unknown) => {
+        if (key) {
+          envVars[key] = this.resolveComposeValue(value);
+        }
+      };
+
+      if (!compose || typeof compose !== "object" || !compose.services) {
+        return envVars;
+      }
+
+      for (const service of Object.values(compose.services as Record<string, any>)) {
+        if (!service || typeof service !== "object") {
+          continue;
+        }
+
+        const envFiles = Array.isArray(service.env_file)
+          ? service.env_file
+          : service.env_file
+            ? [service.env_file]
+            : [];
+
+        for (const envFile of envFiles) {
+          const envFilePath = path.isAbsolute(envFile)
+            ? envFile
+            : path.join(composeDir, envFile);
+          Object.assign(envVars, this.parseEnvFile(envFilePath));
+        }
+
+        if (Array.isArray(service.environment)) {
+          for (const entry of service.environment) {
+            if (typeof entry !== "string") {
+              continue;
+            }
+
+            const separatorIndex = entry.indexOf("=");
+            if (separatorIndex === -1) {
+              assign(entry.trim(), "");
+            } else {
+              assign(
+                entry.slice(0, separatorIndex).trim(),
+                entry.slice(separatorIndex + 1).trim(),
+              );
+            }
+          }
+        } else if (service.environment && typeof service.environment === "object") {
+          for (const [key, value] of Object.entries(service.environment)) {
+            assign(key, value);
+          }
+        }
+      }
+
+      return envVars;
+    } catch (error) {
+      this.logger.warn(`Failed to extract compose environment variables: ${error}`);
+      return {};
+    }
   }
 
   private extractPortsFromCompose(composeFile: string): Array<{
@@ -534,6 +640,7 @@ export class ProjectService {
       // Create project info
       const composeFilePath = path.join(projectPath, composeFile);
       const ports = this.extractPortsFromCompose(composeFilePath);
+      const discoveredEnvVars = this.extractDefinedEnvVars(composeFilePath);
 
       const project: ProjectInfo = {
         name,
@@ -542,7 +649,10 @@ export class ProjectService {
         path: projectPath,
         dockerfile,
         composeFile,
-        environmentVars,
+        environmentVars: {
+          ...discoveredEnvVars,
+          ...environmentVars,
+        },
         containers: [],
         status: "configured",
         createdAt: new Date().toISOString(),
@@ -643,6 +753,10 @@ export class ProjectService {
       const refreshedComposeFile = this.resolveComposeFile(project);
       if (refreshedComposeFile && fs.existsSync(refreshedComposeFile)) {
         project.ports = this.extractPortsFromCompose(refreshedComposeFile);
+        project.environmentVars = {
+          ...this.extractDefinedEnvVars(refreshedComposeFile),
+          ...(project.environmentVars || {}),
+        };
       }
 
       project.lastUpdated = new Date().toISOString();
@@ -795,7 +909,6 @@ export class ProjectService {
       project.branch = requestedBranch;
     }
 
-    const environmentVars = payload.environmentVars ?? project.environmentVars;
     const requestedComposeFile = payload.composeFile?.trim();
 
     if (requestedComposeFile) {
@@ -810,6 +923,12 @@ export class ProjectService {
     if (!composeFile) {
       throw new Error("docker-compose file not found in project");
     }
+
+    const discoveredEnvVars = this.extractDefinedEnvVars(composeFile);
+    const environmentVars = payload.environmentVars ?? {
+      ...discoveredEnvVars,
+      ...project.environmentVars,
+    };
 
     if (payload.portUpdates && payload.portUpdates.length > 0) {
       const content = fs.readFileSync(composeFile, "utf8");
@@ -958,7 +1077,10 @@ export class ProjectService {
       fs.writeFileSync(composeFile, yaml.dump(compose, { noRefs: true }), "utf8");
     }
 
-    project.environmentVars = environmentVars || {};
+    project.environmentVars = {
+      ...discoveredEnvVars,
+      ...(environmentVars || {}),
+    };
     project.ports = this.extractPortsFromCompose(composeFile);
     project.lastUpdated = new Date().toISOString();
     this.saveProjects();
