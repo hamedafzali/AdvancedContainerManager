@@ -4,9 +4,6 @@ services:
     build:
       context: .
       target: frontend-builder
-      args:
-        VITE_API_BASE: "http://localhost:5003"
-        VITE_SOCKET_URL: "http://localhost:5003"
     container_name: advanced-manager-frontend
     restart: unless-stopped
     ports:
