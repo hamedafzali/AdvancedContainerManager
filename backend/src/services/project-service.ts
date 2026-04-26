@@ -6,6 +6,7 @@ import { simpleGit } from "simple-git";
 import * as yaml from "js-yaml";
 import { ProjectInfo, ProjectHealth, AppConfig } from "../types";
 import { Logger } from "../utils/logger";
+import type { WebSocketHandler } from "./websocket-handler";
 
 const Database = require("better-sqlite3");
 
@@ -19,6 +20,7 @@ export class ProjectService {
   private legacyConfigPath: string;
   private database: any;
   private projects: Map<string, ProjectInfo> = new Map();
+  private wsHandler?: WebSocketHandler;
 
   constructor(config: AppConfig, logger: Logger) {
     this.config = config;
@@ -32,6 +34,10 @@ export class ProjectService {
     this.database = new Database(this.databasePath);
     this.initializeDatabase();
     this.loadProjects();
+  }
+
+  public setWebSocketHandler(handler: WebSocketHandler): void {
+    this.wsHandler = handler;
   }
 
   private ensureDirectories(): void {
@@ -86,7 +92,10 @@ export class ProjectService {
     }
   }
 
-  private normalizeImportedProject(name: string, project: Partial<ProjectInfo>): ProjectInfo {
+  private normalizeImportedProject(
+    name: string,
+    project: Partial<ProjectInfo>,
+  ): ProjectInfo {
     const projectPath = path.join(this.projectsDir, name);
     const composeFile = project.composeFile || "docker-compose.yml";
     const composeFilePath = path.join(projectPath, composeFile);
@@ -139,7 +148,10 @@ export class ProjectService {
           for (const [name, rawProject] of Object.entries(config.projects)) {
             this.projects.set(
               name,
-              this.normalizeImportedProject(name, rawProject as Partial<ProjectInfo>),
+              this.normalizeImportedProject(
+                name,
+                rawProject as Partial<ProjectInfo>,
+              ),
             );
           }
           imported = this.projects.size > 0;
@@ -357,7 +369,9 @@ export class ProjectService {
         return envVars;
       }
 
-      for (const service of Object.values(compose.services as Record<string, any>)) {
+      for (const service of Object.values(
+        compose.services as Record<string, any>,
+      )) {
         if (!service || typeof service !== "object") {
           continue;
         }
@@ -391,7 +405,10 @@ export class ProjectService {
               );
             }
           }
-        } else if (service.environment && typeof service.environment === "object") {
+        } else if (
+          service.environment &&
+          typeof service.environment === "object"
+        ) {
           for (const [key, value] of Object.entries(service.environment)) {
             assign(key, value);
           }
@@ -400,7 +417,9 @@ export class ProjectService {
 
       return envVars;
     } catch (error) {
-      this.logger.warn(`Failed to extract compose environment variables: ${error}`);
+      this.logger.warn(
+        `Failed to extract compose environment variables: ${error}`,
+      );
       return {};
     }
   }
@@ -459,6 +478,8 @@ export class ProjectService {
     args: string[],
     cwd: string,
     extraEnv: Record<string, string> = {},
+    onStdout?: (chunk: string) => void,
+    onStderr?: (chunk: string) => void,
   ): Promise<{ stdout: string; stderr: string; code: number }> {
     return new Promise((resolve, reject) => {
       const child = spawn(command, args, {
@@ -473,11 +494,15 @@ export class ProjectService {
       let stderr = "";
 
       child.stdout.on("data", (data) => {
-        stdout += data.toString();
+        const chunk = data.toString();
+        stdout += chunk;
+        onStdout?.(chunk);
       });
 
       child.stderr.on("data", (data) => {
-        stderr += data.toString();
+        const chunk = data.toString();
+        stderr += chunk;
+        onStderr?.(chunk);
       });
 
       child.on("error", (error) => {
@@ -503,6 +528,8 @@ export class ProjectService {
   private async runCompose(
     project: ProjectInfo,
     args: string[],
+    onStdout?: (chunk: string) => void,
+    onStderr?: (chunk: string) => void,
   ): Promise<{
     stdout: string;
     stderr: string;
@@ -512,10 +539,16 @@ export class ProjectService {
     const cwd = project.path;
     const env = project.environmentVars;
     const dockerArgs = args;
-    const dockerComposeArgs =
-      args[0] === "compose" ? args.slice(1) : args;
+    const dockerComposeArgs = args[0] === "compose" ? args.slice(1) : args;
 
-    const dockerResult = await this.runCommand("docker", dockerArgs, cwd, env);
+    const dockerResult = await this.runCommand(
+      "docker",
+      dockerArgs,
+      cwd,
+      env,
+      onStdout,
+      onStderr,
+    );
     if (dockerResult.code === 0) {
       return { ...dockerResult, command: "docker" };
     }
@@ -530,6 +563,8 @@ export class ProjectService {
       dockerComposeArgs,
       cwd,
       env,
+      onStdout,
+      onStderr,
     );
     return { ...composeResult, command: "docker-compose" };
   }
@@ -604,7 +639,10 @@ export class ProjectService {
 
     fs.mkdirSync(path.dirname(project.path), { recursive: true });
     const git = simpleGit();
-    await git.clone(project.repoUrl, project.path, ["--branch", project.branch || "main"]);
+    await git.clone(project.repoUrl, project.path, [
+      "--branch",
+      project.branch || "main",
+    ]);
     this.logger.info(`Recovered project repository for ${project.name}`);
 
     return { recovered: true, note };
@@ -630,7 +668,9 @@ export class ProjectService {
         await repo.fetch("origin", branch);
         await repo.checkout(["-B", branch, `origin/${branch}`]);
         await repo.pull("origin", branch, { "--ff-only": null });
-        this.logger.info(`Synced existing project on branch ${branch}: ${name}`);
+        this.logger.info(
+          `Synced existing project on branch ${branch}: ${name}`,
+        );
       } else {
         // Clone new repository
         await git.clone(repoUrl, projectPath, ["--branch", branch]);
@@ -764,9 +804,7 @@ export class ProjectService {
 
       const output = [
         recovery.note || "",
-        discardedChanges
-          ? "Discarded local tracked changes before sync."
-          : "",
+        discardedChanges ? "Discarded local tracked changes before sync." : "",
         updated
           ? `Synced project to origin/${before} (${localHead.slice(0, 7)} -> ${remoteHead.slice(0, 7)}).`
           : `Already up to date with origin/${before} (${remoteHead.slice(0, 7)}).`,
@@ -824,7 +862,8 @@ export class ProjectService {
           : undefined;
       return {
         containerPort,
-        hostPort: hostPort !== undefined && !isNaN(hostPort) ? hostPort : undefined,
+        hostPort:
+          hostPort !== undefined && !isNaN(hostPort) ? hostPort : undefined,
         protocol: (rawProtocol || "tcp").toLowerCase(),
       };
     }
@@ -940,7 +979,12 @@ export class ProjectService {
       const composeServices = compose.services as Record<string, any>;
       const updateByServiceAndPort = new Map<
         string,
-        { service: string; containerPort: number; protocol: string; hostPort: number }
+        {
+          service: string;
+          containerPort: number;
+          protocol: string;
+          hostPort: number;
+        }
       >();
 
       for (const update of payload.portUpdates) {
@@ -954,7 +998,9 @@ export class ProjectService {
         });
       }
 
-      for (const [serviceName, serviceConfig] of Object.entries(composeServices)) {
+      for (const [serviceName, serviceConfig] of Object.entries(
+        composeServices,
+      )) {
         if (!serviceConfig || !Array.isArray(serviceConfig.ports)) {
           continue;
         }
@@ -997,7 +1043,9 @@ export class ProjectService {
         hostPort?: number;
         protocol: string;
       }> = [];
-      for (const [serviceName, serviceConfig] of Object.entries(composeServices)) {
+      for (const [serviceName, serviceConfig] of Object.entries(
+        composeServices,
+      )) {
         if (!serviceConfig || !Array.isArray(serviceConfig.ports)) {
           continue;
         }
@@ -1031,7 +1079,9 @@ export class ProjectService {
       const duplicateInCompose: string[] = [];
       for (const [hostPort, refs] of hostPortToServices.entries()) {
         if (refs.length > 1) {
-          duplicateInCompose.push(`Port ${hostPort} is duplicated in ${refs.join(", ")}`);
+          duplicateInCompose.push(
+            `Port ${hostPort} is duplicated in ${refs.join(", ")}`,
+          );
         }
       }
       if (duplicateInCompose.length > 0) {
@@ -1074,7 +1124,11 @@ export class ProjectService {
         );
       }
 
-      fs.writeFileSync(composeFile, yaml.dump(compose, { noRefs: true }), "utf8");
+      fs.writeFileSync(
+        composeFile,
+        yaml.dump(compose, { noRefs: true }),
+        "utf8",
+      );
     }
 
     project.environmentVars = {
@@ -1139,7 +1193,10 @@ export class ProjectService {
           );
         }
 
-        if (Array.isArray(project.containers) && project.containers.length > 0) {
+        if (
+          Array.isArray(project.containers) &&
+          project.containers.length > 0
+        ) {
           for (const containerId of project.containers) {
             try {
               const rmResult = await this.runCommand(
@@ -1282,6 +1339,12 @@ export class ProjectService {
     }
 
     try {
+      this.wsHandler?.broadcastProjectDeployStatus({
+        projectName: name,
+        status: "started",
+        timestamp: new Date().toISOString(),
+      });
+
       project.status = "building";
       project.lastUpdated = new Date().toISOString();
       this.saveProjects();
@@ -1308,19 +1371,38 @@ export class ProjectService {
         `Project ${name} repo: ${project.repoUrl} branch: ${project.branch} path: ${project.path}`,
       );
 
-      const upResult = await this.runCompose(project, [
-        "compose",
-        "-f",
-        composeFile,
-        "up",
-        "-d",
-        "--build",
-      ]);
+      const upResult = await this.runCompose(
+        project,
+        ["compose", "-f", composeFile, "up", "-d", "--build"],
+        (chunk) => {
+          this.wsHandler?.broadcastProjectDeployLog({
+            projectName: name,
+            stream: "stdout",
+            chunk,
+            timestamp: new Date().toISOString(),
+          });
+        },
+        (chunk) => {
+          this.wsHandler?.broadcastProjectDeployLog({
+            projectName: name,
+            stream: "stderr",
+            chunk,
+            timestamp: new Date().toISOString(),
+          });
+        },
+      );
 
       if (upResult.code !== 0) {
         this.logger.error(
           `Deploy failed for ${name} (${upResult.command}): ${upResult.stderr || upResult.stdout}`,
         );
+        this.wsHandler?.broadcastProjectDeployStatus({
+          projectName: name,
+          status: "failed",
+          timestamp: new Date().toISOString(),
+          code: upResult.code,
+          error: upResult.stderr || upResult.stdout || "Deployment failed",
+        });
         throw new Error(
           upResult.stderr || upResult.stdout || "Deployment failed",
         );
@@ -1343,6 +1425,14 @@ export class ProjectService {
       );
 
       const seedHook = await this.runPostDeploySeedHook(project);
+      if (seedHook.executed && seedHook.output) {
+        this.wsHandler?.broadcastProjectDeployLog({
+          projectName: name,
+          stream: "stdout",
+          chunk: `\n[post-deploy-seed]\n${seedHook.output}\n`,
+          timestamp: new Date().toISOString(),
+        });
+      }
       const deployOutput = [
         upResult.stdout || upResult.stderr || "",
         seedHook.executed ? `\n[post-deploy-seed]\n${seedHook.output}` : "",
@@ -1365,6 +1455,13 @@ export class ProjectService {
       this.saveProjects();
 
       this.logger.info(`Project ${name} deployed successfully`);
+
+      this.wsHandler?.broadcastProjectDeployStatus({
+        projectName: name,
+        status: "completed",
+        timestamp: new Date().toISOString(),
+        code: upResult.code,
+      });
       return {
         containerIds,
         output: deployOutput,
@@ -1383,6 +1480,13 @@ export class ProjectService {
       this.saveProjects();
 
       this.logger.error(`Error deploying project ${name}:`, error);
+
+      this.wsHandler?.broadcastProjectDeployStatus({
+        projectName: name,
+        status: "failed",
+        timestamp: new Date().toISOString(),
+        error: error.message,
+      });
       throw error;
     }
   }

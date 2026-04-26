@@ -78,6 +78,9 @@ export default function Projects() {
   const [showDeployLogs, setShowDeployLogs] = useState(false);
   const [deployLogs, setDeployLogs] = useState<string>("");
   const [deployLogsTitle, setDeployLogsTitle] = useState<string>("");
+  const [activeDeployProject, setActiveDeployProject] = useState<string | null>(
+    null,
+  );
   const [showEnvModal, setShowEnvModal] = useState(false);
   const [envProject, setEnvProject] = useState<Project | null>(null);
   const [envEditor, setEnvEditor] = useState<
@@ -389,7 +392,9 @@ export default function Projects() {
 
       if (!response.ok) {
         setDeployLogs(logOutput);
-        throw new Error(result?.message || `Failed to sync project (${response.status})`);
+        throw new Error(
+          result?.message || `Failed to sync project (${response.status})`,
+        );
       }
 
       setDeployLogs(logOutput);
@@ -398,7 +403,11 @@ export default function Projects() {
       const message =
         err instanceof Error ? err.message : "Failed to sync project";
       setActionError(message);
-      setDeployLogs((prev) => prev || `Project: ${projectName}\nRequested: ${requestedAt}\nResult: ${message}`);
+      setDeployLogs(
+        (prev) =>
+          prev ||
+          `Project: ${projectName}\nRequested: ${requestedAt}\nResult: ${message}`,
+      );
     }
   };
 
@@ -408,6 +417,14 @@ export default function Projects() {
       setDeployLogs("");
       setDeployLogsTitle(`Deploy Logs: ${projectName}`);
       setShowDeployLogs(true);
+      setActiveDeployProject(projectName);
+
+      window.dispatchEvent(
+        new CustomEvent("subscribe_project_deploy", {
+          detail: { projectName },
+        }),
+      );
+
       const response = await fetch(
         apiUrl(`/api/projects/${projectName}/deploy`),
         {
@@ -424,7 +441,12 @@ export default function Projects() {
       const command = result?.data?.command
         ? `Command: ${result.data.command}`
         : "";
-      setDeployLogs(`${command}\n${output}`.trim());
+      setDeployLogs((prev) => {
+        if (prev) {
+          return `${prev}\n\n${command}\n${output}`.trim();
+        }
+        return `${command}\n${output}`.trim();
+      });
       await fetchProjects();
     } catch (err) {
       const message =
@@ -433,6 +455,63 @@ export default function Projects() {
       setDeployLogs(message);
     }
   };
+
+  useEffect(() => {
+    if (!showDeployLogs || !activeDeployProject) {
+      return;
+    }
+
+    const onDeployLog = (event: Event) => {
+      const detail = (event as CustomEvent).detail as {
+        projectName?: string;
+        stream?: "stdout" | "stderr";
+        chunk?: string;
+        timestamp?: string;
+      };
+
+      if (!detail?.projectName || detail.projectName !== activeDeployProject) {
+        return;
+      }
+
+      const chunk = detail.chunk || "";
+      if (!chunk) {
+        return;
+      }
+
+      setDeployLogs((prev) => `${prev}${chunk}`);
+    };
+
+    const onDeployStatus = (event: Event) => {
+      const detail = (event as CustomEvent).detail as {
+        projectName?: string;
+        status?: "started" | "completed" | "failed";
+        timestamp?: string;
+        error?: string;
+      };
+
+      if (!detail?.projectName || detail.projectName !== activeDeployProject) {
+        return;
+      }
+
+      if (detail.status === "failed" && detail.error) {
+        setDeployLogs((prev) => `${prev}\n${detail.error}\n`);
+      }
+    };
+
+    window.addEventListener("project_deploy_log", onDeployLog);
+    window.addEventListener("project_deploy_status", onDeployStatus);
+
+    return () => {
+      window.removeEventListener("project_deploy_log", onDeployLog);
+      window.removeEventListener("project_deploy_status", onDeployStatus);
+
+      window.dispatchEvent(
+        new CustomEvent("unsubscribe_project_deploy", {
+          detail: { projectName: activeDeployProject },
+        }),
+      );
+    };
+  }, [showDeployLogs, activeDeployProject]);
 
   // Stop project
   const handleStopProject = async (projectName: string) => {

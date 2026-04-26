@@ -21,6 +21,25 @@ export function useSocket() {
 
       const socket = socketRef.current;
 
+      const subscribeProjectDeployListener = (event: Event) => {
+        const detail = (event as CustomEvent).detail;
+        socket.emit("subscribe_project_deploy", detail);
+      };
+
+      const unsubscribeProjectDeployListener = (event: Event) => {
+        const detail = (event as CustomEvent).detail;
+        socket.emit("unsubscribe_project_deploy", detail);
+      };
+
+      window.addEventListener(
+        "subscribe_project_deploy",
+        subscribeProjectDeployListener,
+      );
+      window.addEventListener(
+        "unsubscribe_project_deploy",
+        unsubscribeProjectDeployListener,
+      );
+
       socket.on("connect", () => {
         console.log("Connected to Advanced Container Manager WebSocket");
 
@@ -100,6 +119,19 @@ export function useSocket() {
         );
       });
 
+      // Project deploy log streaming
+      socket.on("project_deploy_log", (data) => {
+        window.dispatchEvent(
+          new CustomEvent("project_deploy_log", { detail: data }),
+        );
+      });
+
+      socket.on("project_deploy_status", (data) => {
+        window.dispatchEvent(
+          new CustomEvent("project_deploy_status", { detail: data }),
+        );
+      });
+
       // Metrics history response
       socket.on("system_metrics_history", (data) => {
         window.dispatchEvent(
@@ -115,6 +147,14 @@ export function useSocket() {
 
       return () => {
         if (socket) {
+          window.removeEventListener(
+            "subscribe_project_deploy",
+            subscribeProjectDeployListener,
+          );
+          window.removeEventListener(
+            "unsubscribe_project_deploy",
+            unsubscribeProjectDeployListener,
+          );
           socket.disconnect();
         }
       };

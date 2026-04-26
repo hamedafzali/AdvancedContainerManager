@@ -59,6 +59,30 @@ export class WebSocketHandler {
   }
 
   private setupClientHandlers(socket: Socket): void {
+    // Subscribe to project deploy logs
+    socket.on("subscribe_project_deploy", (data) => {
+      const { projectName } = data || {};
+      if (!projectName) {
+        return;
+      }
+      socket.join(`project:deploy:${projectName}`);
+      this.logger.info(
+        `Client ${socket.id} subscribed to deploy logs for project ${projectName}`,
+      );
+    });
+
+    // Unsubscribe from project deploy logs
+    socket.on("unsubscribe_project_deploy", (data) => {
+      const { projectName } = data || {};
+      if (!projectName) {
+        return;
+      }
+      socket.leave(`project:deploy:${projectName}`);
+      this.logger.info(
+        `Client ${socket.id} unsubscribed from deploy logs for project ${projectName}`,
+      );
+    });
+
     // Subscribe to container updates
     socket.on("subscribe_container", (data) => {
       const { containerId } = data;
@@ -181,6 +205,36 @@ export class WebSocketHandler {
     data?: any;
   }): void {
     this.io.emit("notification", notification);
+  }
+
+  public broadcastProjectDeployLog(event: {
+    projectName: string;
+    stream: "stdout" | "stderr";
+    chunk: string;
+    timestamp: string;
+    command?: string;
+  }): void {
+    if (!event?.projectName) {
+      return;
+    }
+    this.io
+      .to(`project:deploy:${event.projectName}`)
+      .emit("project_deploy_log", event);
+  }
+
+  public broadcastProjectDeployStatus(event: {
+    projectName: string;
+    status: "started" | "completed" | "failed";
+    timestamp: string;
+    code?: number;
+    error?: string;
+  }): void {
+    if (!event?.projectName) {
+      return;
+    }
+    this.io
+      .to(`project:deploy:${event.projectName}`)
+      .emit("project_deploy_status", event);
   }
 
   public getClientCount(): number {

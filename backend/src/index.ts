@@ -83,12 +83,13 @@ class AdvancedContainerManager {
       projectsDir: process.env.PROJECTS_DIR || "/data/projects",
       configPath:
         process.env.CONFIG_PATH || "/tmp/advanced_manager_config.json",
-      databasePath:
-        process.env.DATABASE_PATH || "/data/db/manager.sqlite",
+      databasePath: process.env.DATABASE_PATH || "/data/db/manager.sqlite",
       legacyProjectsDir:
         process.env.LEGACY_PROJECTS_DIR || "/tmp/advanced_manager_projects",
       legacyConfigPath:
-        process.env.LEGACY_CONFIG_PATH || process.env.CONFIG_PATH || "/tmp/advanced_manager_config.json",
+        process.env.LEGACY_CONFIG_PATH ||
+        process.env.CONFIG_PATH ||
+        "/tmp/advanced_manager_config.json",
       websocketTimeout: parseInt(process.env.WEBSOCKET_TIMEOUT || "300000"),
       terminalTimeout: parseInt(process.env.TERMINAL_TIMEOUT || "3600000"),
       maxTerminalSessions: parseInt(process.env.MAX_TERMINAL_SESSIONS || "100"),
@@ -113,6 +114,8 @@ class AdvancedContainerManager {
       this.metricsCollector,
       this.logger,
     );
+
+    this.projectService.setWebSocketHandler(this.wsHandler);
 
     // Start background services
     this.metricsCollector.start();
