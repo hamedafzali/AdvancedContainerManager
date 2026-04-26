@@ -70,8 +70,8 @@ export class TunnelService {
             return;
           }
           let tunnelUrl = urlMatch[0].replace(/\/$/, "").trim();
-          // Remove duplicate https:// prefix if present
-          tunnelUrl = tunnelUrl.replace(/^https:\/\/https:\/\//i, "https://");
+          // Remove https:// prefix since frontend adds it
+          tunnelUrl = tunnelUrl.replace(/^https:\/\//i, "");
           if (!tunnelUrl) return;
 
           resolved = true;
