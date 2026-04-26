@@ -13,6 +13,7 @@ import { HealthService } from "../services/health-service";
 import { MultiCloudService } from "../services/multi-cloud-service";
 import { AnalyticsService } from "../services/analytics-service";
 import { SecurityService } from "../services/security-service";
+import { CloudflareService } from "../services/cloudflare-service";
 
 export function routes(
   dockerService: DockerService,
@@ -30,6 +31,7 @@ export function routes(
   const aiOptimizer = new AIOptimizer(dockerService, metricsCollector, logger);
   const multiCloudService = new MultiCloudService();
   const analyticsService = new AnalyticsService(logger, metricsCollector);
+  const cloudflareService = new CloudflareService();
 
   router.use((req, res, next) => {
     const start = Date.now();
@@ -2163,6 +2165,100 @@ export function routes(
         });
       } catch (error) {
         logger.error("Failed to fetch tunnels:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  // Cloudflare API endpoints
+  router.post(
+    "/cloudflare/auth",
+    asyncHandler(async (req, res) => {
+      try {
+        const { apiToken, accountId } = req.body;
+
+        if (!apiToken) {
+          return res.status(400).json({
+            success: false,
+            message: "API token is required",
+          });
+        }
+
+        cloudflareService.setConfig({ apiToken, accountId });
+        const isValid = await cloudflareService.validateToken();
+
+        if (!isValid) {
+          cloudflareService.clearConfig();
+          return res.status(401).json({
+            success: false,
+            message: "Invalid Cloudflare API token",
+          });
+        }
+
+        res.json({
+          success: true,
+          message: "Cloudflare authentication successful",
+        });
+      } catch (error) {
+        logger.error("Cloudflare authentication failed:", error);
+        cloudflareService.clearConfig();
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.get(
+    "/cloudflare/zones",
+    asyncHandler(async (req, res) => {
+      try {
+        if (!cloudflareService.isAuthenticated()) {
+          return res.status(401).json({
+            success: false,
+            message: "Cloudflare not authenticated",
+          });
+        }
+
+        const zones = await cloudflareService.getZones();
+        res.json({
+          success: true,
+          data: zones,
+        });
+      } catch (error) {
+        logger.error("Failed to fetch Cloudflare zones:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.post(
+    "/cloudflare/config",
+    asyncHandler(async (req, res) => {
+      try {
+        const { apiToken, accountId } = req.body;
+
+        if (!apiToken) {
+          return res.status(400).json({
+            success: false,
+            message: "API token is required",
+          });
+        }
+
+        cloudflareService.setConfig({ apiToken, accountId });
+        res.json({
+          success: true,
+          message: "Cloudflare configuration updated",
+        });
+      } catch (error) {
+        logger.error("Failed to update Cloudflare config:", error);
         res.status(500).json({
           success: false,
           message: error.message,

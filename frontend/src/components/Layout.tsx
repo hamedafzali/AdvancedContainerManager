@@ -27,10 +27,11 @@ const navigation = [
   { name: "Networks", href: "/networks", icon: Network },
   { name: "Volumes", href: "/volumes", icon: HardDrive },
   { name: "Tunnels", href: "/tunnels", icon: Globe },
+  { name: "Cloudflare", href: "/cloudflare", icon: Cloud },
   { name: "Terminal", href: "/terminal", icon: Terminal },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
   { name: "AI Optimization", href: "/ai-optimization", icon: Brain },
-  { name: "Multi-Cloud", href: "/multi-cloud", icon: Cloud },
+  { name: "Multi-Cloud", href: "/multi-cloud", icon: Layers },
   { name: "Security", href: "/security", icon: Shield },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
