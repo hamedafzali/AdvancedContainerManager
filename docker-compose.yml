@@ -21,6 +21,8 @@ services:
     user: "0:0"
     ports:
       - "5003:5003"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - NODE_ENV=production
       - PORT=5003

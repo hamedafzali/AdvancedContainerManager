@@ -44,7 +44,12 @@ export class TunnelService {
     try {
       const tunnelId = crypto.randomBytes(8).toString("hex");
       const safeName = name.replace(/[^a-zA-Z0-9-_]/g, "-");
-      const args = ["tunnel", "--url", `http://localhost:${port}`];
+      // Use host.docker.internal to reach host from inside container
+      const tunnelUrl =
+        process.env.NODE_ENV === "production"
+          ? `http://host.docker.internal:${port}`
+          : `http://localhost:${port}`;
+      const args = ["tunnel", "--url", tunnelUrl];
       const mode: "quick" | "hostname" = domain ? "hostname" : "quick";
       if (domain) {
         args.push("--hostname", domain);
