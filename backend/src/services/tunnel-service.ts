@@ -1,5 +1,8 @@
 import { exec, spawn, ChildProcess } from "child_process";
 import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
+const Database = require("better-sqlite3");
 
 export interface Tunnel {
   id: string;
@@ -15,10 +18,126 @@ export interface Tunnel {
 export class TunnelService {
   private tunnels: Map<string, Tunnel>;
   private tunnelProcesses: Map<string, ChildProcess>;
+  private database: any;
+  private databasePath: string;
 
   constructor() {
     this.tunnels = new Map();
     this.tunnelProcesses = new Map();
+    this.databasePath = path.join(process.cwd(), "data", "tunnels.db");
+    this.initializeDatabase();
+    this.loadTunnelsFromDatabase();
+  }
+
+  private initializeDatabase(): void {
+    try {
+      const databaseDir = path.dirname(this.databasePath);
+      if (!fs.existsSync(databaseDir)) {
+        fs.mkdirSync(databaseDir, { recursive: true });
+      }
+
+      this.database = new Database(this.databasePath);
+      this.database.exec(`
+        CREATE TABLE IF NOT EXISTS tunnels (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          url TEXT NOT NULL,
+          port INTEGER NOT NULL,
+          domain TEXT,
+          status TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          mode TEXT NOT NULL
+        )
+      `);
+    } catch (error) {
+      console.error("Error initializing tunnels database:", error);
+    }
+  }
+
+  private loadTunnelsFromDatabase(): void {
+    try {
+      const rows = this.database.prepare("SELECT * FROM tunnels").all();
+      this.tunnels.clear();
+
+      for (const row of rows) {
+        this.tunnels.set(row.name, {
+          id: row.id,
+          name: row.name,
+          url: row.url,
+          port: row.port,
+          domain: row.domain,
+          status: row.status,
+          createdAt: row.created_at,
+          mode: row.mode,
+        });
+
+        // Check if cloudflared container is still running and reattach
+        this.checkAndReattachTunnel(row.name, row.port, row.domain);
+      }
+
+      console.log(`Loaded ${this.tunnels.size} tunnels from database`);
+    } catch (error) {
+      console.error("Error loading tunnels from database:", error);
+    }
+  }
+
+  private checkAndReattachTunnel(
+    name: string,
+    port: number,
+    domain?: string,
+  ): void {
+    const safeName = name.replace(/[^a-zA-Z0-9-_]/g, "-");
+    exec(
+      `docker ps --filter name=cloudflared-${safeName} --format '{{.Names}}'`,
+      (error, stdout) => {
+        if (!error && stdout.trim().includes(`cloudflared-${safeName}`)) {
+          console.log(`Cloudflared container for ${safeName} is still running`);
+          // Container is running, update status to active
+          const tunnel = this.tunnels.get(safeName);
+          if (tunnel) {
+            tunnel.status = "active";
+            this.saveTunnelToDatabase(tunnel);
+          }
+        } else {
+          // Container is not running, update status to inactive
+          const tunnel = this.tunnels.get(safeName);
+          if (tunnel) {
+            tunnel.status = "inactive";
+            this.saveTunnelToDatabase(tunnel);
+          }
+        }
+      },
+    );
+  }
+
+  private saveTunnelToDatabase(tunnel: Tunnel): void {
+    try {
+      const stmt = this.database.prepare(`
+        INSERT OR REPLACE INTO tunnels (id, name, url, port, domain, status, created_at, mode)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      stmt.run(
+        tunnel.id,
+        tunnel.name,
+        tunnel.url,
+        tunnel.port,
+        tunnel.domain || null,
+        tunnel.status,
+        tunnel.createdAt,
+        tunnel.mode,
+      );
+    } catch (error) {
+      console.error("Error saving tunnel to database:", error);
+    }
+  }
+
+  private deleteTunnelFromDatabase(name: string): void {
+    try {
+      const stmt = this.database.prepare("DELETE FROM tunnels WHERE name = ?");
+      stmt.run(name);
+    } catch (error) {
+      console.error("Error deleting tunnel from database:", error);
+    }
   }
 
   private async isCloudflaredInstalled(): Promise<boolean> {
@@ -89,7 +208,7 @@ export class TunnelService {
           if (!tunnelUrl) return;
 
           resolved = true;
-          this.tunnels.set(safeName, {
+          const tunnel: Tunnel = {
             id: tunnelId,
             name: safeName,
             url: tunnelUrl,
@@ -98,7 +217,9 @@ export class TunnelService {
             status: "active",
             createdAt: new Date().toISOString(),
             mode,
-          });
+          };
+          this.tunnels.set(safeName, tunnel);
+          this.saveTunnelToDatabase(tunnel);
           resolve(tunnelUrl);
         };
 
@@ -173,6 +294,7 @@ export class TunnelService {
 
       // Remove from active tunnels
       this.tunnels.delete(safeName);
+      this.deleteTunnelFromDatabase(safeName);
 
       console.log(`Tunnel ${safeName} stopped`);
     } catch (error) {
