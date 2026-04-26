@@ -141,14 +141,15 @@ export class CloudflareService {
     }
 
     try {
-      await this.client.dns.records.create(zoneId, {
+      // Use the correct API method signature
+      await (this.client.dns.records as any).create(zoneId, {
         type: "CNAME",
         name: name,
         content: `${tunnelId}.cfargotunnel.com`,
         proxied: true,
         ttl: 1,
         comment: "Created by AdvancedContainerManager",
-      } as any);
+      });
     } catch (error) {
       console.error("Failed to create DNS record:", error);
       throw new Error("Failed to create DNS record in Cloudflare");
