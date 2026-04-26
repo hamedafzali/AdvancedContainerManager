@@ -69,7 +69,9 @@ export class TunnelService {
           if (!urlMatch || resolved) {
             return;
           }
-          const tunnelUrl = urlMatch[0].replace(/\/$/, "").trim();
+          let tunnelUrl = urlMatch[0].replace(/\/$/, "").trim();
+          // Remove duplicate https:// prefix if present
+          tunnelUrl = tunnelUrl.replace(/^https:\/\/https:\/\//i, "https://");
           if (!tunnelUrl) return;
 
           resolved = true;
