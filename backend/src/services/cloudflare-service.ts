@@ -87,6 +87,39 @@ export class CloudflareService {
     }
   }
 
+  async createZone(
+    domain: string,
+    accountId?: string,
+  ): Promise<CloudflareZone> {
+    if (!this.client) {
+      throw new Error("Cloudflare client not initialized");
+    }
+
+    const targetAccountId = accountId || this.config?.accountId;
+    if (!targetAccountId) {
+      throw new Error("Cloudflare account ID is required");
+    }
+
+    try {
+      const zone = await (this.client.zones as any).create({
+        name: domain,
+        account: { id: targetAccountId },
+        type: "full",
+      });
+
+      return {
+        id: zone.result.id,
+        name: zone.result.name,
+        status: zone.result.status,
+        paused: zone.result.paused,
+        type: zone.result.type,
+      };
+    } catch (error) {
+      console.error("Failed to create Cloudflare zone:", error);
+      throw new Error("Failed to create zone in Cloudflare");
+    }
+  }
+
   async createTunnel(
     name: string,
     accountId?: string,

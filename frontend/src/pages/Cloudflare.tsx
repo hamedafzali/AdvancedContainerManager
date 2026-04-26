@@ -16,6 +16,8 @@ export default function Cloudflare() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [newDomain, setNewDomain] = useState("");
+  const [showAddDomain, setShowAddDomain] = useState(false);
 
   const checkAuth = async () => {
     try {
@@ -88,6 +90,36 @@ export default function Cloudflare() {
     setSuccess("Logged out from Cloudflare");
   };
 
+  const handleCreateZone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      const response = await fetch("/api/cloudflare/zones", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ domain: newDomain }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setSuccess(data.message || "Domain added successfully!");
+        setNewDomain("");
+        setShowAddDomain(false);
+        await fetchZones();
+      } else {
+        setError(data.message || "Failed to add domain");
+      }
+    } catch (error) {
+      setError("Failed to add domain to Cloudflare");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-6">
       <div className="mb-8">
@@ -130,7 +162,8 @@ export default function Cloudflare() {
                 required
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                Create an API token in Cloudflare dashboard with Zone:Zone and Zone:DNS permissions
+                Create an API token in Cloudflare dashboard with Zone:Zone and
+                Zone:DNS permissions
               </p>
             </div>
             <div>
@@ -164,13 +197,55 @@ export default function Cloudflare() {
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
                 Your Cloudflare Zones
               </h2>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Logout
-              </button>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setShowAddDomain(!showAddDomain)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  {showAddDomain ? "Cancel" : "Add Domain"}
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
             </div>
+
+            {showAddDomain && (
+              <form
+                onSubmit={handleCreateZone}
+                className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+              >
+                <h3 className="font-medium text-gray-900 dark:text-white mb-3">
+                  Add New Domain
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Domain Name
+                    </label>
+                    <input
+                      type="text"
+                      value={newDomain}
+                      onChange={(e) => setNewDomain(e.target.value)}
+                      placeholder="example.com"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loading ? "Adding..." : "Add Domain"}
+                  </button>
+                </div>
+              </form>
+            )}
+
             {zones.length === 0 ? (
               <p className="text-gray-600 dark:text-gray-400">
                 No zones found. Add a domain to Cloudflare to get started.
@@ -214,8 +289,13 @@ export default function Cloudflare() {
             <ol className="list-decimal list-inside space-y-2 text-blue-800 dark:text-blue-300">
               <li>Add your domain to Cloudflare (if not already added)</li>
               <li>Authenticate here with your Cloudflare API token</li>
-              <li>Create a tunnel with your custom domain in the Tunnels page</li>
-              <li>The tunnel will use your custom domain instead of trycloudflare.com</li>
+              <li>
+                Create a tunnel with your custom domain in the Tunnels page
+              </li>
+              <li>
+                The tunnel will use your custom domain instead of
+                trycloudflare.com
+              </li>
             </ol>
           </div>
         </div>

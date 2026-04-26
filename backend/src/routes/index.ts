@@ -2240,6 +2240,43 @@ export function routes(
   );
 
   router.post(
+    "/cloudflare/zones",
+    asyncHandler(async (req, res) => {
+      try {
+        if (!cloudflareService.isAuthenticated()) {
+          return res.status(401).json({
+            success: false,
+            message: "Cloudflare not authenticated",
+          });
+        }
+
+        const { domain, accountId } = req.body;
+
+        if (!domain) {
+          return res.status(400).json({
+            success: false,
+            message: "Domain is required",
+          });
+        }
+
+        const zone = await cloudflareService.createZone(domain, accountId);
+        res.json({
+          success: true,
+          data: zone,
+          message:
+            "Zone created successfully. Update your domain's nameservers to the values provided by Cloudflare.",
+        });
+      } catch (error) {
+        logger.error("Failed to create Cloudflare zone:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.post(
     "/cloudflare/config",
     asyncHandler(async (req, res) => {
       try {
