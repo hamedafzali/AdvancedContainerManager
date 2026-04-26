@@ -49,6 +49,7 @@ services:
       - /tmp/advanced_manager_config.json:/tmp/advanced_manager_config.json
       - ./logs:/app/logs
       - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/local/bin/cloudflared:/usr/local/bin/cloudflared:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
       interval: 30s
