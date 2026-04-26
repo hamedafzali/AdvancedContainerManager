@@ -23,7 +23,7 @@ export class TunnelService {
 
   private async isCloudflaredInstalled(): Promise<boolean> {
     return new Promise((resolve) => {
-      exec("cloudflared --version", (error) => {
+      exec("docker --version", (error) => {
         resolve(!error);
       });
     });
@@ -37,26 +37,35 @@ export class TunnelService {
     const cloudflaredInstalled = await this.isCloudflaredInstalled();
     if (!cloudflaredInstalled) {
       throw new Error(
-        "cloudflared is not installed on server. Install it first to use Cloudflare tunnels.",
+        "Docker is not available on server. Install it first to use Cloudflare tunnels.",
       );
     }
 
     try {
       const tunnelId = crypto.randomBytes(8).toString("hex");
       const safeName = name.replace(/[^a-zA-Z0-9-_]/g, "-");
-      // Use host.docker.internal to reach host from inside container
-      const tunnelUrl =
-        process.env.NODE_ENV === "production"
-          ? `http://host.docker.internal:${port}`
-          : `http://localhost:${port}`;
-      const args = ["tunnel", "--url", tunnelUrl];
+      const tunnelUrl = `http://localhost:${port}`;
       const mode: "quick" | "hostname" = domain ? "hostname" : "quick";
+
+      // Run cloudflared in a Docker container on host network for better connectivity
+      const dockerArgs = [
+        "run",
+        "--rm",
+        "--network",
+        "host",
+        "--name",
+        `cloudflared-${safeName}`,
+        "cloudflare/cloudflared:latest",
+        "tunnel",
+        "--url",
+        tunnelUrl,
+      ];
       if (domain) {
-        args.push("--hostname", domain);
+        dockerArgs.push("--hostname", domain);
       }
 
       return new Promise((resolve, reject) => {
-        const tunnel = spawn("cloudflared", args, {
+        const tunnel = spawn("docker", dockerArgs, {
           env: {
             ...process.env,
           },
@@ -148,6 +157,13 @@ export class TunnelService {
   async stopTunnel(name: string): Promise<void> {
     try {
       const safeName = name.replace(/[^a-zA-Z0-9-_]/g, "-");
+      // Stop Docker container
+      exec(`docker stop cloudflared-${safeName}`, (error) => {
+        if (error) {
+          console.error(`Failed to stop cloudflared container:`, error);
+        }
+      });
+
       // Stop tunnel process
       const tunnelProcess = this.tunnelProcesses.get(safeName);
       if (tunnelProcess) {
