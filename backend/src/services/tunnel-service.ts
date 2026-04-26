@@ -62,10 +62,10 @@ export class TunnelService {
         let resolved = false;
 
         const parseTunnelUrl = (data: string) => {
-          // Match trycloudflare.com URLs or any https URL
-          const urlMatch =
-            data.match(/https:\/\/[a-zA-Z0-9\-\.]+\.trycloudflare\.com/i) ||
-            data.match(/https:\/\/([^\s\|]+)/);
+          // Match trycloudflare.com URLs, but exclude the terms of service URL
+          const urlMatch = data.match(
+            /https:\/\/[a-z0-9\-]+\.trycloudflare\.com/i,
+          );
           if (!urlMatch || resolved) {
             return;
           }
