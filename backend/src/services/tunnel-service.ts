@@ -62,12 +62,17 @@ export class TunnelService {
         let resolved = false;
 
         const parseTunnelUrl = (data: string) => {
-          const urlMatch = data.match(/https:\/\/([^\s]+)/);
+          // Match trycloudflare.com URLs or any https URL
+          const urlMatch =
+            data.match(/https:\/\/[a-zA-Z0-9\-\.]+\.trycloudflare\.com/i) ||
+            data.match(/https:\/\/([^\s\|]+)/);
           if (!urlMatch || resolved) {
             return;
           }
+          const tunnelUrl = urlMatch[0].replace(/\/$/, "").trim();
+          if (!tunnelUrl) return;
+
           resolved = true;
-          const tunnelUrl = urlMatch[1].replace(/\/$/, "");
           this.tunnels.set(safeName, {
             id: tunnelId,
             name: safeName,
@@ -93,7 +98,9 @@ export class TunnelService {
           parseTunnelUrl(output);
 
           if (
-            output.includes("Cannot determine default origin certificate path") ||
+            output.includes(
+              "Cannot determine default origin certificate path",
+            ) ||
             output.includes("Origin cert") ||
             output.includes("Please login")
           ) {
