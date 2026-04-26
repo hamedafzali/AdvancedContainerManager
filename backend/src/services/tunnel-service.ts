@@ -166,6 +166,19 @@ export class TunnelService {
       const tunnelUrl = `http://localhost:${port}`;
       const mode: "quick" | "hostname" = domain ? "hostname" : "quick";
 
+      // Remove existing container with the same name if it exists
+      await new Promise<void>((resolve) => {
+        exec(`docker rm -f cloudflared-${safeName}`, (error) => {
+          if (error) {
+            // Container doesn't exist or other error, continue
+            console.log(
+              `No existing container to remove or error removing: ${error.message}`,
+            );
+          }
+          resolve();
+        });
+      });
+
       // Run cloudflared in a Docker container on host network for better connectivity
       const dockerArgs = [
         "run",
