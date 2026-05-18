@@ -159,7 +159,7 @@ export class TunnelService {
           "-o", "StrictHostKeyChecking=no",
           "-o", "ConnectTimeout=30",
           "-o", "ServerAliveInterval=30",
-          "-R", `80:localhost:${port}`,
+          "-R", `80:host.docker.internal:${port}`,
           "nokey@localhost.run",
         ];
 
