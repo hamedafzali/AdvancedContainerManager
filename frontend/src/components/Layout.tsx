@@ -115,10 +115,10 @@ export default function Layout() {
                 items={[]}
                 onSearch={(query, filters) => {
                   if (!query.trim()) return;
-                  const category = filters?.category as string | undefined;
-                  if (category === "container" || category === "image") {
+                  const type = filters?.type?.[0];
+                  if (type === "container" || type === "image") {
                     navigate(`/containers?search=${encodeURIComponent(query)}`);
-                  } else if (category === "project") {
+                  } else if (type === "project") {
                     navigate(`/projects?search=${encodeURIComponent(query)}`);
                   } else {
                     navigate(`/containers?search=${encodeURIComponent(query)}`);
