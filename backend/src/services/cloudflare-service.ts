@@ -1,5 +1,6 @@
 import { Cloudflare } from "cloudflare";
 import * as crypto from "crypto";
+import { Logger, LogLevel } from "../utils/logger";
 
 export interface CloudflareZone {
   id: string;
@@ -24,8 +25,10 @@ export interface CloudflareConfig {
 export class CloudflareService {
   private client: Cloudflare | null = null;
   private config: CloudflareConfig | null = null;
+  private logger: Logger;
 
-  constructor() {
+  constructor(logger?: Logger) {
+    this.logger = logger ?? new Logger(LogLevel.INFO);
     this.loadConfig();
   }
 
@@ -62,7 +65,7 @@ export class CloudflareService {
       await this.client.zones.list();
       return true;
     } catch (error) {
-      console.error("Cloudflare token validation failed:", error);
+      this.logger.error("Cloudflare token validation failed:", error);
       return false;
     }
   }
@@ -82,7 +85,7 @@ export class CloudflareService {
         type: zone.type,
       }));
     } catch (error) {
-      console.error("Failed to fetch Cloudflare zones:", error);
+      this.logger.error("Failed to fetch Cloudflare zones:", error);
       throw new Error("Failed to fetch zones from Cloudflare");
     }
   }
@@ -115,7 +118,7 @@ export class CloudflareService {
         type: zone.result.type,
       };
     } catch (error) {
-      console.error("Failed to create Cloudflare zone:", error);
+      this.logger.error("Failed to create Cloudflare zone:", error);
       throw new Error("Failed to create zone in Cloudflare");
     }
   }
@@ -140,7 +143,7 @@ export class CloudflareService {
         "Tunnel creation via cloudflared CLI - not yet implemented",
       );
     } catch (error) {
-      console.error("Failed to create Cloudflare tunnel:", error);
+      this.logger.error("Failed to create Cloudflare tunnel:", error);
       throw new Error("Failed to create tunnel in Cloudflare");
     }
   }
@@ -159,7 +162,7 @@ export class CloudflareService {
       // Placeholder - would use cloudflared CLI to list tunnels
       return [];
     } catch (error) {
-      console.error("Failed to fetch Cloudflare tunnels:", error);
+      this.logger.error("Failed to fetch Cloudflare tunnels:", error);
       throw new Error("Failed to fetch tunnels from Cloudflare");
     }
   }
@@ -184,7 +187,7 @@ export class CloudflareService {
         comment: "Created by AdvancedContainerManager",
       });
     } catch (error) {
-      console.error("Failed to create DNS record:", error);
+      this.logger.error("Failed to create DNS record:", error);
       throw new Error("Failed to create DNS record in Cloudflare");
     }
   }
@@ -205,7 +208,7 @@ export class CloudflareService {
         "Tunnel deletion via cloudflared CLI - not yet implemented",
       );
     } catch (error) {
-      console.error("Failed to delete Cloudflare tunnel:", error);
+      this.logger.error("Failed to delete Cloudflare tunnel:", error);
       throw new Error("Failed to delete tunnel from Cloudflare");
     }
   }

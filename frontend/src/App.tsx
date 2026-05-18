@@ -24,9 +24,7 @@ const Cloudflare = lazy(() => import("@/pages/Cloudflare"));
 const Terminal = lazy(() => import("@/pages/Terminal"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
-const MultiCloud = lazy(() => import("@/pages/MultiCloud"));
 const Security = lazy(() => import("@/pages/Security"));
-const AIOptimization = lazy(() => import("@/pages/AIOptimization"));
 
 function AppWithSocket() {
   useSocket();
@@ -60,9 +58,7 @@ function AppWithSocket() {
           <Route path="terminal/:containerId?" element={<Terminal />} />
           <Route path="settings" element={<Settings />} />
           <Route path="analytics" element={<Analytics />} />
-          <Route path="multi-cloud" element={<MultiCloud />} />
           <Route path="security" element={<Security />} />
-          <Route path="ai-optimization" element={<AIOptimization />} />
         </Route>
       </Routes>
     </Suspense>

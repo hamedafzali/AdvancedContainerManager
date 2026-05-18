@@ -6,11 +6,10 @@ import { TerminalService } from "../services/terminal-service";
 import { MetricsCollector } from "../services/metrics-collector";
 import { Logger, LogLevel } from "../utils/logger";
 import { asyncHandler } from "../middleware/error-handler";
+import { apiRateLimit } from "../middleware/rate-limiter";
 import { BackupService } from "../services/backup-service";
 import { AuditService } from "../services/audit-service";
-import { AIOptimizer } from "../services/ai-optimizer";
 import { HealthService } from "../services/health-service";
-import { MultiCloudService } from "../services/multi-cloud-service";
 import { AnalyticsService } from "../services/analytics-service";
 import { SecurityService } from "../services/security-service";
 import { CloudflareService } from "../services/cloudflare-service";
@@ -28,10 +27,10 @@ export function routes(
   const auditService = new AuditService(logger);
   const healthService = new HealthService(logger);
   const securityService = new SecurityService(logger);
-  const aiOptimizer = new AIOptimizer(dockerService, metricsCollector, logger);
-  const multiCloudService = new MultiCloudService();
   const analyticsService = new AnalyticsService(logger, metricsCollector);
-  const cloudflareService = new CloudflareService();
+  const cloudflareService = new CloudflareService(logger);
+
+  router.use(apiRateLimit);
 
   router.use((req, res, next) => {
     const start = Date.now();
@@ -1665,205 +1664,6 @@ export function routes(
       const { id } = req.params;
       const metrics = await dockerService.getContainerMetricsWithCache(id);
       res.json({ success: true, data: metrics });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  // AI Optimization routes
-  router.post("/ai/optimization/analyze", async (req, res) => {
-    try {
-      const result = await aiOptimizer.performOptimizationAnalysis();
-      res.json({ success: true, data: result });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.get("/ai/optimization/history", async (req, res) => {
-    try {
-      const history = aiOptimizer.getOptimizationHistory();
-      res.json({ success: true, data: history });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.post("/ai/optimization/apply/:recommendationId", async (req, res) => {
-    try {
-      const { recommendationId } = req.params;
-      const success =
-        await aiOptimizer.applyOptimizationRecommendation(recommendationId);
-      res.json({ success, data: { recommendationId, applied: success } });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.get("/ai/optimization/learning-data", async (req, res) => {
-    try {
-      const learningData = aiOptimizer.getLearningData();
-      res.json({ success: true, data: Object.fromEntries(learningData) });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  // Multi-Cloud routes
-  router.post("/multi-cloud/providers", async (req, res) => {
-    try {
-      const provider = await multiCloudService.addProvider(req.body);
-      res.json({ success: true, data: provider });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.get("/multi-cloud/providers", async (req, res) => {
-    try {
-      const providers = await multiCloudService.getProviders();
-      res.json({ success: true, data: providers });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.delete("/multi-cloud/providers/:providerId", async (req, res) => {
-    try {
-      const { providerId } = req.params;
-      const success = await multiCloudService.removeProvider(providerId);
-      res.json({ success, data: { providerId } });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.get("/multi-cloud/instances", async (req, res) => {
-    try {
-      const { provider } = req.query;
-      const instances = await multiCloudService.fetchInstances(
-        provider as string,
-      );
-      res.json({ success: true, data: instances });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.get("/multi-cloud/metrics", async (req, res) => {
-    try {
-      const { provider } = req.query;
-      const metrics = await multiCloudService.getMetrics(provider as string);
-      res.json({ success: true, data: metrics });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.post("/multi-cloud/optimize-costs", async (req, res) => {
-    try {
-      const optimization = { message: "Cost optimization not implemented yet" };
-      res.json({ success: true, data: optimization });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.post("/multi-cloud/deploy", async (req, res) => {
-    try {
-      const { providerName, config } = req.body;
-      const instance = await multiCloudService.createInstance(
-        providerName,
-        config || {},
-      );
-      res.json({ success: true, data: instance });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.delete(
-    "/multi-cloud/instances/:providerName/:instanceId",
-    async (req, res) => {
-      try {
-        const { providerName, instanceId } = req.params;
-        const success = await multiCloudService.deleteInstance(
-          providerName,
-          instanceId,
-        );
-        res.json({ success, data: { providerName, instanceId } });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          error: error instanceof Error ? error.message : "Unknown error",
-        });
-      }
-    },
-  );
-
-  router.get("/multi-cloud/config", async (req, res) => {
-    try {
-      const config = { message: "Config management not implemented yet" };
-      res.json({ success: true, data: config });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.put("/multi-cloud/config", async (req, res) => {
-    try {
-      res.json({ success: true, data: { message: "Config updated" } });
-    } catch (error) {
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  router.get("/multi-cloud/metrics/history", async (req, res) => {
-    try {
-      const history = multiCloudService.getMetricsHistory();
-      res.json({ success: true, data: history });
     } catch (error) {
       res.status(500).json({
         success: false,

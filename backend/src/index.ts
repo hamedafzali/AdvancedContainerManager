@@ -106,7 +106,7 @@ class AdvancedContainerManager {
       this.dockerService,
     );
     this.projectService = new ProjectService(this.config, this.logger);
-    this.tunnelService = new TunnelService();
+    this.tunnelService = new TunnelService(this.logger);
     this.terminalService = new TerminalService(this.config, this.logger);
     this.healthService = new HealthService(this.logger);
     this.wsHandler = new WebSocketHandler(
@@ -132,9 +132,9 @@ class AdvancedContainerManager {
       helmet({
         contentSecurityPolicy: {
           directives: {
-            defaultSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
-            styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
-            scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "cdnjs.cloudflare.com"],
+            scriptSrc: ["'self'", "cdnjs.cloudflare.com"],
             imgSrc: ["'self'", "data:", "https:"],
             connectSrc: ["'self'", "ws:", "wss:", "http:", "https:"],
           },

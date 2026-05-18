@@ -10,7 +10,6 @@ import {
   Settings,
   Layers,
   Plus,
-  Brain,
   Cloud,
   Shield,
   BarChart3,
@@ -30,8 +29,6 @@ const navigation = [
   { name: "Cloudflare", href: "/cloudflare", icon: Cloud },
   { name: "Terminal", href: "/terminal", icon: Terminal },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
-  { name: "AI Optimization", href: "/ai-optimization", icon: Brain },
-  { name: "Multi-Cloud", href: "/multi-cloud", icon: Layers },
   { name: "Security", href: "/security", icon: Shield },
   { name: "Settings", href: "/settings", icon: Settings },
 ];
@@ -115,10 +112,17 @@ export default function Layout() {
 
             <div className="flex items-center space-x-4">
               <AdvancedSearch
-                items={[]} // Will be populated with actual data
+                items={[]}
                 onSearch={(query, filters) => {
-                  console.log("Search:", query, filters);
-                  // TODO: Implement global search across all resources
+                  if (!query.trim()) return;
+                  const category = filters?.category as string | undefined;
+                  if (category === "container" || category === "image") {
+                    navigate(`/containers?search=${encodeURIComponent(query)}`);
+                  } else if (category === "project") {
+                    navigate(`/projects?search=${encodeURIComponent(query)}`);
+                  } else {
+                    navigate(`/containers?search=${encodeURIComponent(query)}`);
+                  }
                 }}
                 className="w-96"
               />

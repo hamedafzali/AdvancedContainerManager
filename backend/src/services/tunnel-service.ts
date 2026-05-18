@@ -2,6 +2,7 @@ import { exec, spawn, ChildProcess } from "child_process";
 import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
+import { Logger, LogLevel } from "../utils/logger";
 const Database = require("better-sqlite3");
 
 export interface Tunnel {
@@ -20,8 +21,10 @@ export class TunnelService {
   private tunnelProcesses: Map<string, ChildProcess>;
   private database: any;
   private databasePath: string;
+  private logger: Logger;
 
-  constructor() {
+  constructor(logger?: Logger) {
+    this.logger = logger ?? new Logger(LogLevel.INFO);
     this.tunnels = new Map();
     this.tunnelProcesses = new Map();
     this.databasePath = path.join(process.cwd(), "data", "tunnels.db");
@@ -50,7 +53,7 @@ export class TunnelService {
         )
       `);
     } catch (error) {
-      console.error("Error initializing tunnels database:", error);
+      this.logger.error("Error initializing tunnels database:", error);
     }
   }
 
@@ -75,9 +78,9 @@ export class TunnelService {
         this.checkAndReattachTunnel(row.name, row.port, row.domain);
       }
 
-      console.log(`Loaded ${this.tunnels.size} tunnels from database`);
+      this.logger.info(`Loaded ${this.tunnels.size} tunnels from database`);
     } catch (error) {
-      console.error("Error loading tunnels from database:", error);
+      this.logger.error("Error loading tunnels from database:", error);
     }
   }
 
@@ -91,7 +94,7 @@ export class TunnelService {
       `docker ps --filter name=cloudflared-${safeName} --format '{{.Names}}'`,
       (error, stdout) => {
         if (!error && stdout.trim().includes(`cloudflared-${safeName}`)) {
-          console.log(`Cloudflared container for ${safeName} is still running`);
+          this.logger.info(`Cloudflared container for ${safeName} is still running`);
           // Container is running, update status to active
           const tunnel = this.tunnels.get(safeName);
           if (tunnel) {
@@ -127,7 +130,7 @@ export class TunnelService {
         tunnel.mode,
       );
     } catch (error) {
-      console.error("Error saving tunnel to database:", error);
+      this.logger.error("Error saving tunnel to database:", error);
     }
   }
 
@@ -136,7 +139,7 @@ export class TunnelService {
       const stmt = this.database.prepare("DELETE FROM tunnels WHERE name = ?");
       stmt.run(name);
     } catch (error) {
-      console.error("Error deleting tunnel from database:", error);
+      this.logger.error("Error deleting tunnel from database:", error);
     }
   }
 
@@ -171,7 +174,7 @@ export class TunnelService {
         exec(`docker rm -f cloudflared-${safeName}`, (error) => {
           if (error) {
             // Container doesn't exist or other error, continue
-            console.log(
+            this.logger.info(
               `No existing container to remove or error removing: ${error.message}`,
             );
           }
@@ -238,13 +241,13 @@ export class TunnelService {
 
         tunnel.stdout?.on("data", (data) => {
           const output = data.toString();
-          console.log(`Tunnel ${safeName}: ${output}`);
+          this.logger.info(`Tunnel ${safeName}: ${output}`);
           parseTunnelUrl(output);
         });
 
         tunnel.stderr?.on("data", (data) => {
           const output = data.toString();
-          console.error(`Tunnel ${safeName} error: ${output}`);
+          this.logger.error(`Tunnel ${safeName} error: ${output}`);
           parseTunnelUrl(output);
 
           if (
@@ -265,12 +268,12 @@ export class TunnelService {
         });
 
         tunnel.on("error", (error) => {
-          console.error(`Tunnel ${safeName} failed:`, error);
+          this.logger.error(`Tunnel ${safeName} failed:`, error);
           reject(error);
         });
 
         tunnel.on("close", (code) => {
-          console.log(`Tunnel ${safeName} closed with code: ${code}`);
+          this.logger.info(`Tunnel ${safeName} closed with code: ${code}`);
           this.tunnels.delete(safeName);
           this.tunnelProcesses.delete(safeName);
           if (!resolved) {
@@ -283,7 +286,7 @@ export class TunnelService {
         });
       });
     } catch (error) {
-      console.error(`Failed to create tunnel ${name}:`, error);
+      this.logger.error(`Failed to create tunnel ${name}:`, error);
       throw error;
     }
   }
@@ -294,7 +297,7 @@ export class TunnelService {
       // Stop Docker container
       exec(`docker stop cloudflared-${safeName}`, (error) => {
         if (error) {
-          console.error(`Failed to stop cloudflared container:`, error);
+          this.logger.error(`Failed to stop cloudflared container:`, error);
         }
       });
 
@@ -309,9 +312,9 @@ export class TunnelService {
       this.tunnels.delete(safeName);
       this.deleteTunnelFromDatabase(safeName);
 
-      console.log(`Tunnel ${safeName} stopped`);
+      this.logger.info(`Tunnel ${safeName} stopped`);
     } catch (error) {
-      console.error(`Failed to stop tunnel ${name}:`, error);
+      this.logger.error(`Failed to stop tunnel ${name}:`, error);
       throw error;
     }
   }
