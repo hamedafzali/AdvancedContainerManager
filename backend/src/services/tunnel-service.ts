@@ -266,9 +266,11 @@ export class TunnelService {
   }
 
   async getStatus(): Promise<{
+    cloudflaredInstalled: boolean;
     activeTunnels: number;
   }> {
     return {
+      cloudflaredInstalled: true, // tunnels use localhost.run via SSH — always available
       activeTunnels: this.tunnels.size,
     };
   }
