@@ -21,6 +21,7 @@ import {
   Edit3,
   Save,
   ArrowUpDown,
+  Layers,
 } from "lucide-react";
 import { apiUrl } from "@/utils/api";
 
@@ -34,6 +35,7 @@ interface Container {
   memory: number;
   uptime: string;
   created: string;
+  projectName?: string;
 }
 
 export default function Containers() {
@@ -58,6 +60,7 @@ export default function Containers() {
   >({});
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [groupByProject, setGroupByProject] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: "",
     image: "alpine:latest",
@@ -167,6 +170,7 @@ export default function Containers() {
                   ? new Date(container.startedAt).toLocaleString()
                   : "Never started",
             created: new Date(container.created * 1000).toLocaleString(),
+            projectName: (container.labels || {})["com.docker.compose.project"] || undefined,
           }),
         );
 
@@ -441,6 +445,14 @@ export default function Containers() {
     return matchesSearch && matchesFilter;
   });
 
+  const groupedContainers = groupByProject
+    ? filteredContainers.reduce<Record<string, Container[]>>((acc, c) => {
+        const key = c.projectName || "(no project)";
+        (acc[key] = acc[key] || []).push(c);
+        return acc;
+      }, {})
+    : null;
+
   const runningCount = containers.filter(
     (c: Container) => c.status === "running",
   ).length;
@@ -605,6 +617,22 @@ export default function Containers() {
                 Auto Refresh
               </label>
             </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="group-by-project"
+                checked={groupByProject}
+                onChange={(e) => setGroupByProject(e.target.checked)}
+                className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900 focus:ring-2"
+              />
+              <label
+                htmlFor="group-by-project"
+                className="text-sm text-gray-700 cursor-pointer select-none flex items-center gap-1"
+              >
+                <Layers className="w-3.5 h-3.5" />
+                Group by Project
+              </label>
+            </div>
           </div>
         </div>
 
@@ -641,7 +669,71 @@ export default function Containers() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {filteredContainers.map((container) => (
+                {groupedContainers
+                  ? Object.entries(groupedContainers).map(([projectName, group]) => (
+                      <>
+                        <tr key={`group-${projectName}`} className="bg-gray-100">
+                          <td colSpan={8} className="px-6 py-2">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                              <Layers className="w-3.5 h-3.5" />
+                              {projectName}
+                              <span className="font-normal text-gray-400">({group.length})</span>
+                            </div>
+                          </td>
+                        </tr>
+                        {group.map((container) => (
+                          <tr
+                            key={container.id}
+                            className="hover:bg-gray-50 transition-colors duration-150"
+                          >
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm font-medium text-gray-900">{container.name}</div>
+                              <div className="text-xs text-gray-500">ID: {container.id}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900 font-mono">{container.image}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusText(container.status)}`}>
+                                {getStatusIcon(container.status)}
+                                <span className="ml-1">{container.status}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="text-sm text-gray-900 font-mono">{container.ports.join(", ")}</div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <Activity className="w-4 h-4 text-gray-400 mr-2" />
+                                <span className="text-sm text-gray-900">{container.cpu.toFixed(1)}%</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <HardDrive className="w-4 h-4 text-gray-400 mr-2" />
+                                <span className="text-sm text-gray-900">{container.memory}MB</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center">
+                                <Clock className="w-4 h-4 text-gray-400 mr-2" />
+                                <span className="text-sm text-gray-900">{container.uptime}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="flex items-center space-x-2">
+                                <button onClick={() => handleViewLogs(container)} className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"><Eye className="w-4 h-4" /></button>
+                                <button onClick={() => { if (container.status === "running") { handleContainerAction(container.id, "stop"); } else { handleContainerAction(container.id, "start"); } }} className={`p-1.5 rounded transition-colors duration-200 ${container.status === "running" ? "text-red-600 hover:bg-red-50" : "text-green-600 hover:bg-green-50"}`}>{container.status === "running" ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>
+                                <button onClick={() => handleContainerAction(container.id, "restart")} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"><RefreshCw className="w-4 h-4" /></button>
+                                <button className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"><Terminal className="w-4 h-4" /></button>
+                                <button onClick={() => handleContainerAction(container.id, "delete")} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"><Trash2 className="w-4 h-4" /></button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </>
+                    ))
+                  : filteredContainers.map((container) => (
                   <tr
                     key={container.id}
                     className="hover:bg-gray-50 transition-colors duration-150"

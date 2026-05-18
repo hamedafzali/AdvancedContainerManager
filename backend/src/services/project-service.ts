@@ -837,6 +837,28 @@ export class ProjectService {
     return project;
   }
 
+  public linkTunnel(name: string, tunnelId: string, tunnelUrl: string): ProjectInfo {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    project.tunnelId = tunnelId;
+    project.tunnelUrl = tunnelUrl;
+    project.lastUpdated = new Date().toISOString();
+    this.saveProjects();
+    this.logger.info(`Linked tunnel ${tunnelId} to project ${name}`);
+    return project;
+  }
+
+  public unlinkTunnel(name: string): ProjectInfo {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    project.tunnelId = undefined;
+    project.tunnelUrl = undefined;
+    project.lastUpdated = new Date().toISOString();
+    this.saveProjects();
+    this.logger.info(`Unlinked tunnel from project ${name}`);
+    return project;
+  }
+
   private validatePort(port: number): void {
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
       throw new Error(`Invalid port value: ${port}`);

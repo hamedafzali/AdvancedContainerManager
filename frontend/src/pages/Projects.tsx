@@ -18,6 +18,9 @@ import {
   Activity,
   Zap,
   Shield,
+  Globe,
+  Copy,
+  Link2Off,
 } from "lucide-react";
 import { apiUrl } from "@/utils/api";
 
@@ -59,6 +62,8 @@ interface Project {
     memory: string;
     cpu: string;
   };
+  tunnelId?: string;
+  tunnelUrl?: string;
 }
 
 export default function Projects() {
@@ -103,6 +108,39 @@ export default function Projects() {
     branch: "main",
     environmentVars: [] as Array<{ key: string; value: string }>,
   });
+  const [tunnelLoading, setTunnelLoading] = useState<string | null>(null);
+
+  const handleCreateTunnel = async (projectName: string) => {
+    try {
+      setTunnelLoading(projectName);
+      const response = await fetch(apiUrl(`/api/projects/${encodeURIComponent(projectName)}/tunnel`), {
+        method: "POST",
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message || "Failed to create tunnel");
+      await fetchProjects();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to create tunnel");
+    } finally {
+      setTunnelLoading(null);
+    }
+  };
+
+  const handleStopTunnel = async (projectName: string) => {
+    try {
+      setTunnelLoading(projectName);
+      const response = await fetch(apiUrl(`/api/projects/${encodeURIComponent(projectName)}/tunnel`), {
+        method: "DELETE",
+      });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.message || "Failed to stop tunnel");
+      await fetchProjects();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to stop tunnel");
+    } finally {
+      setTunnelLoading(null);
+    }
+  };
 
   const formatSyncLog = (
     projectName: string,
@@ -771,6 +809,25 @@ export default function Projects() {
                   >
                     <Settings className="w-4 h-4" />
                   </button>
+                  {project.tunnelId ? (
+                    <button
+                      onClick={() => handleStopTunnel(project.name)}
+                      disabled={tunnelLoading === project.name}
+                      className="p-1.5 text-orange-600 hover:bg-orange-50 rounded transition-colors duration-200 disabled:opacity-50"
+                      title="Stop Tunnel"
+                    >
+                      <Link2Off className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleCreateTunnel(project.name)}
+                      disabled={tunnelLoading === project.name}
+                      className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition-colors duration-200 disabled:opacity-50"
+                      title="Create Tunnel"
+                    >
+                      <Globe className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDeleteProject(project.name)}
                     className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
@@ -840,6 +897,34 @@ export default function Projects() {
                     </div>
                   </div>
                 )}
+
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Tunnel:</span>
+                  {project.tunnelUrl ? (
+                    <div className="flex items-center gap-1 max-w-[12rem]">
+                      <a
+                        href={`https://${project.tunnelUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-teal-600 hover:text-teal-800 text-xs truncate"
+                        title={`https://${project.tunnelUrl}`}
+                      >
+                        {project.tunnelUrl}
+                      </a>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(`https://${project.tunnelUrl}`)}
+                        className="p-0.5 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                        title="Copy URL"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-gray-400">
+                      {tunnelLoading === project.name ? "Creating..." : "None"}
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-gray-500">Resources:</span>

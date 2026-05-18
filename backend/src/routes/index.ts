@@ -1029,6 +1029,90 @@ export function routes(
     }),
   );
 
+  // Project tunnel routes
+  router.post(
+    "/projects/:name/tunnel",
+    asyncHandler(async (req, res) => {
+      try {
+        const project = projectService.getProject(req.params.name);
+        if (!project) {
+          return res.status(404).json({ success: false, message: "Project not found" });
+        }
+        if (project.tunnelId) {
+          return res.status(409).json({ success: false, message: "Project already has a tunnel" });
+        }
+        const hostPort = project.ports.find((p) => p.hostPort)?.hostPort;
+        if (!hostPort) {
+          return res.status(400).json({ success: false, message: "Project has no mapped host port" });
+        }
+        const tunnelName = `project-${req.params.name.replace(/[^a-zA-Z0-9-_]/g, "-")}`;
+        const tunnelUrl = await tunnelService.createTunnel(tunnelName, hostPort);
+        const updated = projectService.linkTunnel(req.params.name, tunnelName, tunnelUrl);
+        res.json({ success: true, data: updated });
+      } catch (error) {
+        logger.error(`Error creating tunnel for project ${req.params.name}:`, error);
+        res.status(500).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
+  router.delete(
+    "/projects/:name/tunnel",
+    asyncHandler(async (req, res) => {
+      try {
+        const project = projectService.getProject(req.params.name);
+        if (!project) {
+          return res.status(404).json({ success: false, message: "Project not found" });
+        }
+        if (project.tunnelId) {
+          await tunnelService.stopTunnel(project.tunnelId);
+        }
+        const updated = projectService.unlinkTunnel(req.params.name);
+        res.json({ success: true, data: updated });
+      } catch (error) {
+        logger.error(`Error removing tunnel for project ${req.params.name}:`, error);
+        res.status(500).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
+  // Global port registry
+  router.get(
+    "/ports/registry",
+    asyncHandler(async (req, res) => {
+      try {
+        const containers = await dockerService.getAllContainers();
+        const registry: Record<number, { type: "container" | "project"; name: string; protocol: string }> = {};
+
+        for (const c of containers) {
+          for (const [containerPort, bindings] of Object.entries(c.ports || {})) {
+            for (const binding of bindings || []) {
+              const hp = parseInt(binding.HostPort);
+              if (hp) {
+                const proto = containerPort.includes("/") ? containerPort.split("/")[1] : "tcp";
+                registry[hp] = { type: "container", name: c.name, protocol: proto };
+              }
+            }
+          }
+        }
+
+        const projects = Array.from(projectService.getProjects().values());
+        for (const project of projects) {
+          for (const port of project.ports || []) {
+            if (port.hostPort && !registry[port.hostPort]) {
+              registry[port.hostPort] = { type: "project", name: project.name, protocol: port.protocol || "tcp" };
+            }
+          }
+        }
+
+        res.json({ success: true, data: registry });
+      } catch (error) {
+        logger.error("Error building port registry:", error);
+        res.status(500).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
   router.get(
     "/projects/summary",
     asyncHandler(async (req, res) => {

@@ -135,6 +135,8 @@ export interface ProjectInfo {
     memory: string;
     cpu: string;
   };
+  tunnelId?: string;
+  tunnelUrl?: string;
 }
 
 export interface ProjectHealth {
