@@ -45,6 +45,7 @@ RUN apk add --no-cache \
     curl \
     bash \
     tar \
+    openssh-client \
     && rm -rf /var/cache/apk/* \
     && ln -sf python3 /usr/bin/python
 
