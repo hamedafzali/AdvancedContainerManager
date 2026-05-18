@@ -143,67 +143,27 @@ export class TunnelService {
     }
   }
 
-  private async isCloudflaredInstalled(): Promise<boolean> {
-    return new Promise((resolve) => {
-      exec("docker --version", (error) => {
-        resolve(!error);
-      });
-    });
-  }
-
   async createTunnel(
     name: string,
     port: number,
     domain?: string,
   ): Promise<string> {
-    const cloudflaredInstalled = await this.isCloudflaredInstalled();
-    if (!cloudflaredInstalled) {
-      throw new Error(
-        "Docker is not available on server. Install it first to use Cloudflare tunnels.",
-      );
-    }
-
     try {
       const tunnelId = crypto.randomBytes(8).toString("hex");
       const safeName = name.replace(/[^a-zA-Z0-9-_]/g, "-");
-      const tunnelUrl = `http://localhost:${port}`;
       const mode: "quick" | "hostname" = domain ? "hostname" : "quick";
 
-      // Remove existing container with the same name if it exists
-      await new Promise<void>((resolve) => {
-        exec(`docker rm -f cloudflared-${safeName}`, (error) => {
-          if (error) {
-            // Container doesn't exist or other error, continue
-            this.logger.info(
-              `No existing container to remove or error removing: ${error.message}`,
-            );
-          }
-          resolve();
-        });
-      });
-
-      // Run cloudflared in a Docker container on host network for better connectivity
-      const dockerArgs = [
-        "run",
-        "--rm",
-        "--network",
-        "host",
-        "--name",
-        `cloudflared-${safeName}`,
-        "cloudflare/cloudflared:latest",
-        "tunnel",
-        "--url",
-        tunnelUrl,
-      ];
-      if (domain) {
-        dockerArgs.push("--hostname", domain);
-      }
-
       return new Promise((resolve, reject) => {
-        const tunnel = spawn("docker", dockerArgs, {
-          env: {
-            ...process.env,
-          },
+        // Use localhost.run via SSH — no account or extra software needed
+        const sshArgs = [
+          "-o", "StrictHostKeyChecking=no",
+          "-o", "ConnectTimeout=30",
+          "-o", "ServerAliveInterval=30",
+          "-R", `80:localhost:${port}`,
+          "nokey@localhost.run",
+        ];
+
+        const tunnel = spawn("ssh", sshArgs, {
           stdio: ["ignore", "pipe", "pipe"],
         });
 
@@ -211,20 +171,15 @@ export class TunnelService {
         let resolved = false;
 
         const parseTunnelUrl = (data: string) => {
-          // Match trycloudflare.com URLs, but exclude the terms of service URL
-          const urlMatch = data.match(
-            /https:\/\/[a-z0-9\-]+\.trycloudflare\.com/i,
-          );
-          if (!urlMatch || resolved) {
-            return;
-          }
-          let tunnelUrl = urlMatch[0].replace(/\/$/, "").trim();
-          // Remove https:// prefix since frontend adds it
-          tunnelUrl = tunnelUrl.replace(/^https:\/\//i, "");
-          if (!tunnelUrl) return;
+          if (resolved) return;
+          // localhost.run prints: "abc123.lhr.life tunnelled with tls termination, https://abc123.lhr.life"
+          const urlMatch = data.match(/https:\/\/([a-z0-9]+\.lhr\.life)/i);
+          if (!urlMatch) return;
 
+          const tunnelUrl = urlMatch[1]; // hostname only, without https://
           resolved = true;
-          const tunnel: Tunnel = {
+
+          const record: Tunnel = {
             id: tunnelId,
             name: safeName,
             url: tunnelUrl,
@@ -234,8 +189,8 @@ export class TunnelService {
             createdAt: new Date().toISOString(),
             mode,
           };
-          this.tunnels.set(safeName, tunnel);
-          this.saveTunnelToDatabase(tunnel);
+          this.tunnels.set(safeName, record);
+          this.saveTunnelToDatabase(record);
           resolve(tunnelUrl);
         };
 
@@ -247,29 +202,13 @@ export class TunnelService {
 
         tunnel.stderr?.on("data", (data) => {
           const output = data.toString();
-          this.logger.error(`Tunnel ${safeName} error: ${output}`);
+          this.logger.info(`Tunnel ${safeName}: ${output}`);
           parseTunnelUrl(output);
-
-          if (
-            output.includes(
-              "Cannot determine default origin certificate path",
-            ) ||
-            output.includes("Origin cert") ||
-            output.includes("Please login")
-          ) {
-            if (!resolved) {
-              reject(
-                new Error(
-                  "Cloudflare login is required for custom hostname tunnels. Run: cloudflared tunnel login",
-                ),
-              );
-            }
-          }
         });
 
         tunnel.on("error", (error) => {
           this.logger.error(`Tunnel ${safeName} failed:`, error);
-          reject(error);
+          if (!resolved) reject(error);
         });
 
         tunnel.on("close", (code) => {
@@ -277,11 +216,7 @@ export class TunnelService {
           this.tunnels.delete(safeName);
           this.tunnelProcesses.delete(safeName);
           if (!resolved) {
-            reject(
-              new Error(
-                `Tunnel process exited before URL was created (exit code: ${code ?? "unknown"})`,
-              ),
-            );
+            reject(new Error(`Tunnel process exited before URL was created (exit code: ${code ?? "unknown"})`));
           }
         });
       });
@@ -331,12 +266,9 @@ export class TunnelService {
   }
 
   async getStatus(): Promise<{
-    cloudflaredInstalled: boolean;
     activeTunnels: number;
   }> {
-    const cloudflaredInstalled = await this.isCloudflaredInstalled();
     return {
-      cloudflaredInstalled,
       activeTunnels: this.tunnels.size,
     };
   }
