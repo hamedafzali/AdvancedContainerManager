@@ -167,6 +167,38 @@ export class CloudflareService {
     }
   }
 
+  async createCNAMERecord(
+    zoneId: string,
+    subdomain: string,
+    target: string,
+    proxied = true,
+  ): Promise<{ id: string; name: string; content: string }> {
+    if (!this.client) throw new Error("Cloudflare client not initialized");
+    try {
+      const record = await (this.client.dns.records as any).create(zoneId, {
+        type: "CNAME",
+        name: subdomain,
+        content: target,
+        proxied,
+        ttl: proxied ? 1 : 300,
+        comment: "Created by AdvancedContainerManager tunnel",
+      });
+      return { id: record.id, name: record.name, content: record.content };
+    } catch (error) {
+      this.logger.error("Failed to create CNAME record:", error);
+      throw new Error(`Failed to create CNAME in Cloudflare: ${error}`);
+    }
+  }
+
+  async deleteDNSRecord(zoneId: string, recordId: string): Promise<void> {
+    if (!this.client) throw new Error("Cloudflare client not initialized");
+    try {
+      await (this.client.dns.records as any).delete(recordId, { zone_id: zoneId });
+    } catch (error) {
+      this.logger.error("Failed to delete DNS record:", error);
+    }
+  }
+
   async createDNSRecord(
     zoneId: string,
     name: string,

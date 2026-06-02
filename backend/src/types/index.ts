@@ -137,6 +137,11 @@ export interface ProjectInfo {
   };
   tunnelId?: string;
   tunnelUrl?: string;
+  tunnelPort?: number;
+  tunnelService?: string;
+  tunnelDomain?: string;
+  cfDnsRecordId?: string;
+  cfZoneId?: string;
 }
 
 export interface ProjectHealth {

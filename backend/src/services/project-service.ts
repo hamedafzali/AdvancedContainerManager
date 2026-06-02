@@ -873,14 +873,24 @@ export class ProjectService {
     return project;
   }
 
-  public linkTunnel(name: string, tunnelId: string, tunnelUrl: string): ProjectInfo {
+  public linkTunnel(
+    name: string,
+    tunnelId: string,
+    tunnelUrl: string,
+    tunnelPort?: number,
+    tunnelService?: string,
+    tunnelDomain?: string,
+  ): ProjectInfo {
     const project = this.projects.get(name);
     if (!project) throw new Error(`Project ${name} not found`);
     project.tunnelId = tunnelId;
     project.tunnelUrl = tunnelUrl;
+    project.tunnelPort = tunnelPort;
+    project.tunnelService = tunnelService;
+    project.tunnelDomain = tunnelDomain;
     project.lastUpdated = new Date().toISOString();
     this.saveProjects();
-    this.logger.info(`Linked tunnel ${tunnelId} to project ${name}`);
+    this.logger.info(`Linked tunnel ${tunnelId} (port ${tunnelPort}) to project ${name}`);
     return project;
   }
 
@@ -889,9 +899,42 @@ export class ProjectService {
     if (!project) throw new Error(`Project ${name} not found`);
     project.tunnelId = undefined;
     project.tunnelUrl = undefined;
+    project.tunnelPort = undefined;
+    project.tunnelService = undefined;
+    project.tunnelDomain = undefined;
+    project.cfDnsRecordId = undefined;
+    project.cfZoneId = undefined;
     project.lastUpdated = new Date().toISOString();
     this.saveProjects();
     this.logger.info(`Unlinked tunnel from project ${name}`);
+    return project;
+  }
+
+  public linkDomain(
+    name: string,
+    domain: string,
+    cfDnsRecordId: string,
+    cfZoneId: string,
+  ): ProjectInfo {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    project.tunnelDomain = domain;
+    project.cfDnsRecordId = cfDnsRecordId;
+    project.cfZoneId = cfZoneId;
+    project.lastUpdated = new Date().toISOString();
+    this.saveProjects();
+    this.logger.info(`Linked Cloudflare domain ${domain} to project ${name}`);
+    return project;
+  }
+
+  public unlinkDomain(name: string): ProjectInfo {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    project.tunnelDomain = undefined;
+    project.cfDnsRecordId = undefined;
+    project.cfZoneId = undefined;
+    project.lastUpdated = new Date().toISOString();
+    this.saveProjects();
     return project;
   }
 

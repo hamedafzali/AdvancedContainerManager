@@ -1147,13 +1147,43 @@ export function routes(
         if (project.tunnelId) {
           return res.status(409).json({ success: false, message: "Project already has a tunnel" });
         }
-        const hostPort = project.ports.find((p) => p.hostPort)?.hostPort;
-        if (!hostPort) {
-          return res.status(400).json({ success: false, message: "Project has no mapped host port" });
+
+        // Caller must specify which host port to expose when project has multiple
+        const portsWithHost = project.ports.filter((p) => p.hostPort);
+        if (portsWithHost.length === 0) {
+          return res.status(400).json({ success: false, message: "Project has no mapped host ports" });
         }
+
+        let selectedPort: typeof portsWithHost[0];
+        if (req.body?.port) {
+          const requested = parseInt(String(req.body.port), 10);
+          const match = portsWithHost.find((p) => p.hostPort === requested);
+          if (!match) {
+            return res.status(400).json({
+              success: false,
+              message: `Port ${requested} is not a mapped host port for this project. Available: ${portsWithHost.map((p) => p.hostPort).join(", ")}`,
+            });
+          }
+          selectedPort = match;
+        } else if (portsWithHost.length === 1) {
+          selectedPort = portsWithHost[0];
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: "Project has multiple ports — specify which to expose",
+            data: { ports: portsWithHost },
+          });
+        }
+
         const tunnelName = `project-${req.params.name.replace(/[^a-zA-Z0-9-_]/g, "-")}`;
-        const tunnelUrl = await tunnelService.createTunnel(tunnelName, hostPort);
-        const updated = projectService.linkTunnel(req.params.name, tunnelName, tunnelUrl);
+        const tunnelUrl = await tunnelService.createTunnel(tunnelName, selectedPort.hostPort!);
+        const updated = projectService.linkTunnel(
+          req.params.name,
+          tunnelName,
+          tunnelUrl,
+          selectedPort.hostPort,
+          selectedPort.service,
+        );
         res.json({ success: true, data: updated });
       } catch (error) {
         logger.error(`Error creating tunnel for project ${req.params.name}:`, error);
@@ -1170,6 +1200,12 @@ export function routes(
         if (!project) {
           return res.status(404).json({ success: false, message: "Project not found" });
         }
+        // Clean up Cloudflare DNS record if one was attached
+        if (project.cfDnsRecordId && project.cfZoneId && cloudflareService.isAuthenticated()) {
+          await cloudflareService.deleteDNSRecord(project.cfZoneId, project.cfDnsRecordId).catch((e) =>
+            logger.warn(`Failed to delete Cloudflare DNS record: ${e}`)
+          );
+        }
         if (project.tunnelId) {
           await tunnelService.stopTunnel(project.tunnelId);
         }
@@ -1177,6 +1213,58 @@ export function routes(
         res.json({ success: true, data: updated });
       } catch (error) {
         logger.error(`Error removing tunnel for project ${req.params.name}:`, error);
+        res.status(500).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
+  // Attach a Cloudflare domain to an existing project tunnel
+  router.post(
+    "/projects/:name/tunnel/domain",
+    asyncHandler(async (req, res) => {
+      try {
+        const project = projectService.getProject(req.params.name);
+        if (!project) return res.status(404).json({ success: false, message: "Project not found" });
+        if (!project.tunnelUrl) return res.status(400).json({ success: false, message: "Project has no active tunnel" });
+        if (!cloudflareService.isAuthenticated()) {
+          return res.status(401).json({ success: false, message: "Cloudflare not authenticated — go to Settings → Cloudflare" });
+        }
+
+        const { zoneId, subdomain, proxied = true } = req.body;
+        if (!zoneId || !subdomain) {
+          return res.status(400).json({ success: false, message: "zoneId and subdomain are required" });
+        }
+
+        // Remove existing DNS record for this project first
+        if (project.cfDnsRecordId && project.cfZoneId) {
+          await cloudflareService.deleteDNSRecord(project.cfZoneId, project.cfDnsRecordId).catch(() => {});
+        }
+
+        const record = await cloudflareService.createCNAMERecord(zoneId, subdomain, project.tunnelUrl, proxied);
+        const updated = projectService.linkDomain(req.params.name, record.name, record.id, zoneId);
+        res.json({ success: true, data: { project: updated, dnsRecord: record } });
+      } catch (error) {
+        logger.error(`Error attaching domain to project ${req.params.name}:`, error);
+        res.status(500).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
+  router.delete(
+    "/projects/:name/tunnel/domain",
+    asyncHandler(async (req, res) => {
+      try {
+        const project = projectService.getProject(req.params.name);
+        if (!project) return res.status(404).json({ success: false, message: "Project not found" });
+        if (project.cfDnsRecordId && project.cfZoneId && cloudflareService.isAuthenticated()) {
+          await cloudflareService.deleteDNSRecord(project.cfZoneId, project.cfDnsRecordId).catch((e) =>
+            logger.warn(`Failed to delete Cloudflare DNS record: ${e}`)
+          );
+        }
+        const updated = projectService.unlinkDomain(req.params.name);
+        res.json({ success: true, data: updated });
+      } catch (error) {
+        logger.error(`Error detaching domain from project ${req.params.name}:`, error);
         res.status(500).json({ success: false, message: error.message });
       }
     }),
