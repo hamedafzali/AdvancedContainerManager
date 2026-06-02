@@ -115,6 +115,8 @@ export default function Projects() {
   const [tunnelLoading, setTunnelLoading] = useState<string | null>(null);
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
   const [webhookLoading, setWebhookLoading] = useState(false);
+  const [portConflicts, setPortConflicts] = useState<Record<string, string[]>>({});
+  const [conflictChecking, setConflictChecking] = useState<string | null>(null);
 
   // Git accounts state
   interface GitAccount { id: string; provider: "github" | "gitlab"; username: string; addedAt: string; }
@@ -499,7 +501,27 @@ export default function Projects() {
     }
   };
 
+  const checkPortConflicts = async (projectName: string): Promise<string[]> => {
+    setConflictChecking(projectName);
+    try {
+      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectName)}/port-conflicts`);
+      const result = await res.json();
+      const conflicts: string[] = result.success ? result.data : [];
+      setPortConflicts((prev) => ({ ...prev, [projectName]: conflicts }));
+      return conflicts;
+    } catch {
+      return [];
+    } finally {
+      setConflictChecking(null);
+    }
+  };
+
   const handleSyncDeploy = async (projectName: string) => {
+    const conflicts = await checkPortConflicts(projectName);
+    if (conflicts.length > 0) {
+      setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
+      return;
+    }
     try {
       setDeployLogs("");
       setDeployLogsTitle(`Sync & Deploy: ${projectName}`);
@@ -596,6 +618,11 @@ export default function Projects() {
 
   // Deploy project
   const handleDeployProject = async (projectName: string) => {
+    const conflicts = await checkPortConflicts(projectName);
+    if (conflicts.length > 0) {
+      setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
+      return;
+    }
     try {
       setDeployLogs("");
       setDeployLogsTitle(`Deploy Logs: ${projectName}`);
@@ -771,6 +798,21 @@ export default function Projects() {
     fetchProjects();
     fetchGitAccounts();
   }, []);
+
+  // Check port conflicts for running projects after fetch
+  useEffect(() => {
+    const runningProjects = projects.filter((p) => p.status === "running");
+    runningProjects.forEach((p) => {
+      apiFetch(`/api/projects/${encodeURIComponent(p.name)}/port-conflicts`)
+        .then((r) => r.json())
+        .then((result) => {
+          if (result.success) {
+            setPortConflicts((prev) => ({ ...prev, [p.name]: result.data }));
+          }
+        })
+        .catch(() => {});
+    });
+  }, [projects.length]);
 
   useEffect(() => {
     const onHealth = (e: Event) => {
@@ -982,17 +1024,34 @@ export default function Projects() {
                     <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{project.branch}</span>
                   </div>
 
-                  {/* Ports */}
+                  {/* Ports + conflict warnings */}
                   {project.ports && project.ports.length > 0 && (
                     <div className="flex items-start gap-2 text-sm">
-                      <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                      <Shield className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${portConflicts[project.name]?.length ? "text-red-400" : "text-gray-400"}`} />
                       <div className="flex flex-wrap gap-1">
-                        {project.ports.map((port, pi) => (
-                          <span key={pi} className="font-mono text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
-                            {port.hostPort ? `${port.hostPort}→` : ""}{port.containerPort}
-                            <span className="text-blue-400 ml-1">{port.service}</span>
-                          </span>
-                        ))}
+                        {project.ports.map((port, pi) => {
+                          const hasConflict = (portConflicts[project.name] || []).some((c) =>
+                            c.includes(`port ${port.hostPort}`)
+                          );
+                          return (
+                            <span
+                              key={pi}
+                              title={hasConflict ? portConflicts[project.name].find((c) => c.includes(`port ${port.hostPort}`)) : undefined}
+                              className={`font-mono text-xs px-1.5 py-0.5 rounded ${
+                                hasConflict
+                                  ? "bg-red-100 text-red-700 ring-1 ring-red-300"
+                                  : "bg-blue-50 text-blue-700"
+                              }`}
+                            >
+                              {port.hostPort ? `${port.hostPort}→` : ""}{port.containerPort}
+                              <span className={`ml-1 ${hasConflict ? "text-red-400" : "text-blue-400"}`}>{port.service}</span>
+                              {hasConflict && <span className="ml-1">⚠</span>}
+                            </span>
+                          );
+                        })}
+                        {conflictChecking === project.name && (
+                          <span className="text-xs text-gray-400 italic">checking…</span>
+                        )}
                       </div>
                     </div>
                   )}

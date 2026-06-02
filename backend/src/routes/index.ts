@@ -2024,6 +2024,22 @@ export function routes(
   );
 
   router.get(
+    "/projects/:name/port-conflicts",
+    asyncHandler(async (req, res) => {
+      try {
+        const project = projectService.getProject(req.params.name);
+        if (!project) return res.status(404).json({ success: false, message: "Project not found" });
+        const composeFile = (projectService as any).resolveComposeFile(project);
+        if (!composeFile) return res.json({ success: true, data: [] });
+        const conflicts = await projectService.checkPortConflicts(req.params.name, composeFile);
+        res.json({ success: true, data: conflicts });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
+  router.get(
     "/projects/:name/compose-files",
     asyncHandler(async (req, res) => {
       try {

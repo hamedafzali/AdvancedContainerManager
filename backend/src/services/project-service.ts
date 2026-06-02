@@ -910,28 +910,38 @@ export class ProjectService {
     hostPort?: number;
     protocol: string;
   } {
+    // Numeric port: just the container port, no host binding (e.g. yaml parsed "- 3000" as number)
+    if (typeof portMapping === "number") {
+      return { containerPort: portMapping, hostPort: undefined, protocol: "tcp" };
+    }
+
     if (typeof portMapping === "string") {
       const [rawMapping, rawProtocol] = portMapping.split("/");
       const segments = rawMapping.split(":");
+      // Last segment is always the container port
       const containerPort = parseInt(segments[segments.length - 1], 10);
-      const hostPort =
-        segments.length >= 2
-          ? parseInt(segments[segments.length - 2], 10)
-          : undefined;
+      // Second-to-last is host port only when there are at least 2 segments
+      // and it's numeric (not an IP address)
+      let hostPort: number | undefined;
+      if (segments.length >= 2) {
+        const candidate = parseInt(segments[segments.length - 2], 10);
+        if (!isNaN(candidate)) hostPort = candidate;
+      }
       return {
         containerPort,
-        hostPort:
-          hostPort !== undefined && !isNaN(hostPort) ? hostPort : undefined,
+        hostPort,
         protocol: (rawProtocol || "tcp").toLowerCase(),
       };
     }
 
     if (portMapping && typeof portMapping === "object") {
       const containerPort = parseInt(String(portMapping.target), 10);
-      const hostPort = parseInt(String(portMapping.published), 10);
+      const hostPort = portMapping.published !== undefined && portMapping.published !== null
+        ? parseInt(String(portMapping.published), 10)
+        : undefined;
       return {
         containerPort,
-        hostPort: !isNaN(hostPort) ? hostPort : undefined,
+        hostPort: hostPort !== undefined && !isNaN(hostPort) ? hostPort : undefined,
         protocol: String(portMapping.protocol || "tcp").toLowerCase(),
       };
     }
@@ -1424,6 +1434,14 @@ export class ProjectService {
 
       this.applyResourceLimits(project, composeFile);
 
+      // Hard port conflict check — block before starting containers
+      const conflicts = await this.checkPortConflicts(name, composeFile);
+      if (conflicts.length > 0) {
+        const message = `Port conflicts detected: ${conflicts.join("; ")}`;
+        this.logger.error(`Deploy blocked for ${name}: ${message}`);
+        throw new Error(message);
+      }
+
       this.logger.info(
         `Deploying project: ${name} using ${path.basename(composeFile)}`,
       );
@@ -1812,34 +1830,89 @@ export class ProjectService {
       })),
     };
   }
+  public async checkPortConflicts(projectName: string, composeFile: string): Promise<string[]> {
+    const ports = this.extractPortsFromCompose(composeFile);
+    const conflicts: string[] = [];
+
+    // Ports this project actually needs with host bindings
+    const neededHostPorts = ports.filter((p) => p.hostPort);
+    if (neededHostPorts.length === 0) return [];
+
+    // Conflict with other running projects (excluding this one)
+    for (const [otherName, otherProject] of this.projects.entries()) {
+      if (otherName === projectName || otherProject.status !== "running") continue;
+      for (const myPort of neededHostPorts) {
+        for (const theirPort of otherProject.ports || []) {
+          if (theirPort.hostPort === myPort.hostPort) {
+            conflicts.push(
+              `Host port ${myPort.hostPort} (${myPort.service}) already used by project "${otherName}" (${theirPort.service})`,
+            );
+          }
+        }
+      }
+    }
+
+    // Conflict with containers NOT owned by this project
+    const dockerPorts = await this.getUsedHostPortsFromDocker();
+    const myContainerIds = new Set((this.projects.get(projectName)?.containers || []));
+
+    for (const myPort of neededHostPorts) {
+      if (dockerPorts.has(myPort.hostPort!) && !myContainerIds.has(String(myPort.hostPort!))) {
+        // Only flag if not already caught by project conflict above
+        const alreadyFlagged = conflicts.some((c) => c.includes(`Host port ${myPort.hostPort}`));
+        if (!alreadyFlagged) {
+          conflicts.push(
+            `Host port ${myPort.hostPort} (${myPort.service}) is in use by a running container`,
+          );
+        }
+      }
+    }
+
+    return conflicts;
+  }
+
+  private static readonly DEFAULT_MEMORY = "512m";
+  private static readonly DEFAULT_CPU = "0.5";
+
   private applyResourceLimits(project: ProjectInfo, composeFile: string): void {
     const { memory, cpu } = project.resourceLimits || {};
-    if (!memory && !cpu) return;
+    const overridePath = path.join(path.dirname(composeFile), "docker-compose.override.yml");
+
+    // If limits are still at defaults, remove any existing override and leave the compose file untouched
+    if (
+      (!memory || memory === ProjectService.DEFAULT_MEMORY) &&
+      (!cpu || cpu === ProjectService.DEFAULT_CPU)
+    ) {
+      if (fs.existsSync(overridePath)) {
+        fs.unlinkSync(overridePath);
+      }
+      return;
+    }
 
     try {
       const content = fs.readFileSync(composeFile, "utf8");
       const compose = yaml.load(content) as any;
       if (!compose?.services) return;
 
-      let changed = false;
-      for (const service of Object.values(compose.services as Record<string, any>)) {
-        if (!service || typeof service !== "object") continue;
-        if (!service.deploy) service.deploy = {};
-        if (!service.deploy.resources) service.deploy.resources = {};
-
-        const limits = service.deploy.resources.limits || {};
-        if (memory) limits.memory = memory;
-        if (cpu) limits.cpus = cpu;
-        service.deploy.resources.limits = limits;
-        changed = true;
+      // Build a minimal override with ONLY the resource limits — never touch the original file
+      const override: any = { version: compose.version, services: {} };
+      for (const serviceName of Object.keys(compose.services as Record<string, any>)) {
+        override.services[serviceName] = {
+          deploy: {
+            resources: {
+              limits: {
+                ...(memory ? { memory } : {}),
+                ...(cpu ? { cpus: cpu } : {}),
+              },
+            },
+          },
+        };
       }
 
-      if (changed) {
-        fs.writeFileSync(composeFile, yaml.dump(compose, { noRefs: true }), "utf8");
-        this.logger.info(`Applied resource limits to ${path.basename(composeFile)} for project ${project.name}`);
-      }
+      fs.writeFileSync(overridePath, yaml.dump(override, { noRefs: true }), "utf8");
+      this.logger.info(`Written resource limits override for project ${project.name}`);
     } catch (error) {
-      this.logger.warn(`Failed to apply resource limits for ${project.name}: ${error}`);
+      this.logger.warn(`Failed to write resource limits override for ${project.name}: ${error}`);
     }
   }
 
