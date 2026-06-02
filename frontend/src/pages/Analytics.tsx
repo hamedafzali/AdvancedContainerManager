@@ -109,9 +109,12 @@ export default function Analytics() {
         costResponse,
         insightsResponse,
       ] = await Promise.all([
-        apiFetch("/api/analytics/predictive-metrics", apiFetch("/api/analytics/anomalies?limit=50"),
-        apiFetch("/api/analytics/trends", apiFetch("/api/analytics/capacity-planning"),
-        apiFetch("/api/analytics/cost-forecast?period=30", apiFetch("/api/analytics/insights"),
+        apiFetch("/api/analytics/predictive-metrics"),
+        apiFetch("/api/analytics/anomalies?limit=50"),
+        apiFetch("/api/analytics/trends"),
+        apiFetch("/api/analytics/capacity-planning"),
+        apiFetch("/api/analytics/cost-forecast?period=30"),
+        apiFetch("/api/analytics/insights"),
       ]);
 
       const [

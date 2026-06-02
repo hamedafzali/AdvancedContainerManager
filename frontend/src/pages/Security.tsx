@@ -109,8 +109,10 @@ export default function Security() {
 
       const [scansResponse, alertsResponse, policiesResponse, metricsResponse] =
         await Promise.all([
-          apiFetch("/api/security/scans", apiFetch("/api/security/alerts?limit=100"),
-          apiFetch("/api/security/policies", apiFetch("/api/security/metrics"),
+          apiFetch("/api/security/scans"),
+          apiFetch("/api/security/alerts?limit=100"),
+          apiFetch("/api/security/policies"),
+          apiFetch("/api/security/metrics"),
         ]);
 
       const parseResponse = async (response: Response) => {
