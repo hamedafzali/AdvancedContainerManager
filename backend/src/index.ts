@@ -111,7 +111,7 @@ class AdvancedContainerManager {
     this.tunnelService = new TunnelService(this.logger);
     this.terminalService = new TerminalService(this.config, this.logger);
     this.healthService = new HealthService(this.logger);
-    this.gitAccountService = new GitAccountService(this.logger);
+    this.gitAccountService = new GitAccountService(this.logger, this.config.databasePath);
     this.wsHandler = new WebSocketHandler(
       this.io,
       this.metricsCollector,

@@ -111,6 +111,7 @@ export default function Projects() {
     composeFile: "",
     environmentVars: [] as Array<{ key: string; value: string }>,
   });
+  const [detectedComposeFiles, setDetectedComposeFiles] = useState<string[]>([]);
   const [tunnelLoading, setTunnelLoading] = useState<string | null>(null);
 
   // Git accounts state
@@ -314,6 +315,7 @@ export default function Projects() {
           branch: newProject.branch || "main",
           composeFile: newProject.composeFile || undefined,
           environmentVars: envVarsObject,
+          accountId: selectedAccount?.id,
         }),
       });
 
@@ -323,13 +325,23 @@ export default function Projects() {
       }
 
       await fetchProjects();
-      setNewProject({
-        name: "",
-        repository: "",
-        branch: "main",
-        composeFile: "",
-        environmentVars: [],
-      });
+
+      // Auto-detect compose files if none was specified
+      if (!newProject.composeFile) {
+        try {
+          const scanRes = await fetch(apiUrl(`/api/projects/${encodeURIComponent(newProject.name)}/compose-files`));
+          const scanResult = await scanRes.json();
+          if (scanResult.success && scanResult.data.length > 1) {
+            setDetectedComposeFiles(scanResult.data);
+            return; // keep modal open to let user pick
+          }
+        } catch {}
+      }
+
+      setNewProject({ name: "", repository: "", branch: "main", composeFile: "", environmentVars: [] });
+      setDetectedComposeFiles([]);
+      setSelectedRepo(null);
+      setBranches([]);
       setShowAddModal(false);
     } catch (err) {
       setActionError(
@@ -471,6 +483,30 @@ export default function Projects() {
           ? err.message
           : "Failed to update environment vars",
       );
+    }
+  };
+
+  const handleSyncDeploy = async (projectName: string) => {
+    try {
+      setDeployLogs("");
+      setDeployLogsTitle(`Sync & Deploy: ${projectName}`);
+      setShowDeployLogs(true);
+      setActiveDeployProject(projectName);
+
+      window.dispatchEvent(new CustomEvent("subscribe_project_deploy", { detail: { projectName } }));
+
+      const response = await fetch(apiUrl(`/api/projects/${projectName}/sync-deploy`), { method: "POST" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result?.message || "Failed to sync & deploy");
+
+      const syncOut = result?.data?.sync?.output || "";
+      const deployOut = result?.data?.deploy?.output || "";
+      setDeployLogs(`[sync]\n${syncOut}\n\n[deploy]\n${deployOut}`.trim());
+      await fetchProjects();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to sync & deploy";
+      setActionError(message);
+      setDeployLogs(message);
     }
   };
 
@@ -890,6 +926,13 @@ export default function Projects() {
                     <Play className="w-4 h-4" />
                   </button>
                   <button
+                    onClick={() => handleSyncDeploy(project.name)}
+                    className="p-1.5 text-violet-600 hover:bg-violet-50 rounded transition-colors duration-200"
+                    title="Sync & Deploy"
+                  >
+                    <Zap className="w-4 h-4" />
+                  </button>
+                  <button
                     onClick={() => handleStopProject(project.name)}
                     className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"
                     title="Stop"
@@ -1230,14 +1273,31 @@ export default function Projects() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Compose File Path</label>
-                  <input
-                    type="text"
-                    value={newProject.composeFile}
-                    onChange={(e) => setNewProject({ ...newProject, composeFile: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="docker-compose.yml (default)"
-                  />
-                  <p className="text-xs text-gray-400 mt-1">Relative path from repo root, e.g. <code>infra/docker-compose.yml</code></p>
+                  {detectedComposeFiles.length > 1 ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-amber-600 mb-2">Multiple compose files found — pick one to use:</p>
+                      {detectedComposeFiles.map((f) => (
+                        <button
+                          key={f}
+                          onClick={() => setNewProject((p) => ({ ...p, composeFile: f }))}
+                          className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${newProject.composeFile === f ? "bg-blue-50 border-blue-400 text-blue-700" : "border-gray-200 hover:border-gray-400"}`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={newProject.composeFile}
+                        onChange={(e) => setNewProject({ ...newProject, composeFile: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="docker-compose.yml (default)"
+                      />
+                      <p className="text-xs text-gray-400 mt-1">Relative path from repo root, e.g. <code>infra/docker-compose.yml</code></p>
+                    </>
+                  )}
                 </div>
 
                 <div>
@@ -1262,8 +1322,31 @@ export default function Projects() {
             </div>
 
             <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
-              <button onClick={() => { setShowAddModal(false); setAddMode("manual"); setSelectedRepo(null); setBranches([]); }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
-              <button onClick={handleAddProject} className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg">Add Project</button>
+              <button onClick={() => { setShowAddModal(false); setAddMode("manual"); setSelectedRepo(null); setBranches([]); setDetectedComposeFiles([]); }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+              {detectedComposeFiles.length > 1 ? (
+                <button
+                  onClick={async () => {
+                    if (!newProject.composeFile) return;
+                    await fetch(apiUrl(`/api/projects/${encodeURIComponent(newProject.name)}`), {
+                      method: "PUT",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ composeFile: newProject.composeFile }),
+                    });
+                    await fetchProjects();
+                    setNewProject({ name: "", repository: "", branch: "main", composeFile: "", environmentVars: [] });
+                    setDetectedComposeFiles([]);
+                    setSelectedRepo(null);
+                    setBranches([]);
+                    setShowAddModal(false);
+                  }}
+                  disabled={!newProject.composeFile}
+                  className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-50"
+                >
+                  Use Selected
+                </button>
+              ) : (
+                <button onClick={handleAddProject} className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg">Add Project</button>
+              )}
             </div>
           </div>
         </div>

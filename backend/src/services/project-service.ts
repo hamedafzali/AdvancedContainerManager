@@ -266,6 +266,33 @@ export class ProjectService {
     return null;
   }
 
+  public findComposeFiles(projectPath: string): string[] {
+    const results: string[] = [];
+    const names = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"];
+
+    const scan = (dir: string, depth: number) => {
+      if (depth > 4) return;
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        if (entry.name.startsWith(".") || entry.name === "node_modules") continue;
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          scan(fullPath, depth + 1);
+        } else if (names.includes(entry.name)) {
+          results.push(path.relative(projectPath, fullPath));
+        }
+      }
+    };
+
+    scan(projectPath, 0);
+    return results;
+  }
+
   private extractRequiredEnvVars(composeFile: string): string[] {
     try {
       const content = fs.readFileSync(composeFile, "utf8");
@@ -655,15 +682,16 @@ export class ProjectService {
     dockerfile: string = "Dockerfile",
     composeFile: string = "docker-compose.yml",
     environmentVars: Record<string, string> = {},
+    authenticatedUrl?: string,
   ): Promise<ProjectInfo> {
     try {
       const projectPath = path.join(this.projectsDir, name);
+      const cloneUrl = authenticatedUrl || repoUrl;
 
       // Clone repository
       const git = simpleGit();
 
       if (fs.existsSync(projectPath)) {
-        // Ensure the repository is attached to the requested branch before syncing
         const repo = git.cwd(projectPath);
         await repo.fetch("origin", branch);
         await repo.checkout(["-B", branch, `origin/${branch}`]);
@@ -672,8 +700,7 @@ export class ProjectService {
           `Synced existing project on branch ${branch}: ${name}`,
         );
       } else {
-        // Clone new repository
-        await git.clone(repoUrl, projectPath, ["--branch", branch]);
+        await git.clone(cloneUrl, projectPath, ["--branch", branch]);
         this.logger.info(`Cloned repository for project: ${name}`);
       }
 

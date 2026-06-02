@@ -15,6 +15,9 @@ import {
   AlertTriangle,
   Download,
   Upload,
+  Github,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { apiUrl } from "@/utils/api";
 
@@ -86,6 +89,49 @@ export default function Settings() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState("general");
+
+  // Git accounts
+  interface GitAccount { id: string; provider: "github" | "gitlab"; username: string; addedAt: string; }
+  const [gitAccounts, setGitAccounts] = useState<GitAccount[]>([]);
+  const [gitProvider, setGitProvider] = useState<"github" | "gitlab">("github");
+  const [gitToken, setGitToken] = useState("");
+  const [gitLoading, setGitLoading] = useState(false);
+  const [gitError, setGitError] = useState<string | null>(null);
+
+  const fetchGitAccounts = async () => {
+    try {
+      const res = await fetch(apiUrl("/api/git-accounts"));
+      const result = await res.json();
+      if (result.success) setGitAccounts(result.data);
+    } catch {}
+  };
+
+  const handleAddGitAccount = async () => {
+    if (!gitToken.trim()) return;
+    setGitLoading(true);
+    setGitError(null);
+    try {
+      const res = await fetch(apiUrl("/api/git-accounts"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: gitProvider, token: gitToken }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+      setGitToken("");
+      setSuccess("Git account connected successfully");
+      await fetchGitAccounts();
+    } catch (err) {
+      setGitError(err instanceof Error ? err.message : "Failed to connect account");
+    } finally {
+      setGitLoading(false);
+    }
+  };
+
+  const handleRemoveGitAccount = async (id: string) => {
+    await fetch(apiUrl(`/api/git-accounts/${encodeURIComponent(id)}`), { method: "DELETE" });
+    await fetchGitAccounts();
+  };
 
   // Fetch settings from backend
   const fetchSettings = async () => {
@@ -187,6 +233,7 @@ export default function Settings() {
 
   useEffect(() => {
     fetchSettings();
+    fetchGitAccounts();
   }, []);
 
   const updateSetting = (section: keyof Settings, key: string, value: any) => {
@@ -205,6 +252,7 @@ export default function Settings() {
     { id: "docker", title: "Docker", icon: <Database className="w-4 h-4" /> },
     { id: "security", title: "Security", icon: <Shield className="w-4 h-4" /> },
     { id: "api", title: "API", icon: <Server className="w-4 h-4" /> },
+    { id: "git", title: "Git Accounts", icon: <Github className="w-4 h-4" /> },
   ];
 
   if (loading) {
@@ -605,6 +653,72 @@ export default function Settings() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {activeSection === "git" && (
+                <div className="space-y-6">
+                  <h2 className="text-xl font-semibold text-gray-900">Git Accounts</h2>
+                  <p className="text-sm text-gray-500">Connect GitHub or GitLab accounts to browse and clone private repositories when creating projects.</p>
+
+                  {/* Add account form */}
+                  <div className="border border-gray-200 rounded-lg p-4 space-y-4">
+                    <h3 className="text-sm font-semibold text-gray-700">Connect New Account</h3>
+                    <div className="flex gap-2">
+                      {(["github", "gitlab"] as const).map((p) => (
+                        <button key={p} onClick={() => setGitProvider(p)} className={`flex-1 py-2 rounded-lg border text-sm capitalize transition-colors ${gitProvider === p ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 hover:border-gray-500"}`}>{p}</button>
+                      ))}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Personal Access Token</label>
+                      <input
+                        type="password"
+                        value={gitToken}
+                        onChange={(e) => setGitToken(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder={gitProvider === "github" ? "ghp_..." : "glpat-..."}
+                      />
+                      <p className="text-xs text-gray-400 mt-1">
+                        {gitProvider === "github"
+                          ? "Requires repo scope. Create at GitHub → Settings → Developer settings → Personal access tokens."
+                          : "Requires read_api scope. Create at GitLab → User Settings → Access Tokens."}
+                      </p>
+                    </div>
+                    {gitError && <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{gitError}</div>}
+                    <button
+                      onClick={handleAddGitAccount}
+                      disabled={gitLoading || !gitToken.trim()}
+                      className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-50 text-sm"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      {gitLoading ? "Connecting..." : "Connect Account"}
+                    </button>
+                  </div>
+
+                  {/* Connected accounts */}
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Connected Accounts</h3>
+                    {gitAccounts.length === 0 ? (
+                      <div className="text-sm text-gray-500 py-6 text-center border border-dashed border-gray-200 rounded-lg">No accounts connected yet</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {gitAccounts.map((acc) => (
+                          <div key={acc.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <Github className="w-5 h-5 text-gray-600" />
+                              <div>
+                                <div className="text-sm font-medium text-gray-900">{acc.username}</div>
+                                <div className="text-xs text-gray-500 capitalize">{acc.provider} · Connected {new Date(acc.addedAt).toLocaleDateString()}</div>
+                              </div>
+                            </div>
+                            <button onClick={() => handleRemoveGitAccount(acc.id)} className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

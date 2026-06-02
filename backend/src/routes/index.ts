@@ -827,7 +827,12 @@ export function routes(
           dockerfile = "Dockerfile",
           composeFile = "docker-compose.yml",
           environmentVars = {},
+          accountId,
         } = req.body;
+
+        const authenticatedUrl = accountId
+          ? gitAccountService.getAuthenticatedUrl(accountId, repoUrl)
+          : undefined;
 
         const project = await projectService.addProject(
           name,
@@ -836,6 +841,7 @@ export function routes(
           dockerfile,
           composeFile,
           environmentVars,
+          authenticatedUrl,
         );
 
         res.json({
@@ -967,6 +973,25 @@ export function routes(
           success: false,
           message: error.message,
         });
+      }
+    }),
+  );
+
+  router.post(
+    "/projects/:name/sync-deploy",
+    asyncHandler(async (req, res) => {
+      try {
+        const { name } = req.params;
+        const syncResult = await projectService.pullLatestProject(name);
+        const deployResult = await projectService.deployProject(name);
+        res.json({
+          success: true,
+          message: `Project ${name} synced and deployed`,
+          data: { sync: syncResult, deploy: deployResult },
+        });
+      } catch (error) {
+        logger.error(`Error in sync-deploy for ${req.params.name}:`, error);
+        res.status(500).json({ success: false, message: error.message });
       }
     }),
   );
@@ -2010,6 +2035,20 @@ export function routes(
           success: false,
           message: error.message,
         });
+      }
+    }),
+  );
+
+  router.get(
+    "/projects/:name/compose-files",
+    asyncHandler(async (req, res) => {
+      try {
+        const project = projectService.getProject(req.params.name);
+        if (!project) return res.status(404).json({ success: false, message: "Project not found" });
+        const files = projectService.findComposeFiles(project.path);
+        res.json({ success: true, data: files });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
       }
     }),
   );
