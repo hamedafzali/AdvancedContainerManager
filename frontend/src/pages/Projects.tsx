@@ -915,232 +915,162 @@ export default function Projects() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProjects.map((project, index) => (
             <div
               key={index}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200"
+              className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col hover:shadow-md hover:border-gray-300 transition-all duration-200"
             >
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex items-center min-w-0">
-                  {getStatusIcon(project.status)}
-                  <h3
-                    className="ml-2 text-lg font-semibold text-gray-900 truncate max-w-[12rem] sm:max-w-[16rem] lg:max-w-[14rem]"
-                    title={project.name}
-                  >
-                    {project.name}
-                  </h3>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2">
-                  <button
-                    onClick={() => handleBuildProject(project.name)}
-                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
-                    title="Build"
-                  >
-                    <Code2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleSyncProject(project.name)}
-                    className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors duration-200"
-                    title="Sync Repo"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeployProject(project.name)}
-                    className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors duration-200"
-                    title="Deploy"
-                  >
-                    <Play className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleSyncDeploy(project.name)}
-                    className="p-1.5 text-violet-600 hover:bg-violet-50 rounded transition-colors duration-200"
-                    title="Sync & Deploy"
-                  >
-                    <Zap className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleStopProject(project.name)}
-                    className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"
-                    title="Stop"
-                  >
-                    <Square className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleViewLogs(project)}
-                    className="p-1.5 text-purple-600 hover:bg-purple-50 rounded transition-colors duration-200"
-                    title="Logs"
-                  >
-                    <Terminal className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => openEnvModal(project)}
-                    className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"
-                    title="Environment Vars"
-                  >
-                    <Settings className="w-4 h-4" />
-                  </button>
-                  {project.tunnelId ? (
-                    <button
-                      onClick={() => handleStopTunnel(project.name)}
-                      disabled={tunnelLoading === project.name}
-                      className="p-1.5 text-orange-600 hover:bg-orange-50 rounded transition-colors duration-200 disabled:opacity-50"
-                      title="Stop Tunnel"
-                    >
-                      <Link2Off className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleCreateTunnel(project.name)}
-                      disabled={tunnelLoading === project.name}
-                      className="p-1.5 text-teal-600 hover:bg-teal-50 rounded transition-colors duration-200 disabled:opacity-50"
-                      title="Create Tunnel"
-                    >
-                      <Globe className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDeleteProject(project.name)}
-                    className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+              {/* Card header — status stripe */}
+              <div className={`h-1 rounded-t-2xl ${
+                project.status === "running" ? "bg-green-400" :
+                project.status === "error" ? "bg-red-400" :
+                project.status === "building" ? "bg-yellow-400" :
+                project.status === "built" ? "bg-indigo-400" :
+                project.status === "stopped" ? "bg-gray-300" :
+                "bg-blue-300"
+              }`} />
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Repository:</span>
-                  <a
-                    href={project.repoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 flex items-center max-w-[10rem] sm:max-w-[14rem] truncate"
-                    title={project.repoUrl}
-                  >
-                    <ExternalLink className="w-3 h-3 mr-1" />
-                    <span className="truncate">
-                      {project.repoUrl.split("/").pop()}
-                    </span>
-                  </a>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Branch:</span>
-                  <span className="font-medium flex items-center">
-                    <GitBranch className="w-3 h-3 mr-1" />
-                    {project.branch}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Status:</span>
-                  <span
-                    className={`font-medium ${getStatusColor(project.status)}`}
-                  >
-                    {project.status}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Containers:</span>
-                  <span className="font-medium">
-                    {project.containers.length}
-                  </span>
-                </div>
-
-                {project.ports && project.ports.length > 0 && (
-                  <div className="flex items-start justify-between text-sm">
-                    <span className="text-gray-500">Ports:</span>
-                    <div className="text-right space-y-1">
-                      {project.ports.map((port, portIndex) => (
-                        <div key={portIndex} className="font-medium text-xs">
-                          <span className="text-blue-600">
-                            {port.hostPort ? `${port.hostPort}:` : ""}
-                            {port.containerPort}
-                          </span>
-                          <span className="text-gray-400 ml-1">
-                            {port.service}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+              <div className="p-5 flex flex-col flex-1">
+                {/* Title row — full width, status badge beside name */}
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    {getStatusIcon(project.status)}
+                    <h3 className="text-base font-semibold text-gray-900 break-all leading-snug" title={project.name}>
+                      {project.name}
+                    </h3>
                   </div>
-                )}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      project.status === "running" ? "bg-green-100 text-green-700" :
+                      project.status === "error" ? "bg-red-100 text-red-700" :
+                      project.status === "building" ? "bg-yellow-100 text-yellow-700" :
+                      project.status === "built" ? "bg-indigo-100 text-indigo-700" :
+                      project.status === "stopped" ? "bg-gray-100 text-gray-600" :
+                      "bg-blue-100 text-blue-700"
+                    }`}>
+                      {project.status}
+                    </span>
+                    {project.containers.length > 0 && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                        <Activity className="w-3 h-3" />
+                        {project.containers.length} container{project.containers.length !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Tunnel:</span>
-                  {project.tunnelUrl ? (
-                    <div className="flex items-center gap-1 max-w-[12rem]">
+                {/* Info rows */}
+                <div className="space-y-2.5 flex-1">
+                  {/* Repo */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <ExternalLink className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <a
+                      href={project.repoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 truncate min-w-0"
+                      title={project.repoUrl}
+                    >
+                      {project.repoUrl.replace(/^https?:\/\//, "").replace(/\.git$/, "")}
+                    </a>
+                  </div>
+
+                  {/* Branch */}
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <GitBranch className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                    <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{project.branch}</span>
+                  </div>
+
+                  {/* Ports */}
+                  {project.ports && project.ports.length > 0 && (
+                    <div className="flex items-start gap-2 text-sm">
+                      <Shield className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                      <div className="flex flex-wrap gap-1">
+                        {project.ports.map((port, pi) => (
+                          <span key={pi} className="font-mono text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
+                            {port.hostPort ? `${port.hostPort}→` : ""}{port.containerPort}
+                            <span className="text-blue-400 ml-1">{port.service}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tunnel */}
+                  {project.tunnelUrl && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Globe className="w-3.5 h-3.5 text-teal-500 shrink-0" />
                       <a
                         href={`https://${project.tunnelUrl}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-teal-600 hover:text-teal-800 text-xs truncate"
-                        title={`https://${project.tunnelUrl}`}
+                        className="text-teal-600 hover:text-teal-800 text-xs truncate min-w-0"
                       >
                         {project.tunnelUrl}
                       </a>
                       <button
                         onClick={() => navigator.clipboard.writeText(`https://${project.tunnelUrl}`)}
-                        className="p-0.5 text-gray-400 hover:text-gray-600 flex-shrink-0"
+                        className="p-0.5 text-gray-400 hover:text-gray-600 shrink-0"
                         title="Copy URL"
                       >
                         <Copy className="w-3 h-3" />
                       </button>
                     </div>
-                  ) : (
-                    <span className="text-xs text-gray-400">
-                      {tunnelLoading === project.name ? "Creating..." : "None"}
-                    </span>
                   )}
-                </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Resources:</span>
-                  <span className="font-medium text-xs">
-                    {project.resourceLimits.memory} /{" "}
-                    {project.resourceLimits.cpu} CPU
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Created:</span>
-                  <span className="font-medium">
-                    {new Date(project.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-
-                {project.healthChecks.length > 0 && (
-                  <div className="pt-4 border-t border-gray-200">
-                    <div className="text-sm text-gray-500 mb-2">
-                      Health Checks:
-                    </div>
-                    <div className="space-y-1">
-                      {project.healthChecks.slice(0, 2).map((check, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center justify-between text-xs"
-                        >
-                          <span className="text-gray-600">{check.name}</span>
-                          <span
-                            className={`${
-                              check.status === "healthy"
-                                ? "text-green-600"
-                                : check.status === "unhealthy"
-                                  ? "text-red-600"
-                                  : "text-gray-500"
-                            }`}
-                          >
-                            {check.status}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                  {/* Resources */}
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <Zap className="w-3.5 h-3.5 shrink-0" />
+                    <span>{project.resourceLimits.memory} · {project.resourceLimits.cpu} CPU</span>
+                    <span className="ml-auto">{new Date(project.createdAt).toLocaleDateString()}</span>
                   </div>
-                )}
+                </div>
+
+                {/* Action toolbar — separated at bottom */}
+                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  {/* Primary actions */}
+                  <div className="flex items-center gap-0.5">
+                    <button onClick={() => handleSyncDeploy(project.name)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-gray-900 hover:bg-gray-700 rounded-lg transition-colors" title="Sync & Deploy">
+                      <Zap className="w-3.5 h-3.5" />
+                      Deploy
+                    </button>
+                    <button onClick={() => handleDeployProject(project.name)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Deploy only">
+                      <Play className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleStopProject(project.name)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Stop">
+                      <Square className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Secondary actions */}
+                  <div className="flex items-center gap-0.5">
+                    <button onClick={() => handleSyncProject(project.name)} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Sync repo">
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleBuildProject(project.name)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Build">
+                      <Code2 className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleViewLogs(project)} className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg transition-colors" title="Logs">
+                      <Terminal className="w-4 h-4" />
+                    </button>
+                    {project.tunnelId ? (
+                      <button onClick={() => handleStopTunnel(project.name)} disabled={tunnelLoading === project.name} className="p-1.5 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-40" title="Stop tunnel">
+                        <Link2Off className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button onClick={() => handleCreateTunnel(project.name)} disabled={tunnelLoading === project.name} className="p-1.5 text-teal-500 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-40" title="Create tunnel">
+                        <Globe className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={() => openEnvModal(project)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Settings">
+                      <Settings className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDeleteProject(project.name)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           ))}
