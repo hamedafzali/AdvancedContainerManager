@@ -52,6 +52,45 @@ interface Settings {
   };
 }
 
+function ChangePasswordForm({ onSuccess, onError }: { onSuccess: () => void; onError: (e: string) => void }) {
+  const [oldPw, setOldPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("acm_token") || "";
+      const res = await fetch(apiUrl("/api/auth/change-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+      localStorage.removeItem("acm_token");
+      onSuccess();
+      setTimeout(() => window.location.reload(), 1500);
+    } catch (err) {
+      onError(err instanceof Error ? err.message : "Failed to change password");
+    } finally {
+      setLoading(false);
+      setOldPw(""); setNewPw("");
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 max-w-sm">
+      <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} placeholder="Current password" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+      <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+      <button type="submit" disabled={loading || !oldPw || !newPw} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm disabled:opacity-50 hover:bg-gray-800">
+        {loading ? "Changing..." : "Change Password"}
+      </button>
+    </form>
+  );
+}
+
 export default function Settings() {
   const [settings, setSettings] = useState<Settings>({
     general: {
@@ -596,6 +635,11 @@ export default function Settings() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-4">Change Password</h3>
+                    <ChangePasswordForm onSuccess={() => setSuccess("Password changed successfully")} onError={(e) => setError(e)} />
                   </div>
                 </div>
               )}

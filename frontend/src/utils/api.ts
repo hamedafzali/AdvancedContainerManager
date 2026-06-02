@@ -18,3 +18,8 @@ export const apiUrl = (path: string): string => {
 
   return `${base}${normalizedPath}`;
 };
+
+export const authHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem("acm_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};

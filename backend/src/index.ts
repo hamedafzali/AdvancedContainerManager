@@ -18,6 +18,9 @@ import TerminalService from "./services/terminal-service";
 import { WebSocketHandler } from "./services/websocket-handler";
 import { HealthService } from "./services/health-service";
 import { GitAccountService } from "./services/git-account-service";
+import { AuthService } from "./services/auth-service";
+import { SettingsService } from "./services/settings-service";
+import { initEncryption } from "./utils/encryption";
 import { errorHandler } from "./middleware/error-handler";
 import { routes } from "./routes";
 
@@ -38,6 +41,8 @@ class AdvancedContainerManager {
   private wsHandler: WebSocketHandler;
   private healthService: HealthService;
   private gitAccountService: GitAccountService;
+  private authService: AuthService;
+  private settingsService: SettingsService;
 
   constructor() {
     this.config = this.loadConfig();
@@ -101,6 +106,15 @@ class AdvancedContainerManager {
   }
 
   private initializeServices(): void {
+    const dataDir = require("path").dirname(this.config.databasePath);
+    initEncryption(dataDir);
+
+    this.settingsService = new SettingsService(this.logger, this.config.databasePath);
+    this.authService = new AuthService(
+      this.logger,
+      this.config.databasePath,
+      this.settingsService.getSectionValue<number>("security", "sessionTimeout") || 3600000,
+    );
     this.dockerService = new DockerService(this.config, this.logger);
     this.metricsCollector = new MetricsCollector(
       this.config,
@@ -119,6 +133,7 @@ class AdvancedContainerManager {
     );
 
     this.projectService.setWebSocketHandler(this.wsHandler);
+    this.projectService.startHealthPolling(this.wsHandler);
 
     // Start background services
     this.metricsCollector.start();
@@ -179,6 +194,8 @@ class AdvancedContainerManager {
         this.terminalService,
         this.metricsCollector,
         this.gitAccountService,
+        this.authService,
+        this.settingsService,
       ),
     );
 

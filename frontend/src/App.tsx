@@ -9,8 +9,10 @@ import {
 } from "@/hooks/useKeyboardShortcuts";
 import Layout from "@/components/Layout";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState, useEffect } from "react";
 import { NotificationProvider } from "@/hooks/useNotifications";
+import Login from "@/pages/Login";
+import { apiUrl } from "@/utils/api";
 
 // Lazy load page components
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -66,6 +68,37 @@ function AppWithSocket() {
 }
 
 function App() {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [requireAuth, setRequireAuth] = useState(false);
+  const [token, setToken] = useState<string | null>(localStorage.getItem("acm_token"));
+
+  useEffect(() => {
+    fetch(apiUrl("/api/settings"))
+      .then((r) => r.json())
+      .then((result) => {
+        setRequireAuth(result.data?.security?.requireAuth === true);
+      })
+      .catch(() => {})
+      .finally(() => setAuthChecked(true));
+  }, []);
+
+  useEffect(() => {
+    if (!token || !requireAuth) return;
+    fetch(apiUrl("/api/auth/me"), { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => { if (!r.ok) { localStorage.removeItem("acm_token"); setToken(null); } })
+      .catch(() => {});
+  }, [token, requireAuth]);
+
+  if (!authChecked) return null;
+
+  if (requireAuth && !token) {
+    return (
+      <ErrorBoundary>
+        <Login onLogin={(t) => setToken(t)} />
+      </ErrorBoundary>
+    );
+  }
+
   return (
     <ErrorBoundary>
       <QueryProvider>

@@ -237,6 +237,10 @@ export class WebSocketHandler {
       .emit("project_deploy_status", event);
   }
 
+  public broadcastProjectHealth(event: { projectName: string; health: any }): void {
+    this.io.emit("project_health", event);
+  }
+
   public getClientCount(): number {
     return this.connectedClients.size;
   }

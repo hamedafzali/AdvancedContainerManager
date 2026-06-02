@@ -113,6 +113,8 @@ export default function Projects() {
   });
   const [detectedComposeFiles, setDetectedComposeFiles] = useState<string[]>([]);
   const [tunnelLoading, setTunnelLoading] = useState<string | null>(null);
+  const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
+  const [webhookLoading, setWebhookLoading] = useState(false);
 
   // Git accounts state
   interface GitAccount { id: string; provider: "github" | "gitlab"; username: string; addedAt: string; }
@@ -380,8 +382,19 @@ export default function Projects() {
     });
   };
 
+  const handleGenerateWebhook = async (projectName: string) => {
+    setWebhookLoading(true);
+    try {
+      const res = await fetch(apiUrl(`/api/projects/${encodeURIComponent(projectName)}/webhook/generate`), { method: "POST" });
+      const result = await res.json();
+      if (result.success) setWebhookSecret(result.data.secret);
+    } catch {}
+    setWebhookLoading(false);
+  };
+
   const openEnvModal = (project: Project) => {
     setEnvProject(project);
+    setWebhookSecret(null);
     const entries = Object.entries(project.environmentVars || {}).map(
       ([key, value]) => ({ key, value }),
     );
@@ -1526,6 +1539,29 @@ export default function Projects() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="docker-compose.yml"
                 />
+              </div>
+
+              <div className="mb-6">
+                <div className="text-sm font-medium text-gray-700 mb-2">Webhook (Auto-Deploy)</div>
+                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-gray-500">Generate a secret and point your GitHub/GitLab webhook to trigger automatic sync & deploy on push.</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs bg-white border border-gray-200 rounded px-2 py-1 flex-1 truncate">
+                      {window.location.protocol}//{window.location.hostname}:5003/api/webhook/{envProject?.name}
+                    </code>
+                    <button onClick={() => navigator.clipboard.writeText(`${window.location.protocol}//${window.location.hostname}:5003/api/webhook/${envProject?.name}`)} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border border-gray-200 rounded bg-white">Copy</button>
+                  </div>
+                  {webhookSecret && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-500">Secret:</span>
+                      <code className="text-xs bg-white border border-gray-200 rounded px-2 py-1 flex-1 font-mono truncate">{webhookSecret}</code>
+                      <button onClick={() => navigator.clipboard.writeText(webhookSecret)} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border border-gray-200 rounded bg-white">Copy</button>
+                    </div>
+                  )}
+                  <button onClick={() => handleGenerateWebhook(envProject!.name)} disabled={webhookLoading} className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50">
+                    {webhookLoading ? "Generating..." : webhookSecret ? "Regenerate Secret" : "Generate Secret"}
+                  </button>
+                </div>
               </div>
 
               <div className="mb-6">

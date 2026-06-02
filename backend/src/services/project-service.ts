@@ -6,6 +6,7 @@ import { simpleGit } from "simple-git";
 import * as yaml from "js-yaml";
 import { ProjectInfo, ProjectHealth, AppConfig } from "../types";
 import { Logger } from "../utils/logger";
+import { encryptEnvVars, decryptEnvVars } from "../utils/encryption";
 import type { WebSocketHandler } from "./websocket-handler";
 
 const Database = require("better-sqlite3");
@@ -199,7 +200,11 @@ export class ProjectService {
       }
 
       this.projects = new Map(
-        rows.map((row) => [row.name, JSON.parse(row.payload) as ProjectInfo]),
+        rows.map((row) => {
+          const p = JSON.parse(row.payload) as ProjectInfo;
+          p.environmentVars = decryptEnvVars(p.environmentVars || {});
+          return [row.name, p];
+        }),
       );
       this.logger.info(`Loaded ${this.projects.size} projects from database`);
     } catch (error) {
@@ -226,9 +231,13 @@ export class ProjectService {
 
       const transaction = this.database.transaction(() => {
         for (const [name, project] of this.projects.entries()) {
+          const stored = {
+            ...project,
+            environmentVars: encryptEnvVars(project.environmentVars || {}),
+          };
           upsert.run({
             name,
-            payload: JSON.stringify(project),
+            payload: JSON.stringify(stored),
             updated_at: project.lastUpdated || new Date().toISOString(),
           });
         }
@@ -1800,6 +1809,42 @@ export class ProjectService {
         containerCount: project.containers.length,
       })),
     };
+  }
+  private healthPollInterval: ReturnType<typeof setInterval> | null = null;
+
+  public startHealthPolling(wsHandler: WebSocketHandler, intervalMs = 60_000): void {
+    if (this.healthPollInterval) return;
+    this.healthPollInterval = setInterval(async () => {
+      for (const [name, project] of this.projects.entries()) {
+        if (project.status !== "running") continue;
+        try {
+          const health = await this.getProjectHealth(name);
+          wsHandler.broadcastProjectHealth({ projectName: name, health });
+        } catch {}
+      }
+    }, intervalMs);
+  }
+
+  public stopHealthPolling(): void {
+    if (this.healthPollInterval) {
+      clearInterval(this.healthPollInterval);
+      this.healthPollInterval = null;
+    }
+  }
+
+  public generateWebhookSecret(name: string): string {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    const crypto = require("crypto");
+    const secret = crypto.randomBytes(24).toString("hex");
+    (project as any).webhookSecret = secret;
+    project.lastUpdated = new Date().toISOString();
+    this.saveProjects();
+    return secret;
+  }
+
+  public getWebhookSecret(name: string): string | undefined {
+    return (this.projects.get(name) as any)?.webhookSecret;
   }
 }
 

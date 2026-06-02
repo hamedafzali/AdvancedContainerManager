@@ -14,6 +14,9 @@ import { AnalyticsService } from "../services/analytics-service";
 import { SecurityService } from "../services/security-service";
 import { CloudflareService } from "../services/cloudflare-service";
 import { GitAccountService } from "../services/git-account-service";
+import { AuthService } from "../services/auth-service";
+import { SettingsService } from "../services/settings-service";
+import * as crypto from "crypto";
 
 export function routes(
   dockerService: DockerService,
@@ -22,6 +25,8 @@ export function routes(
   terminalService: TerminalService,
   metricsCollector: MetricsCollector,
   gitAccountService: GitAccountService,
+  authService: AuthService,
+  settingsService: SettingsService,
 ): Router {
   const router = Router();
   const logger = new Logger(LogLevel.INFO);
@@ -33,6 +38,55 @@ export function routes(
   const cloudflareService = new CloudflareService(logger);
 
   router.use(apiRateLimit);
+
+  // Auth routes (public — no auth required)
+  router.post("/auth/login", asyncHandler(async (req, res) => {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ success: false, message: "username and password required" });
+    }
+    if (!authService.verifyPassword(username, password)) {
+      return res.status(401).json({ success: false, message: "Invalid credentials" });
+    }
+    const session = authService.createSession(username);
+    res.json({ success: true, data: session });
+  }));
+
+  router.post("/auth/logout", asyncHandler(async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (token) authService.revokeSession(token);
+    res.json({ success: true });
+  }));
+
+  router.post("/auth/change-password", asyncHandler(async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const username = token ? authService.validateSession(token) : null;
+    if (!username) return res.status(401).json({ success: false, message: "Unauthorized" });
+    const { oldPassword, newPassword } = req.body;
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "oldPassword and newPassword required" });
+    }
+    authService.changePassword(username, oldPassword, newPassword);
+    res.json({ success: true, message: "Password changed. Please log in again." });
+  }));
+
+  router.get("/auth/me", asyncHandler(async (req, res) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    const username = token ? authService.validateSession(token) : null;
+    if (!username) return res.status(401).json({ success: false, message: "Unauthorized" });
+    res.json({ success: true, data: { username } });
+  }));
+
+  // Auth middleware — applied to all subsequent routes
+  router.use((req, res, next) => {
+    const requireAuth = settingsService.getSectionValue<boolean>("security", "requireAuth");
+    if (!requireAuth) return next();
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token || !authService.validateSession(token)) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    next();
+  });
 
   router.use((req, res, next) => {
     const start = Date.now();
@@ -1164,156 +1218,40 @@ export function routes(
   );
 
   // Settings routes
-  router.get(
-    "/settings",
-    asyncHandler(async (req, res) => {
-      try {
-        const settings = {
-          general: {
-            theme: "light",
-            language: "en",
-            autoRefresh: true,
-            refreshInterval: 5000,
-          },
-          notifications: {
-            enabled: true,
-            containerEvents: true,
-            systemAlerts: true,
-            emailNotifications: false,
-          },
-          docker: {
-            defaultRegistry: "docker.io",
-            autoPrune: false,
-            pruneInterval: 86400000, // 24 hours
-            maxContainers: 50,
-          },
-          security: {
-            requireAuth: false,
-            sessionTimeout: 3600000, // 1 hour
-            maxLoginAttempts: 5,
-          },
-          api: {
-            rateLimit: true,
-            maxRequests: 100,
-            windowMs: 900000, // 15 minutes
-          },
-        };
+  router.get("/settings", asyncHandler(async (req, res) => {
+    res.json({ success: true, data: settingsService.getAll() });
+  }));
 
-        res.json({
-          success: true,
-          data: settings,
-        });
-      } catch (error) {
-        logger.error("Error getting settings:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+  router.put("/settings", asyncHandler(async (req, res) => {
+    try {
+      const { section, settings } = req.body;
+      if (!section || typeof settings !== "object") {
+        return res.status(400).json({ success: false, message: "section and settings required" });
       }
-    }),
-  );
+      settingsService.saveSection(section, settings);
+      res.json({ success: true, message: "Settings saved" });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }));
 
-  router.put(
-    "/settings",
-    asyncHandler(async (req, res) => {
-      try {
-        const { section, settings } = req.body;
+  router.get("/settings/backup", asyncHandler(async (req, res) => {
+    res.json({ success: true, data: { timestamp: new Date().toISOString(), version: "1.0.0", settings: settingsService.getAll() } });
+  }));
 
-        // In a real implementation, this would save to a database or config file
-        // For now, we'll just return success
-        logger.info(`Settings updated for section: ${section}`);
-
-        res.json({
-          success: true,
-          message: "Settings updated successfully",
-        });
-      } catch (error) {
-        logger.error("Error updating settings:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
+  router.post("/settings/restore", asyncHandler(async (req, res) => {
+    try {
+      const { backup } = req.body;
+      if (backup?.settings && typeof backup.settings === "object") {
+        for (const [section, values] of Object.entries(backup.settings)) {
+          settingsService.saveSection(section, values as Record<string, any>);
+        }
       }
-    }),
-  );
-
-  router.get(
-    "/settings/backup",
-    asyncHandler(async (req, res) => {
-      try {
-        const settings = {
-          general: {
-            theme: "light",
-            language: "en",
-            autoRefresh: true,
-            refreshInterval: 5000,
-          },
-          notifications: {
-            enabled: true,
-            containerEvents: true,
-            systemAlerts: true,
-            emailNotifications: false,
-          },
-          docker: {
-            defaultRegistry: "docker.io",
-            autoPrune: false,
-            pruneInterval: 86400000,
-            maxContainers: 50,
-          },
-          security: {
-            requireAuth: false,
-            sessionTimeout: 3600000,
-            maxLoginAttempts: 5,
-          },
-          api: {
-            rateLimit: true,
-            maxRequests: 100,
-            windowMs: 900000,
-          },
-        };
-
-        const backup = {
-          timestamp: new Date().toISOString(),
-          version: "1.0.0",
-          settings,
-        };
-
-        res.json({
-          success: true,
-          data: backup,
-        });
-      } catch (error) {
-        logger.error("Error creating settings backup:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  router.post(
-    "/settings/restore",
-    asyncHandler(async (req, res) => {
-      try {
-        const { backup } = req.body;
-
-        // In a real implementation, this would restore from backup
-        logger.info("Settings restored from backup");
-
-        res.json({
-          success: true,
-          message: "Settings restored successfully",
-        });
-      } catch (error) {
-        logger.error("Error restoring settings:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
+      res.json({ success: true, message: "Settings restored" });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }));
 
   // Backup routes
   router.post(
@@ -2036,6 +1974,50 @@ export function routes(
           message: error.message,
         });
       }
+    }),
+  );
+
+  router.post(
+    "/projects/:name/webhook/generate",
+    asyncHandler(async (req, res) => {
+      try {
+        const secret = projectService.generateWebhookSecret(req.params.name);
+        res.json({ success: true, data: { secret } });
+      } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
+  // Webhook endpoint — public (verified by HMAC)
+  router.post(
+    "/webhook/:name",
+    asyncHandler(async (req, res) => {
+      const secret = projectService.getWebhookSecret(req.params.name);
+      if (!secret) {
+        return res.status(404).json({ success: false, message: "No webhook configured for this project" });
+      }
+
+      const signature = req.headers["x-hub-signature-256"] as string || req.headers["x-gitlab-token"] as string || "";
+      const body = JSON.stringify(req.body);
+
+      // GitHub uses HMAC-SHA256, GitLab uses plain secret token
+      const expected = `sha256=${crypto.createHmac("sha256", secret).update(body).digest("hex")}`;
+      const isGitHub = signature.startsWith("sha256=");
+      const valid = isGitHub
+        ? crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+        : signature === secret;
+
+      if (!valid) {
+        return res.status(401).json({ success: false, message: "Invalid webhook signature" });
+      }
+
+      res.json({ success: true, message: "Webhook received, deploying..." });
+
+      // Run async without blocking response
+      projectService.pullLatestProject(req.params.name)
+        .then(() => projectService.deployProject(req.params.name))
+        .catch((err) => logger.error(`Webhook deploy failed for ${req.params.name}:`, err));
     }),
   );
 
