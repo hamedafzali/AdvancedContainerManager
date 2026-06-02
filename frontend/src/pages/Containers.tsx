@@ -23,7 +23,7 @@ import {
   ArrowUpDown,
   Layers,
 } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface Container {
   id: string;
@@ -138,7 +138,7 @@ export default function Containers() {
         if (shouldShowLoading) {
           setLoading(true);
         }
-        const response = await fetch(apiUrl("/api/containers"));
+        const response = await apiFetch("/api/containers");
         const text = await response.text();
         if (!response.ok) {
           throw new Error(text || "Failed to fetch containers");
@@ -323,7 +323,7 @@ export default function Containers() {
         : [];
 
     try {
-      const response = await fetch(apiUrl("/api/containers/create"), {
+      const response = await apiFetch("/api/containers/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

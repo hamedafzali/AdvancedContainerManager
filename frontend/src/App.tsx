@@ -12,7 +12,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { lazy, Suspense, useState, useEffect } from "react";
 import { NotificationProvider } from "@/hooks/useNotifications";
 import Login from "@/pages/Login";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 // Lazy load page components
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -73,7 +73,7 @@ function App() {
   const [token, setToken] = useState<string | null>(localStorage.getItem("acm_token"));
 
   useEffect(() => {
-    fetch(apiUrl("/api/settings"))
+    apiFetch("/api/settings")
       .then((r) => r.json())
       .then((result) => {
         setRequireAuth(result.data?.security?.requireAuth === true);
@@ -84,7 +84,7 @@ function App() {
 
   useEffect(() => {
     if (!token || !requireAuth) return;
-    fetch(apiUrl("/api/auth/me"), { headers: { Authorization: `Bearer ${token}` } })
+    apiFetch("/api/auth/me", { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => { if (!r.ok) { localStorage.removeItem("acm_token"); setToken(null); } })
       .catch(() => {});
   }, [token, requireAuth]);

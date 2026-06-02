@@ -16,6 +16,7 @@ import { CloudflareService } from "../services/cloudflare-service";
 import { GitAccountService } from "../services/git-account-service";
 import { AuthService } from "../services/auth-service";
 import { SettingsService } from "../services/settings-service";
+import { PruneService } from "../services/prune-service";
 import * as crypto from "crypto";
 
 export function routes(
@@ -27,6 +28,7 @@ export function routes(
   gitAccountService: GitAccountService,
   authService: AuthService,
   settingsService: SettingsService,
+  pruneService: PruneService,
 ): Router {
   const router = Router();
   const logger = new Logger(LogLevel.INFO);
@@ -2034,6 +2036,21 @@ export function routes(
       }
     }),
   );
+
+  // Prune routes
+  router.post("/system/prune", asyncHandler(async (req, res) => {
+    try {
+      const { target = "all" } = req.body;
+      let result: any;
+      if (target === "containers") result = { containers: await pruneService.pruneContainers() };
+      else if (target === "images") result = { images: await pruneService.pruneImages() };
+      else if (target === "volumes") result = { volumes: await pruneService.pruneVolumes() };
+      else result = await pruneService.pruneAll();
+      res.json({ success: true, data: result });
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message });
+    }
+  }));
 
   // Git account routes
   router.get(

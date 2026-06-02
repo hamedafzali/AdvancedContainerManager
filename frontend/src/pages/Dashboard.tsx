@@ -17,7 +17,7 @@ import ContainerChart from "@/components/ContainerChart";
 import ActivityFeed from "@/components/ActivityFeed";
 import { AISuggestions } from "@/components/AISuggestions";
 import { DataExport } from "@/components/DataExport";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface SystemMetrics {
   cpuPercent: number;
@@ -119,7 +119,7 @@ export default function Dashboard() {
     setPerformanceMode(newMode);
     // Call backend API to toggle performance mode
     try {
-      await fetch(apiUrl("/api/system/performance-mode"), {
+      await apiFetch("/api/system/performance-mode", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: newMode }),
@@ -132,7 +132,7 @@ export default function Dashboard() {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const setPerformanceBaseline = async () => {
     try {
-      await fetch(apiUrl("/api/system/performance-baseline"), {
+      await apiFetch("/api/system/performance-baseline", {
         method: "POST",
       });
       // Show success notification
@@ -149,9 +149,9 @@ export default function Dashboard() {
   // Fetch real data from backend
   const fetchDashboardData = async () => {
     try {
-      const systemResponse = await fetch(apiUrl("/api/system/metrics"));
-      const containersResponse = await fetch(apiUrl("/api/containers"));
-      const projectsResponse = await fetch(apiUrl("/api/projects"));
+      const systemResponse = await apiFetch("/api/system/metrics");
+      const containersResponse = await apiFetch("/api/containers");
+      const projectsResponse = await apiFetch("/api/projects");
 
       if (
         !systemResponse.ok ||

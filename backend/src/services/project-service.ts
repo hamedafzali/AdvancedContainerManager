@@ -1422,6 +1422,8 @@ export class ProjectService {
         throw new Error(message);
       }
 
+      this.applyResourceLimits(project, composeFile);
+
       this.logger.info(
         `Deploying project: ${name} using ${path.basename(composeFile)}`,
       );
@@ -1810,6 +1812,37 @@ export class ProjectService {
       })),
     };
   }
+  private applyResourceLimits(project: ProjectInfo, composeFile: string): void {
+    const { memory, cpu } = project.resourceLimits || {};
+    if (!memory && !cpu) return;
+
+    try {
+      const content = fs.readFileSync(composeFile, "utf8");
+      const compose = yaml.load(content) as any;
+      if (!compose?.services) return;
+
+      let changed = false;
+      for (const service of Object.values(compose.services as Record<string, any>)) {
+        if (!service || typeof service !== "object") continue;
+        if (!service.deploy) service.deploy = {};
+        if (!service.deploy.resources) service.deploy.resources = {};
+
+        const limits = service.deploy.resources.limits || {};
+        if (memory) limits.memory = memory;
+        if (cpu) limits.cpus = cpu;
+        service.deploy.resources.limits = limits;
+        changed = true;
+      }
+
+      if (changed) {
+        fs.writeFileSync(composeFile, yaml.dump(compose, { noRefs: true }), "utf8");
+        this.logger.info(`Applied resource limits to ${path.basename(composeFile)} for project ${project.name}`);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to apply resource limits for ${project.name}: ${error}`);
+    }
+  }
+
   private healthPollInterval: ReturnType<typeof setInterval> | null = null;
 
   public startHealthPolling(wsHandler: WebSocketHandler, intervalMs = 60_000): void {

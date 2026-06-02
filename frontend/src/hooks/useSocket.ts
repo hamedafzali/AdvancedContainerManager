@@ -2,6 +2,13 @@ import { useEffect, useRef } from "react";
 import { io, Socket } from "socket.io-client";
 import { useNotifications } from "@/hooks/useNotifications";
 
+function sendBrowserNotification(title: string, body: string) {
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "granted") {
+    new Notification(title, { body, icon: "/favicon.ico" });
+  }
+}
+
 export function useSocket() {
   const { addNotification } = useNotifications();
   const socketRef = useRef<Socket | null>(null);
@@ -11,12 +18,14 @@ export function useSocket() {
       const rawSocketUrl = import.meta.env.VITE_SOCKET_URL || "";
       const socketUrl =
         !rawSocketUrl || rawSocketUrl === "auto" ? undefined : rawSocketUrl;
+      const token = localStorage.getItem("acm_token");
       socketRef.current = io(socketUrl, {
         path: "/socket.io",
         timeout: 5000,
         reconnection: true,
         reconnectionDelay: 1000,
         reconnectionAttempts: 5,
+        auth: token ? { token } : undefined,
       });
 
       const socket = socketRef.current;
@@ -42,9 +51,10 @@ export function useSocket() {
 
       socket.on("connect", () => {
         console.log("Connected to Advanced Container Manager WebSocket");
-
-        // Request initial data
         socket.emit("get_system_metrics");
+        if ("Notification" in window && Notification.permission === "default") {
+          Notification.requestPermission();
+        }
       });
 
       socket.on("connect_error", (error) => {
@@ -72,16 +82,15 @@ export function useSocket() {
         );
 
         // Show notification for important container events
-        if (
-          data.type === "started" ||
-          data.type === "stopped" ||
-          data.type === "error"
-        ) {
+        if (data.type === "started" || data.type === "stopped" || data.type === "error") {
           addNotification({
             type: data.type === "error" ? "error" : "info",
             message: `Container ${data.name} ${data.type}`,
             duration: 5000,
           });
+          if (data.type === "error") {
+            sendBrowserNotification(`Container error: ${data.name}`, "Container encountered an error");
+          }
         }
       });
 
@@ -130,6 +139,19 @@ export function useSocket() {
         window.dispatchEvent(
           new CustomEvent("project_deploy_status", { detail: data }),
         );
+      });
+
+      // Project health polling updates
+      socket.on("project_health", (data) => {
+        window.dispatchEvent(new CustomEvent("project_health", { detail: data }));
+        if (data?.health?.overall === "unhealthy") {
+          addNotification({
+            type: "warning",
+            message: `Project ${data.projectName} is unhealthy`,
+            duration: 8000,
+          });
+          sendBrowserNotification(`Project ${data.projectName} unhealthy`, data.health.issues?.[0] || "");
+        }
       });
 
       // Metrics history response

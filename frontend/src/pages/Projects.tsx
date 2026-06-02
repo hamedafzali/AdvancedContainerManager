@@ -24,7 +24,7 @@ import {
   Github,
   BookOpen,
 } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface Project {
   name: string;
@@ -137,7 +137,7 @@ export default function Projects() {
   const handleCreateTunnel = async (projectName: string) => {
     try {
       setTunnelLoading(projectName);
-      const response = await fetch(apiUrl(`/api/projects/${encodeURIComponent(projectName)}/tunnel`), {
+      const response = await apiFetch(`/api/projects/${encodeURIComponent(projectName)}/tunnel`, {
         method: "POST",
       });
       const result = await response.json();
@@ -153,7 +153,7 @@ export default function Projects() {
   const handleStopTunnel = async (projectName: string) => {
     try {
       setTunnelLoading(projectName);
-      const response = await fetch(apiUrl(`/api/projects/${encodeURIComponent(projectName)}/tunnel`), {
+      const response = await apiFetch(`/api/projects/${encodeURIComponent(projectName)}/tunnel`, {
         method: "DELETE",
       });
       const result = await response.json();
@@ -168,7 +168,7 @@ export default function Projects() {
 
   const fetchGitAccounts = async () => {
     try {
-      const res = await fetch(apiUrl("/api/git-accounts"));
+      const res = await apiFetch("/api/git-accounts");
       const result = await res.json();
       if (result.success) setGitAccounts(result.data);
     } catch {}
@@ -179,7 +179,7 @@ export default function Projects() {
     setGitAccountLoading(true);
     setGitAccountError(null);
     try {
-      const res = await fetch(apiUrl("/api/git-accounts"), {
+      const res = await apiFetch("/api/git-accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: gitProvider, token: gitToken }),
@@ -197,7 +197,7 @@ export default function Projects() {
   };
 
   const handleRemoveGitAccount = async (id: string) => {
-    await fetch(apiUrl(`/api/git-accounts/${encodeURIComponent(id)}`), { method: "DELETE" });
+    await apiFetch(`/api/git-accounts/${encodeURIComponent(id)}`, { method: "DELETE" });
     await fetchGitAccounts();
     if (selectedAccount?.id === id) {
       setSelectedAccount(null);
@@ -214,7 +214,7 @@ export default function Projects() {
     setRepoSearch("");
     setReposLoading(true);
     try {
-      const res = await fetch(apiUrl(`/api/git-accounts/${encodeURIComponent(account.id)}/repos`));
+      const res = await apiFetch(`/api/git-accounts/${encodeURIComponent(account.id)}/repos`);
       const result = await res.json();
       if (result.success) setRepos(result.data);
     } catch {}
@@ -232,7 +232,7 @@ export default function Projects() {
     setBranchesLoading(true);
     try {
       const [owner, repoName] = repo.fullName.split("/");
-      const res = await fetch(apiUrl(`/api/git-accounts/${encodeURIComponent(selectedAccount!.id)}/repos/${owner}/${repoName}/branches`));
+      const res = await apiFetch(`/api/git-accounts/${encodeURIComponent(selectedAccount!.id)}/repos/${owner}/${repoName}/branches`);
       const result = await res.json();
       if (result.success) setBranches(result.data);
     } catch {}
@@ -274,7 +274,7 @@ export default function Projects() {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl("/api/projects"));
+      const response = await apiFetch("/api/projects");
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result?.message || "Failed to fetch projects");
@@ -306,7 +306,7 @@ export default function Projects() {
         {} as Record<string, string>,
       );
 
-      const response = await fetch(apiUrl("/api/projects"), {
+      const response = await apiFetch("/api/projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -331,7 +331,7 @@ export default function Projects() {
       // Auto-detect compose files if none was specified
       if (!newProject.composeFile) {
         try {
-          const scanRes = await fetch(apiUrl(`/api/projects/${encodeURIComponent(newProject.name)}/compose-files`));
+          const scanRes = await apiFetch(`/api/projects/${encodeURIComponent(newProject.name)}/compose-files`);
           const scanResult = await scanRes.json();
           if (scanResult.success && scanResult.data.length > 1) {
             setDetectedComposeFiles(scanResult.data);
@@ -385,7 +385,7 @@ export default function Projects() {
   const handleGenerateWebhook = async (projectName: string) => {
     setWebhookLoading(true);
     try {
-      const res = await fetch(apiUrl(`/api/projects/${encodeURIComponent(projectName)}/webhook/generate`), { method: "POST" });
+      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectName)}/webhook/generate`, { method: "POST" });
       const result = await res.json();
       if (result.success) setWebhookSecret(result.data.secret);
     } catch {}
@@ -450,7 +450,7 @@ export default function Projects() {
         {} as Record<string, string>,
       );
 
-      const response = await fetch(apiUrl(`/api/projects/${envProject.name}`), {
+      const response = await apiFetch(`/api/projects/${envProject.name}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -508,7 +508,7 @@ export default function Projects() {
 
       window.dispatchEvent(new CustomEvent("subscribe_project_deploy", { detail: { projectName } }));
 
-      const response = await fetch(apiUrl(`/api/projects/${projectName}/sync-deploy`), { method: "POST" });
+      const response = await apiFetch(`/api/projects/${projectName}/sync-deploy`, { method: "POST" });
       const result = await response.json();
       if (!response.ok) throw new Error(result?.message || "Failed to sync & deploy");
 
@@ -722,7 +722,7 @@ export default function Projects() {
   const fetchProjectLogs = async (projectName: string) => {
     try {
       setLogsLoading(true);
-      const response = await fetch(apiUrl(`/api/projects/${projectName}/logs`));
+      const response = await apiFetch(`/api/projects/${projectName}/logs`);
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result?.message || "Failed to fetch project logs");
@@ -750,7 +750,7 @@ export default function Projects() {
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/projects/${projectName}`), {
+      const response = await apiFetch(`/api/projects/${projectName}`, {
         method: "DELETE",
       });
 
@@ -770,6 +770,21 @@ export default function Projects() {
   useEffect(() => {
     fetchProjects();
     fetchGitAccounts();
+  }, []);
+
+  useEffect(() => {
+    const onHealth = (e: Event) => {
+      const { projectName, health } = (e as CustomEvent).detail as { projectName: string; health: any };
+      setProjects((prev) =>
+        prev.map((p) =>
+          p.name === projectName
+            ? { ...p, status: health.overall === "unhealthy" ? "error" : p.status }
+            : p,
+        ),
+      );
+    };
+    window.addEventListener("project_health", onHealth);
+    return () => window.removeEventListener("project_health", onHealth);
   }, []);
 
   useEffect(() => {
@@ -1340,7 +1355,7 @@ export default function Projects() {
                 <button
                   onClick={async () => {
                     if (!newProject.composeFile) return;
-                    await fetch(apiUrl(`/api/projects/${encodeURIComponent(newProject.name)}`), {
+                    await apiFetch(`/api/projects/${encodeURIComponent(newProject.name)}`, {
                       method: "PUT",
                       headers: { "Content-Type": "application/json" },
                       body: JSON.stringify({ composeFile: newProject.composeFile }),

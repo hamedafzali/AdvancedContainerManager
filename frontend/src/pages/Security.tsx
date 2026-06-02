@@ -14,7 +14,7 @@ import {
   Clock,
   Zap,
 } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface SecurityScan {
   id: string;
@@ -109,10 +109,8 @@ export default function Security() {
 
       const [scansResponse, alertsResponse, policiesResponse, metricsResponse] =
         await Promise.all([
-          fetch(apiUrl("/api/security/scans")),
-          fetch(apiUrl("/api/security/alerts?limit=100")),
-          fetch(apiUrl("/api/security/policies")),
-          fetch(apiUrl("/api/security/metrics")),
+          apiFetch("/api/security/scans", apiFetch("/api/security/alerts?limit=100"),
+          apiFetch("/api/security/policies", apiFetch("/api/security/metrics"),
         ]);
 
       const parseResponse = async (response: Response) => {
@@ -158,7 +156,7 @@ export default function Security() {
 
   const handleStartScan = async (containerId: string, imageName: string) => {
     try {
-      const response = await fetch(apiUrl("/api/security/scans"), {
+      const response = await apiFetch("/api/security/scans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ containerId, imageName }),
@@ -181,7 +179,7 @@ export default function Security() {
     status: SecurityAlert["status"],
   ) => {
     try {
-      const response = await fetch(apiUrl(`/api/security/alerts/${alertId}`), {
+      const response = await apiFetch(`/api/security/alerts/${alertId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),

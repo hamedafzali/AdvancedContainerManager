@@ -23,3 +23,12 @@ export const authHeaders = (): Record<string, string> => {
   const token = localStorage.getItem("acm_token");
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
+
+export const apiFetch = (path: string, init?: RequestInit): Promise<Response> => {
+  const url = apiUrl(path);
+  const headers: Record<string, string> = {
+    ...authHeaders(),
+    ...(init?.headers as Record<string, string> | undefined),
+  };
+  return fetch(url, { ...init, headers });
+};

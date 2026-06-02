@@ -20,6 +20,7 @@ import { HealthService } from "./services/health-service";
 import { GitAccountService } from "./services/git-account-service";
 import { AuthService } from "./services/auth-service";
 import { SettingsService } from "./services/settings-service";
+import { PruneService } from "./services/prune-service";
 import { initEncryption } from "./utils/encryption";
 import { errorHandler } from "./middleware/error-handler";
 import { routes } from "./routes";
@@ -43,6 +44,7 @@ class AdvancedContainerManager {
   private gitAccountService: GitAccountService;
   private authService: AuthService;
   private settingsService: SettingsService;
+  private pruneService: PruneService;
 
   constructor() {
     this.config = this.loadConfig();
@@ -126,6 +128,7 @@ class AdvancedContainerManager {
     this.terminalService = new TerminalService(this.config, this.logger);
     this.healthService = new HealthService(this.logger);
     this.gitAccountService = new GitAccountService(this.logger, this.config.databasePath);
+    this.pruneService = new PruneService(this.logger, this.settingsService);
     this.wsHandler = new WebSocketHandler(
       this.io,
       this.metricsCollector,
@@ -134,10 +137,12 @@ class AdvancedContainerManager {
 
     this.projectService.setWebSocketHandler(this.wsHandler);
     this.projectService.startHealthPolling(this.wsHandler);
+    this.wsHandler.setAuthMiddleware((token) => this.authService.validateSession(token));
 
     // Start background services
     this.metricsCollector.start();
     this.terminalService.start();
+    this.pruneService.start();
   }
 
   private setupMiddleware(): void {
@@ -196,6 +201,7 @@ class AdvancedContainerManager {
         this.gitAccountService,
         this.authService,
         this.settingsService,
+        this.pruneService,
       ),
     );
 
@@ -321,6 +327,7 @@ class AdvancedContainerManager {
     // Stop services
     this.metricsCollector.stop();
     this.terminalService.stop();
+    this.pruneService.stop();
 
     // Close WebSocket connections
     this.io.close(() => {

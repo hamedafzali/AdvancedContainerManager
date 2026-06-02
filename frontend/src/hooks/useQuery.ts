@@ -6,7 +6,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 // Create a client
 export const queryClient = new QueryClient({
@@ -44,7 +44,7 @@ export function useContainers() {
   return useQuery({
     queryKey: ["containers"],
     queryFn: async () => {
-      const response = await fetch(apiUrl("/api/containers"));
+      const response = await apiFetch("/api/containers");
       if (!response.ok) throw new Error("Failed to fetch containers");
       return response.json();
     },
@@ -71,7 +71,7 @@ export function useSystemMetrics() {
   return useQuery({
     queryKey: ["system-metrics"],
     queryFn: async () => {
-      const response = await fetch(apiUrl("/api/system/metrics"));
+      const response = await apiFetch("/api/system/metrics");
       if (!response.ok) throw new Error("Failed to fetch system metrics");
       return response.json();
     },
@@ -85,7 +85,7 @@ export function useContainerAction() {
 
   return useMutation({
     mutationFn: async ({ id, action }: { id: string; action: string }) => {
-      const response = await fetch(apiUrl(`/api/containers/${id}/${action}`), {
+      const response = await apiFetch(`/api/containers/${id}/${action}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

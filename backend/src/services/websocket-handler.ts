@@ -51,6 +51,17 @@ export class WebSocketHandler {
     this.handleConnection(socket);
   }
 
+  public setAuthMiddleware(validateFn: (token: string) => string | null): void {
+    this.io.use((socket, next) => {
+      const token = socket.handshake.auth?.token as string | undefined;
+      if (!token) return next(); // allow unauthenticated when auth is disabled
+      const username = validateFn(token);
+      if (!username) return next(new Error("Unauthorized"));
+      (socket as any).username = username;
+      next();
+    });
+  }
+
   private handleDisconnection(socket: Socket): void {
     const clientId = socket.id;
     this.connectedClients.delete(clientId);

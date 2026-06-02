@@ -14,7 +14,7 @@ import {
   HardDrive,
   Wifi,
 } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface PredictiveMetric {
   timestamp: string;
@@ -109,12 +109,9 @@ export default function Analytics() {
         costResponse,
         insightsResponse,
       ] = await Promise.all([
-        fetch(apiUrl("/api/analytics/predictive-metrics")),
-        fetch(apiUrl("/api/analytics/anomalies?limit=50")),
-        fetch(apiUrl("/api/analytics/trends")),
-        fetch(apiUrl("/api/analytics/capacity-planning")),
-        fetch(apiUrl("/api/analytics/cost-forecast?period=30")),
-        fetch(apiUrl("/api/analytics/insights")),
+        apiFetch("/api/analytics/predictive-metrics", apiFetch("/api/analytics/anomalies?limit=50"),
+        apiFetch("/api/analytics/trends", apiFetch("/api/analytics/capacity-planning"),
+        apiFetch("/api/analytics/cost-forecast?period=30", apiFetch("/api/analytics/insights"),
       ]);
 
       const [

@@ -18,7 +18,7 @@ import {
   Wifi,
   HardDrive,
 } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface TerminalLine {
   id: string;
@@ -68,7 +68,7 @@ export default function Terminal() {
   // Fetch containers
   const fetchContainers = async () => {
     try {
-      const response = await fetch(apiUrl("/api/containers"));
+      const response = await apiFetch("/api/containers");
       if (!response.ok) {
         throw new Error("Failed to fetch containers");
       }
@@ -95,7 +95,7 @@ export default function Terminal() {
   // Fetch terminal sessions
   const fetchSessions = async () => {
     try {
-      const response = await fetch(apiUrl("/api/terminal/sessions"));
+      const response = await apiFetch("/api/terminal/sessions");
       if (!response.ok) {
         throw new Error("Failed to fetch sessions");
       }

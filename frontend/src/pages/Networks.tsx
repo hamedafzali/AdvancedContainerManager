@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Trash2, Globe, Wifi, Shield } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface Network {
   id: string;
@@ -24,7 +24,7 @@ export default function Networks() {
   const fetchNetworks = async () => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl("/api/networks"));
+      const response = await apiFetch("/api/networks");
       if (!response.ok) {
         throw new Error("Failed to fetch networks");
       }

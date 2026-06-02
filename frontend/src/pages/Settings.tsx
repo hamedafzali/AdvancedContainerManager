@@ -19,7 +19,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface Settings {
   general: {
@@ -62,7 +62,7 @@ function ChangePasswordForm({ onSuccess, onError }: { onSuccess: () => void; onE
     setLoading(true);
     try {
       const token = localStorage.getItem("acm_token") || "";
-      const res = await fetch(apiUrl("/api/auth/change-password"), {
+      const res = await apiFetch("/api/auth/change-password", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ oldPassword: oldPw, newPassword: newPw }),
@@ -139,7 +139,7 @@ export default function Settings() {
 
   const fetchGitAccounts = async () => {
     try {
-      const res = await fetch(apiUrl("/api/git-accounts"));
+      const res = await apiFetch("/api/git-accounts");
       const result = await res.json();
       if (result.success) setGitAccounts(result.data);
     } catch {}
@@ -150,7 +150,7 @@ export default function Settings() {
     setGitLoading(true);
     setGitError(null);
     try {
-      const res = await fetch(apiUrl("/api/git-accounts"), {
+      const res = await apiFetch("/api/git-accounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: gitProvider, token: gitToken }),
@@ -168,7 +168,7 @@ export default function Settings() {
   };
 
   const handleRemoveGitAccount = async (id: string) => {
-    await fetch(apiUrl(`/api/git-accounts/${encodeURIComponent(id)}`), { method: "DELETE" });
+    await apiFetch(`/api/git-accounts/${encodeURIComponent(id)}`, { method: "DELETE" });
     await fetchGitAccounts();
   };
 
@@ -176,7 +176,7 @@ export default function Settings() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl("/api/settings"));
+      const response = await apiFetch("/api/settings");
       if (!response.ok) {
         throw new Error("Failed to fetch settings");
       }
@@ -196,7 +196,7 @@ export default function Settings() {
       setError(null);
       setSuccess(null);
 
-      const response = await fetch(apiUrl("/api/settings"), {
+      const response = await apiFetch("/api/settings", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -222,7 +222,7 @@ export default function Settings() {
   // Export settings
   const exportSettings = async () => {
     try {
-      const response = await fetch(apiUrl("/api/settings/backup"));
+      const response = await apiFetch("/api/settings/backup");
       if (!response.ok) {
         throw new Error("Failed to export settings");
       }
@@ -251,7 +251,7 @@ export default function Settings() {
       const text = await file.text();
       const backup = JSON.parse(text);
       
-      const response = await fetch(apiUrl("/api/settings/restore"), {
+      const response = await apiFetch("/api/settings/restore", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -11,7 +11,7 @@ import {
   AlertCircle,
   MoreVertical,
 } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface DockerImage {
   id: string;
@@ -37,7 +37,7 @@ export default function Images() {
   const fetchImages = async () => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl("/api/images"));
+      const response = await apiFetch("/api/images");
       if (!response.ok) {
         throw new Error("Failed to fetch images");
       }
@@ -126,7 +126,7 @@ export default function Images() {
       setShowPullModal(false);
 
       // Pull image via backend
-      const response = await fetch(apiUrl("/api/images/pull"), {
+      const response = await apiFetch("/api/images/pull", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -169,7 +169,7 @@ export default function Images() {
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/images/${imageId}`), {
+      const response = await apiFetch(`/api/images/${imageId}`, {
         method: "DELETE",
       });
 

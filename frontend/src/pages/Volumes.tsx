@@ -6,7 +6,7 @@ import {
   HardDrive,
   Database,
 } from "lucide-react";
-import { apiUrl } from "@/utils/api";
+import { apiUrl, apiFetch } from "@/utils/api";
 
 interface Volume {
   id: string;
@@ -29,7 +29,7 @@ export default function Volumes() {
   const fetchVolumes = async () => {
     try {
       setLoading(true);
-      const response = await fetch(apiUrl("/api/volumes"));
+      const response = await apiFetch("/api/volumes");
       if (!response.ok) {
         throw new Error("Failed to fetch volumes");
       }
@@ -74,7 +74,7 @@ export default function Volumes() {
     if (!name) return;
 
     try {
-      const response = await fetch(apiUrl("/api/volumes"), {
+      const response = await apiFetch("/api/volumes", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -98,7 +98,7 @@ export default function Volumes() {
     }
 
     try {
-      const response = await fetch(apiUrl(`/api/volumes/${volumeId}`), {
+      const response = await apiFetch(`/api/volumes/${volumeId}`, {
         method: "DELETE",
       });
 
