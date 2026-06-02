@@ -17,6 +17,7 @@ import { TunnelService } from "./services/tunnel-service";
 import TerminalService from "./services/terminal-service";
 import { WebSocketHandler } from "./services/websocket-handler";
 import { HealthService } from "./services/health-service";
+import { GitAccountService } from "./services/git-account-service";
 import { errorHandler } from "./middleware/error-handler";
 import { routes } from "./routes";
 
@@ -36,6 +37,7 @@ class AdvancedContainerManager {
   private terminalService: TerminalService;
   private wsHandler: WebSocketHandler;
   private healthService: HealthService;
+  private gitAccountService: GitAccountService;
 
   constructor() {
     this.config = this.loadConfig();
@@ -109,6 +111,7 @@ class AdvancedContainerManager {
     this.tunnelService = new TunnelService(this.logger);
     this.terminalService = new TerminalService(this.config, this.logger);
     this.healthService = new HealthService(this.logger);
+    this.gitAccountService = new GitAccountService(this.logger);
     this.wsHandler = new WebSocketHandler(
       this.io,
       this.metricsCollector,
@@ -175,6 +178,7 @@ class AdvancedContainerManager {
         this.tunnelService,
         this.terminalService,
         this.metricsCollector,
+        this.gitAccountService,
       ),
     );
 

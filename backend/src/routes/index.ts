@@ -13,6 +13,7 @@ import { HealthService } from "../services/health-service";
 import { AnalyticsService } from "../services/analytics-service";
 import { SecurityService } from "../services/security-service";
 import { CloudflareService } from "../services/cloudflare-service";
+import { GitAccountService } from "../services/git-account-service";
 
 export function routes(
   dockerService: DockerService,
@@ -20,6 +21,7 @@ export function routes(
   tunnelService: TunnelService,
   terminalService: TerminalService,
   metricsCollector: MetricsCollector,
+  gitAccountService: GitAccountService,
 ): Router {
   const router = Router();
   const logger = new Logger(LogLevel.INFO);
@@ -777,6 +779,25 @@ export function routes(
 
   // Project routes
   router.get(
+    "/projects/summary",
+    asyncHandler(async (req, res) => {
+      try {
+        const summary = projectService.getProjectsSummary();
+        res.json({
+          success: true,
+          data: summary,
+        });
+      } catch (error) {
+        logger.error("Error getting projects summary:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
+  router.get(
     "/projects",
     asyncHandler(async (req, res) => {
       try {
@@ -862,6 +883,8 @@ export function routes(
     asyncHandler(async (req, res) => {
       try {
         const {
+          repoUrl,
+          branch,
           environmentVars = {},
           composeFile,
           portUpdates = [],
@@ -869,6 +892,8 @@ export function routes(
         const project = await projectService.updateProjectSettings(
           req.params.name,
           {
+            repoUrl,
+            branch,
             environmentVars,
             composeFile,
             portUpdates,
@@ -1113,107 +1138,6 @@ export function routes(
     }),
   );
 
-  router.get(
-    "/projects/summary",
-    asyncHandler(async (req, res) => {
-      try {
-        const summary = projectService.getProjectsSummary();
-        res.json({
-          success: true,
-          data: summary,
-        });
-      } catch (error) {
-        logger.error("Error getting projects summary:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  // Terminal routes
-  router.post(
-    "/terminal/:containerId/session",
-    asyncHandler(async (req, res) => {
-      try {
-        const { userId } = req.body;
-        const sessionId = terminalService.createSession(
-          req.params.containerId,
-          userId,
-        );
-
-        res.json({
-          success: true,
-          data: { sessionId },
-        });
-      } catch (error) {
-        logger.error(`Error creating terminal session: ${error}`);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  router.get(
-    "/terminal/sessions",
-    asyncHandler(async (req, res) => {
-      try {
-        const sessions = terminalService.getSessions();
-        res.json({
-          success: true,
-          data: sessions,
-        });
-      } catch (error) {
-        logger.error("Error getting terminal sessions:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  router.get(
-    "/terminal/sessions/summary",
-    asyncHandler(async (req, res) => {
-      try {
-        const summary = terminalService.getSessionsSummary();
-        res.json({
-          success: true,
-          data: summary,
-        });
-      } catch (error) {
-        logger.error("Error getting terminal sessions summary:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  router.delete(
-    "/terminal/sessions/:sessionId",
-    asyncHandler(async (req, res) => {
-      try {
-        terminalService.closeSession(req.params.sessionId);
-        res.json({
-          success: true,
-          message: `Terminal session ${req.params.sessionId} closed`,
-        });
-      } catch (error) {
-        logger.error(`Error closing terminal session: ${error}`);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
   // Settings routes
   router.get(
     "/settings",
@@ -1366,127 +1290,9 @@ export function routes(
     }),
   );
 
-  // System metrics history
-  router.get(
-    "/api/system/metrics/history",
-    asyncHandler(async (req, res) => {
-      try {
-        const { limit = 100 } = req.query;
-        const history = await metricsCollector.getMetricsHistory(
-          limit ? parseInt(limit as string) : undefined,
-        );
-        res.json({
-          success: true,
-          data: history,
-        });
-      } catch (error) {
-        logger.error("Error getting metrics history:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  // Terminal routes
-  router.post(
-    "/terminal/:containerId/session",
-    asyncHandler(async (req, res) => {
-      try {
-        const { containerId } = req.params;
-        const sessionId = await terminalService.createSession(containerId);
-
-        res.json({
-          success: true,
-          data: { id: sessionId, containerId },
-        });
-      } catch (error) {
-        logger.error(
-          `Error creating terminal session for ${req.params.containerId}:`,
-          error,
-        );
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  router.get(
-    "/terminal/sessions",
-    asyncHandler(async (req, res) => {
-      try {
-        const sessions = await terminalService.getSessions();
-
-        res.json({
-          success: true,
-          data: sessions,
-        });
-      } catch (error) {
-        logger.error("Error getting terminal sessions:", error);
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  router.post(
-    "/terminal/sessions/:sessionId/execute",
-    asyncHandler(async (req, res) => {
-      try {
-        const { sessionId } = req.params;
-        const { command } = req.body;
-
-        const result = await terminalService.executeCommand(sessionId, command);
-
-        res.json({
-          success: true,
-          data: result,
-        });
-      } catch (error) {
-        logger.error(
-          `Error executing command in session ${req.params.sessionId}:`,
-          error,
-        );
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
-  router.delete(
-    "/terminal/sessions/:sessionId",
-    asyncHandler(async (req, res) => {
-      try {
-        const { sessionId } = req.params;
-        await terminalService.closeSession(sessionId);
-
-        res.json({
-          success: true,
-          message: "Session closed successfully",
-        });
-      } catch (error) {
-        logger.error(
-          `Error closing terminal session ${req.params.sessionId}:`,
-          error,
-        );
-        res.status(500).json({
-          success: false,
-          message: error.message,
-        });
-      }
-    }),
-  );
-
   // Backup routes
   router.post(
-    "/api/backup/create",
+    "/backup/create",
     asyncHandler(async (req, res) => {
       try {
         const config = req.body;
@@ -1507,7 +1313,7 @@ export function routes(
   );
 
   router.get(
-    "/api/backup/list",
+    "/backup/list",
     asyncHandler(async (req, res) => {
       try {
         const backups = backupService.getBackups();
@@ -1527,7 +1333,7 @@ export function routes(
   );
 
   router.post(
-    "/api/backup/:backupId/restore",
+    "/backup/:backupId/restore",
     asyncHandler(async (req, res) => {
       try {
         const { backupId } = req.params;
@@ -1548,7 +1354,7 @@ export function routes(
   );
 
   router.delete(
-    "/api/backup/:backupId",
+    "/backup/:backupId",
     asyncHandler(async (req, res) => {
       try {
         const { backupId } = req.params;
@@ -1569,7 +1375,7 @@ export function routes(
   );
 
   router.get(
-    "/api/backup/stats",
+    "/backup/stats",
     asyncHandler(async (req, res) => {
       try {
         const backups = backupService.getBackups();
@@ -1596,7 +1402,7 @@ export function routes(
 
   // Audit routes
   router.get(
-    "/api/audit/logs",
+    "/audit/logs",
     asyncHandler(async (req, res) => {
       try {
         const { startDate, endDate, userId, action, resource, limit, offset } =
@@ -1627,7 +1433,7 @@ export function routes(
   );
 
   router.get(
-    "/api/audit/stats",
+    "/audit/stats",
     asyncHandler(async (req, res) => {
       try {
         const stats = auditService.getAuditStats();
@@ -2204,6 +2010,76 @@ export function routes(
           success: false,
           message: error.message,
         });
+      }
+    }),
+  );
+
+  // Git account routes
+  router.get(
+    "/git-accounts",
+    asyncHandler(async (req, res) => {
+      res.json({ success: true, data: gitAccountService.getAccounts() });
+    }),
+  );
+
+  router.post(
+    "/git-accounts",
+    asyncHandler(async (req, res) => {
+      try {
+        const { provider, token } = req.body;
+        if (!provider || !token) {
+          return res.status(400).json({ success: false, message: "provider and token are required" });
+        }
+        if (provider !== "github" && provider !== "gitlab") {
+          return res.status(400).json({ success: false, message: "provider must be github or gitlab" });
+        }
+        const account = await gitAccountService.addAccount(provider, token);
+        res.json({ success: true, data: { ...account, token: "***" } });
+      } catch (error) {
+        logger.error("Error adding git account:", error);
+        res.status(400).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
+  router.delete(
+    "/git-accounts/:id",
+    asyncHandler(async (req, res) => {
+      const removed = gitAccountService.removeAccount(decodeURIComponent(req.params.id));
+      if (!removed) {
+        return res.status(404).json({ success: false, message: "Account not found" });
+      }
+      res.json({ success: true, message: "Account removed" });
+    }),
+  );
+
+  router.get(
+    "/git-accounts/:id/repos",
+    asyncHandler(async (req, res) => {
+      try {
+        const page = req.query.page ? parseInt(req.query.page as string) : 1;
+        const repos = await gitAccountService.listRepos(decodeURIComponent(req.params.id), page);
+        res.json({ success: true, data: repos });
+      } catch (error) {
+        logger.error("Error listing repos:", error);
+        res.status(400).json({ success: false, message: error.message });
+      }
+    }),
+  );
+
+  router.get(
+    "/git-accounts/:id/repos/:owner/:repo/branches",
+    asyncHandler(async (req, res) => {
+      try {
+        const { owner, repo } = req.params;
+        const branches = await gitAccountService.listBranches(
+          decodeURIComponent(req.params.id),
+          `${owner}/${repo}`,
+        );
+        res.json({ success: true, data: branches });
+      } catch (error) {
+        logger.error("Error listing branches:", error);
+        res.status(400).json({ success: false, message: error.message });
       }
     }),
   );

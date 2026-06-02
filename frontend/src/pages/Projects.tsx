@@ -21,6 +21,8 @@ import {
   Globe,
   Copy,
   Link2Off,
+  Github,
+  BookOpen,
 } from "lucide-react";
 import { apiUrl } from "@/utils/api";
 
@@ -33,7 +35,7 @@ interface Project {
   composeFile: string;
   environmentVars: Record<string, string>;
   containers: string[];
-  status: "configured" | "building" | "running" | "stopped" | "failed";
+  status: "configured" | "building" | "built" | "running" | "stopped" | "error";
   createdAt: string;
   lastUpdated: string;
   ports: Array<{
@@ -106,9 +108,28 @@ export default function Projects() {
     name: "",
     repository: "",
     branch: "main",
+    composeFile: "",
     environmentVars: [] as Array<{ key: string; value: string }>,
   });
   const [tunnelLoading, setTunnelLoading] = useState<string | null>(null);
+
+  // Git accounts state
+  interface GitAccount { id: string; provider: "github" | "gitlab"; username: string; addedAt: string; }
+  interface GitRepo { id: number; name: string; fullName: string; cloneUrl: string; private: boolean; description: string | null; defaultBranch: string; }
+  const [gitAccounts, setGitAccounts] = useState<GitAccount[]>([]);
+  const [showGitAccountModal, setShowGitAccountModal] = useState(false);
+  const [gitProvider, setGitProvider] = useState<"github" | "gitlab">("github");
+  const [gitToken, setGitToken] = useState("");
+  const [gitAccountLoading, setGitAccountLoading] = useState(false);
+  const [gitAccountError, setGitAccountError] = useState<string | null>(null);
+  const [addMode, setAddMode] = useState<"manual" | "browse">("manual");
+  const [selectedAccount, setSelectedAccount] = useState<GitAccount | null>(null);
+  const [repos, setRepos] = useState<GitRepo[]>([]);
+  const [reposLoading, setReposLoading] = useState(false);
+  const [repoSearch, setRepoSearch] = useState("");
+  const [selectedRepo, setSelectedRepo] = useState<GitRepo | null>(null);
+  const [branches, setBranches] = useState<string[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
 
   const handleCreateTunnel = async (projectName: string) => {
     try {
@@ -140,6 +161,79 @@ export default function Projects() {
     } finally {
       setTunnelLoading(null);
     }
+  };
+
+  const fetchGitAccounts = async () => {
+    try {
+      const res = await fetch(apiUrl("/api/git-accounts"));
+      const result = await res.json();
+      if (result.success) setGitAccounts(result.data);
+    } catch {}
+  };
+
+  const handleAddGitAccount = async () => {
+    if (!gitToken.trim()) return;
+    setGitAccountLoading(true);
+    setGitAccountError(null);
+    try {
+      const res = await fetch(apiUrl("/api/git-accounts"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: gitProvider, token: gitToken }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.message);
+      await fetchGitAccounts();
+      setGitToken("");
+      setShowGitAccountModal(false);
+    } catch (err) {
+      setGitAccountError(err instanceof Error ? err.message : "Failed to add account");
+    } finally {
+      setGitAccountLoading(false);
+    }
+  };
+
+  const handleRemoveGitAccount = async (id: string) => {
+    await fetch(apiUrl(`/api/git-accounts/${encodeURIComponent(id)}`), { method: "DELETE" });
+    await fetchGitAccounts();
+    if (selectedAccount?.id === id) {
+      setSelectedAccount(null);
+      setRepos([]);
+      setSelectedRepo(null);
+      setBranches([]);
+    }
+  };
+
+  const handleSelectAccount = async (account: GitAccount) => {
+    setSelectedAccount(account);
+    setSelectedRepo(null);
+    setBranches([]);
+    setRepoSearch("");
+    setReposLoading(true);
+    try {
+      const res = await fetch(apiUrl(`/api/git-accounts/${encodeURIComponent(account.id)}/repos`));
+      const result = await res.json();
+      if (result.success) setRepos(result.data);
+    } catch {}
+    setReposLoading(false);
+  };
+
+  const handleSelectRepo = async (repo: GitRepo) => {
+    setSelectedRepo(repo);
+    setNewProject((p) => ({
+      ...p,
+      repository: repo.cloneUrl,
+      branch: repo.defaultBranch,
+      name: p.name || repo.name,
+    }));
+    setBranchesLoading(true);
+    try {
+      const [owner, repoName] = repo.fullName.split("/");
+      const res = await fetch(apiUrl(`/api/git-accounts/${encodeURIComponent(selectedAccount!.id)}/repos/${owner}/${repoName}/branches`));
+      const result = await res.json();
+      if (result.success) setBranches(result.data);
+    } catch {}
+    setBranchesLoading(false);
   };
 
   const formatSyncLog = (
@@ -218,6 +312,7 @@ export default function Projects() {
           name: newProject.name,
           repoUrl: newProject.repository,
           branch: newProject.branch || "main",
+          composeFile: newProject.composeFile || undefined,
           environmentVars: envVarsObject,
         }),
       });
@@ -232,6 +327,7 @@ export default function Projects() {
         name: "",
         repository: "",
         branch: "main",
+        composeFile: "",
         environmentVars: [],
       });
       setShowAddModal(false);
@@ -624,6 +720,7 @@ export default function Projects() {
 
   useEffect(() => {
     fetchProjects();
+    fetchGitAccounts();
   }, []);
 
   useEffect(() => {
@@ -641,11 +738,13 @@ export default function Projects() {
         return <CheckCircle className="w-4 h-4 text-blue-600" />;
       case "building":
         return <Clock className="w-4 h-4 text-yellow-600 animate-pulse" />;
+      case "built":
+        return <CheckCircle className="w-4 h-4 text-indigo-600" />;
       case "running":
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case "stopped":
         return <Square className="w-4 h-4 text-gray-600" />;
-      case "failed":
+      case "error":
         return <XCircle className="w-4 h-4 text-red-600" />;
       default:
         return null;
@@ -658,11 +757,13 @@ export default function Projects() {
         return "text-blue-600";
       case "building":
         return "text-yellow-600";
+      case "built":
+        return "text-indigo-600";
       case "running":
         return "text-green-600";
       case "stopped":
         return "text-gray-600";
-      case "failed":
+      case "error":
         return "text-red-600";
       default:
         return "text-gray-600";
@@ -990,123 +1091,236 @@ export default function Projects() {
       {/* Add Project Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-md w-full m-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Add New Project
-              </h3>
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-2xl w-full m-4 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Add New Project</h3>
+              {/* Mode tabs */}
+              <div className="flex mt-3 space-x-1 bg-gray-100 rounded-lg p-1 w-fit">
+                <button
+                  onClick={() => setAddMode("manual")}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${addMode === "manual" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+                >
+                  Manual URL
+                </button>
+                <button
+                  onClick={() => { setAddMode("browse"); if (gitAccounts.length > 0 && !selectedAccount) handleSelectAccount(gitAccounts[0]); }}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${addMode === "browse" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+                >
+                  Browse Repositories
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              {addMode === "browse" && (
+                <div className="mb-6">
+                  {/* Account selector */}
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-sm font-medium text-gray-700">Git Account:</span>
+                    <div className="flex gap-2 flex-wrap">
+                      {gitAccounts.map((acc) => (
+                        <button
+                          key={acc.id}
+                          onClick={() => handleSelectAccount(acc)}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors ${selectedAccount?.id === acc.id ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 hover:border-gray-500"}`}
+                        >
+                          <Github className="w-3 h-3" />
+                          {acc.username}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => setShowGitAccountModal(true)}
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Connect Account
+                      </button>
+                    </div>
+                  </div>
+
+                  {selectedAccount && (
+                    <>
+                      <div className="relative mb-2">
+                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          placeholder="Search repositories..."
+                          value={repoSearch}
+                          onChange={(e) => setRepoSearch(e.target.value)}
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-48">
+                        {reposLoading ? (
+                          <div className="p-4 text-center text-sm text-gray-500">Loading repositories...</div>
+                        ) : repos.filter(r => r.name.toLowerCase().includes(repoSearch.toLowerCase())).length === 0 ? (
+                          <div className="p-4 text-center text-sm text-gray-500">No repositories found</div>
+                        ) : (
+                          repos.filter(r => r.name.toLowerCase().includes(repoSearch.toLowerCase())).map((repo) => (
+                            <button
+                              key={repo.id}
+                              onClick={() => handleSelectRepo(repo)}
+                              className={`w-full text-left px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${selectedRepo?.id === repo.id ? "bg-blue-50" : ""}`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <BookOpen className="w-4 h-4 text-gray-400" />
+                                  <span className="text-sm font-medium text-gray-900">{repo.name}</span>
+                                  {repo.private && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">private</span>}
+                                </div>
+                                <span className="text-xs text-gray-400">{repo.defaultBranch}</span>
+                              </div>
+                              {repo.description && <p className="text-xs text-gray-500 mt-0.5 truncate pl-6">{repo.description}</p>}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {!selectedAccount && gitAccounts.length === 0 && (
+                    <div className="text-center py-6 text-sm text-gray-500">
+                      No git accounts connected.{" "}
+                      <button onClick={() => setShowGitAccountModal(true)} className="text-blue-600 hover:underline">Connect one</button> to browse repositories.
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Project Name
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
                   <input
                     type="text"
                     value={newProject.name}
-                    onChange={(e) =>
-                      setNewProject({ ...newProject, name: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter project name"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Repository URL
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Repository URL</label>
                   <input
                     type="text"
                     value={newProject.repository}
-                    onChange={(e) =>
-                      setNewProject({
-                        ...newProject,
-                        repository: e.target.value,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    onChange={(e) => setNewProject({ ...newProject, repository: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="https://github.com/user/repo"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Branch
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
+                  {branches.length > 0 ? (
+                    <select
+                      value={newProject.branch}
+                      onChange={(e) => setNewProject({ ...newProject, branch: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={newProject.branch}
+                      onChange={(e) => setNewProject({ ...newProject, branch: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={branchesLoading ? "Loading branches..." : "main"}
+                    />
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Compose File Path</label>
                   <input
                     type="text"
-                    value={newProject.branch}
-                    onChange={(e) =>
-                      setNewProject({ ...newProject, branch: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="main"
+                    value={newProject.composeFile}
+                    onChange={(e) => setNewProject({ ...newProject, composeFile: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="docker-compose.yml (default)"
                   />
+                  <p className="text-xs text-gray-400 mt-1">Relative path from repo root, e.g. <code>infra/docker-compose.yml</code></p>
                 </div>
 
-                {/* Environment Variables */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Environment Variables
-                    </label>
-                    <button
-                      onClick={addEnvironmentVar}
-                      className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors duration-200 flex items-center"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      Add Variable
+                    <label className="block text-sm font-medium text-gray-700">Environment Variables</label>
+                    <button onClick={addEnvironmentVar} className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center">
+                      <Plus className="w-3 h-3 mr-1" />Add Variable
                     </button>
                   </div>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
                     {newProject.environmentVars.map((env, index) => (
                       <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          placeholder="KEY"
-                          value={env.key}
-                          onChange={(e) =>
-                            updateEnvironmentVar(index, "key", e.target.value)
-                          }
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        />
-                        <input
-                          type="text"
-                          placeholder="VALUE"
-                          value={env.value}
-                          onChange={(e) =>
-                            updateEnvironmentVar(index, "value", e.target.value)
-                          }
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        />
-                        <button
-                          onClick={() => removeEnvironmentVar(index)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <input type="text" placeholder="KEY" value={env.key} onChange={(e) => updateEnvironmentVar(index, "key", e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                        <input type="text" placeholder="VALUE" value={env.value} onChange={(e) => updateEnvironmentVar(index, "value", e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                        <button onClick={() => removeEnvironmentVar(index)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     ))}
-                    {newProject.environmentVars.length === 0 && (
-                      <div className="text-center py-4 text-gray-500 text-sm">
-                        No environment variables configured
-                      </div>
-                    )}
+                    {newProject.environmentVars.length === 0 && <div className="text-center py-4 text-gray-500 text-sm">No environment variables configured</div>}
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddProject}
-                  className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-light transition-colors duration-200"
-                >
-                  Add Project
-                </button>
+            </div>
+
+            <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button onClick={() => { setShowAddModal(false); setAddMode("manual"); setSelectedRepo(null); setBranches([]); }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+              <button onClick={handleAddProject} className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg">Add Project</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Connect Git Account Modal */}
+      {showGitAccountModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-md w-full m-4">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900">Connect Git Account</h3>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                <div className="flex gap-2">
+                  {(["github", "gitlab"] as const).map((p) => (
+                    <button key={p} onClick={() => setGitProvider(p)} className={`flex-1 py-2 rounded-lg border text-sm capitalize transition-colors ${gitProvider === p ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 hover:border-gray-500"}`}>{p}</button>
+                  ))}
+                </div>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Personal Access Token</label>
+                <input
+                  type="password"
+                  value={gitToken}
+                  onChange={(e) => setGitToken(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={gitProvider === "github" ? "ghp_..." : "glpat-..."}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {gitProvider === "github" ? "Needs repo scope. Create at GitHub → Settings → Developer settings → PATs." : "Needs read_api scope. Create at GitLab → User Settings → Access Tokens."}
+                </p>
+              </div>
+              {gitAccountError && <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{gitAccountError}</div>}
+
+              {gitAccounts.length > 0 && (
+                <div>
+                  <div className="text-sm font-medium text-gray-700 mb-2">Connected Accounts</div>
+                  {gitAccounts.map((acc) => (
+                    <div key={acc.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Github className="w-4 h-4 text-gray-500" />
+                        <span className="font-medium">{acc.username}</span>
+                        <span className="text-gray-400 capitalize">({acc.provider})</span>
+                      </div>
+                      <button onClick={() => handleRemoveGitAccount(acc.id)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
+              <button onClick={() => { setShowGitAccountModal(false); setGitToken(""); setGitAccountError(null); }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Close</button>
+              <button onClick={handleAddGitAccount} disabled={gitAccountLoading || !gitToken.trim()} className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-50">
+                {gitAccountLoading ? "Connecting..." : "Connect"}
+              </button>
             </div>
           </div>
         </div>
