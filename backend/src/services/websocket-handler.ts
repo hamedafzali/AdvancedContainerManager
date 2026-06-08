@@ -94,6 +94,25 @@ export class WebSocketHandler {
       );
     });
 
+    // Subscribe / unsubscribe to project pipeline logs
+    socket.on("subscribe_project_pipeline", (data) => {
+      const { projectName } = data || {};
+      if (!projectName) {
+        return;
+      }
+      socket.join(`project:pipeline:${projectName}`);
+      this.logger.info(
+        `Client ${socket.id} subscribed to pipeline logs for project ${projectName}`,
+      );
+    });
+    socket.on("unsubscribe_project_pipeline", (data) => {
+      const { projectName } = data || {};
+      if (!projectName) {
+        return;
+      }
+      socket.leave(`project:pipeline:${projectName}`);
+    });
+
     // Subscribe to container updates
     socket.on("subscribe_container", (data) => {
       const { containerId } = data;
@@ -250,6 +269,36 @@ export class WebSocketHandler {
 
   public broadcastProjectHealth(event: { projectName: string; health: any }): void {
     this.io.emit("project_health", event);
+  }
+
+  public broadcastPipelineLog(event: {
+    projectName: string;
+    runId: string;
+    stage: string;
+    chunk: string;
+    timestamp: string;
+  }): void {
+    if (!event?.projectName) {
+      return;
+    }
+    this.io
+      .to(`project:pipeline:${event.projectName}`)
+      .emit("project_pipeline_log", event);
+  }
+
+  public broadcastPipelineStatus(event: {
+    projectName: string;
+    runId: string;
+    status: string;
+    stage?: string;
+    timestamp: string;
+  }): void {
+    if (!event?.projectName) {
+      return;
+    }
+    this.io
+      .to(`project:pipeline:${event.projectName}`)
+      .emit("project_pipeline_status", event);
   }
 
   public getClientCount(): number {
