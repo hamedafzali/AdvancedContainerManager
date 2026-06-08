@@ -40,6 +40,13 @@ export function useSocket() {
         socket.emit("unsubscribe_project_deploy", detail);
       };
 
+      const subscribeProjectPipelineListener = (event: Event) => {
+        socket.emit("subscribe_project_pipeline", (event as CustomEvent).detail);
+      };
+      const unsubscribeProjectPipelineListener = (event: Event) => {
+        socket.emit("unsubscribe_project_pipeline", (event as CustomEvent).detail);
+      };
+
       window.addEventListener(
         "subscribe_project_deploy",
         subscribeProjectDeployListener,
@@ -47,6 +54,14 @@ export function useSocket() {
       window.addEventListener(
         "unsubscribe_project_deploy",
         unsubscribeProjectDeployListener,
+      );
+      window.addEventListener(
+        "subscribe_project_pipeline",
+        subscribeProjectPipelineListener,
+      );
+      window.addEventListener(
+        "unsubscribe_project_pipeline",
+        unsubscribeProjectPipelineListener,
       );
 
       socket.on("connect", () => {
@@ -135,6 +150,18 @@ export function useSocket() {
         );
       });
 
+      socket.on("project_pipeline_log", (data) => {
+        window.dispatchEvent(
+          new CustomEvent("project_pipeline_log", { detail: data }),
+        );
+      });
+
+      socket.on("project_pipeline_status", (data) => {
+        window.dispatchEvent(
+          new CustomEvent("project_pipeline_status", { detail: data }),
+        );
+      });
+
       socket.on("project_deploy_status", (data) => {
         window.dispatchEvent(
           new CustomEvent("project_deploy_status", { detail: data }),
@@ -176,6 +203,14 @@ export function useSocket() {
           window.removeEventListener(
             "unsubscribe_project_deploy",
             unsubscribeProjectDeployListener,
+          );
+          window.removeEventListener(
+            "subscribe_project_pipeline",
+            subscribeProjectPipelineListener,
+          );
+          window.removeEventListener(
+            "unsubscribe_project_pipeline",
+            unsubscribeProjectPipelineListener,
           );
           socket.disconnect();
         }
