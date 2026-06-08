@@ -905,7 +905,7 @@ export default function Projects() {
     };
     // Status reconciled from real containers (server poll) — update the card live.
     const onStatus = (e: Event) => {
-      const { name, status } = (e as CustomEvent).detail as { name: string; status: string };
+      const { name, status } = (e as CustomEvent).detail as { name: string; status: Project["status"] };
       setProjects((prev) => prev.map((p) => (p.name === name ? { ...p, status } : p)));
     };
     window.addEventListener("project_health", onHealth);
