@@ -2252,6 +2252,64 @@ export function routes(
     }),
   );
 
+  // ── Environments (dev / test / prod) ─────────────────────
+  router.get(
+    "/projects/:name/environments",
+    asyncHandler(async (req, res) => {
+      if (!projectService.getProject(req.params.name)) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+      res.json({ success: true, data: await projectService.getEnvironments(req.params.name) });
+    }),
+  );
+
+  router.post(
+    "/projects/:name/environments/:env/deploy",
+    asyncHandler(async (req, res) => {
+      try {
+        const result = await projectService.deployEnvironment(req.params.name, req.params.env);
+        res.json({ success: true, data: result });
+      } catch (e: any) {
+        res.status(400).json({ success: false, message: e.message });
+      }
+    }),
+  );
+
+  router.post(
+    "/projects/:name/environments/:env/stop",
+    asyncHandler(async (req, res) => {
+      try {
+        await projectService.stopEnvironment(req.params.name, req.params.env);
+        res.json({ success: true });
+      } catch (e: any) {
+        res.status(400).json({ success: false, message: e.message });
+      }
+    }),
+  );
+
+  router.get(
+    "/projects/:name/environments/:env/env",
+    asyncHandler(async (req, res) => {
+      try {
+        res.json({ success: true, data: projectService.getEnvVars(req.params.name, req.params.env) });
+      } catch (e: any) {
+        res.status(404).json({ success: false, message: e.message });
+      }
+    }),
+  );
+
+  router.put(
+    "/projects/:name/environments/:env/env",
+    asyncHandler(async (req, res) => {
+      try {
+        projectService.setEnvVars(req.params.name, req.params.env, req.body?.vars || {});
+        res.json({ success: true });
+      } catch (e: any) {
+        res.status(400).json({ success: false, message: e.message });
+      }
+    }),
+  );
+
   // ── Pipelines ────────────────────────────────────────────
   // Overview of all projects' pipelines (powers the Pipelines page).
   router.get(
