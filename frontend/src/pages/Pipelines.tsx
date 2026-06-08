@@ -153,10 +153,15 @@ export default function Pipelines() {
 
   const pick = (name: string) => { setSelected(name); setParams({ project: name }); };
 
-  // Stages for the graph: live run if present, else the definition as pending.
+  // Graph always reflects the configured pipeline (checkout + definition);
+  // a selected/live run just overlays its per-stage status onto those nodes.
   const graphStages: GraphStage[] = useMemo(() => {
-    if (activeRun) return activeRun.stages.map((s) => ({ name: s.name, status: s.status, durationMs: s.durationMs }));
-    return [{ name: "checkout", status: "pending" as const }, ...definition.map((d) => ({ name: d.name, status: "pending" as const }))];
+    const base = ["checkout", ...definition.map((d) => d.name)];
+    const byName = new Map((activeRun?.stages || []).map((s) => [s.name, s]));
+    return base.map((name) => {
+      const r = byName.get(name);
+      return { name, status: r?.status ?? "pending", durationMs: r?.durationMs };
+    });
   }, [activeRun, definition]);
 
   const webhookUrl = webhook ? `${window.location.origin}${webhook.path}` : "";
