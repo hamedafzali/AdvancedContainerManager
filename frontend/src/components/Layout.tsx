@@ -14,6 +14,7 @@ import {
   Shield,
   BarChart3,
   Globe,
+  Workflow,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdvancedSearch } from "@/components/AdvancedSearch";
@@ -22,6 +23,7 @@ const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Containers", href: "/containers", icon: Package2 },
   { name: "Projects", href: "/projects", icon: Folder },
+  { name: "Pipelines", href: "/pipelines", icon: Workflow },
   { name: "Images", href: "/images", icon: Image },
   { name: "Networks", href: "/networks", icon: Network },
   { name: "Volumes", href: "/volumes", icon: HardDrive },

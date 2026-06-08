@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -26,7 +26,6 @@ import {
   Workflow,
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
-import PipelinePanel from "@/components/PipelinePanel";
 
 interface Project {
   name: string;
@@ -72,6 +71,7 @@ interface Project {
 
 export default function Projects() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +84,6 @@ export default function Projects() {
   const [projectLogs, setProjectLogs] = useState<
     Array<{ containerId: string; logs: string }>
   >([]);
-  const [pipelineProject, setPipelineProject] = useState<string | null>(null);
   const [showDeployLogs, setShowDeployLogs] = useState(false);
   const [deployLogs, setDeployLogs] = useState<string>("");
   const [deployLogsTitle, setDeployLogsTitle] = useState<string>("");
@@ -1201,7 +1200,7 @@ export default function Projects() {
                     <button onClick={() => handleBuildProject(project.name)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Build">
                       <Code2 className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setPipelineProject(project.name)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Pipeline">
+                    <button onClick={() => navigate(`/pipelines?project=${encodeURIComponent(project.name)}`)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Pipeline">
                       <Workflow className="w-4 h-4" />
                     </button>
                     <button onClick={() => handleViewLogs(project)} className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg transition-colors" title="Logs">
@@ -1774,10 +1773,6 @@ export default function Projects() {
             </div>
           </div>
         </div>
-      )}
-
-      {pipelineProject && (
-        <PipelinePanel projectName={pipelineProject} onClose={() => setPipelineProject(null)} />
       )}
 
       {showDeployLogs && (

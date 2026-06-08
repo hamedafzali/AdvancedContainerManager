@@ -212,16 +212,57 @@ export class PipelineService {
       });
   }
 
+  // ── Overview (powers the Pipelines page) ─────────────────
+  public listOverview(): Array<{
+    name: string;
+    stages: string[];
+    hasDefinition: boolean;
+    running: boolean;
+    lastRun: { id: string; status: string; startedAt: string; finishedAt?: string } | null;
+  }> {
+    const projects = Array.from(
+      (this.projects.getProjects() as Map<string, { name: string; path: string }>).values(),
+    );
+    return projects.map((p) => {
+      const def = this.loadDefinition(p.path);
+      const hasDefinition =
+        fs.existsSync(path.join(p.path, ".acm", "pipeline.yml")) ||
+        fs.existsSync(path.join(p.path, ".acm", "pipeline.yaml"));
+      const last = this.db
+        .prepare(
+          "SELECT id, status, started_at, finished_at FROM pipeline_runs WHERE project_name = ? ORDER BY started_at DESC LIMIT 1",
+        )
+        .get(p.name);
+      return {
+        name: p.name,
+        stages: def.map((s) => s.name),
+        hasDefinition,
+        running: this.isRunning(p.name),
+        lastRun: last
+          ? {
+              id: last.id,
+              status: last.status,
+              startedAt: last.started_at,
+              finishedAt: last.finished_at ?? undefined,
+            }
+          : null,
+      };
+    });
+  }
+
   // ── Execution ────────────────────────────────────────────
   public isRunning(projectName: string): boolean {
     return this.running.has(projectName);
   }
 
   /** Start a run (non-blocking). Returns the created run immediately; stages
-   *  execute in the background and stream over WebSocket. */
+   *  execute in the background and stream over WebSocket.
+   *  `only` restricts execution to the named stages (the rest are skipped);
+   *  use it to run a single step. checkout always runs. */
   public startRun(
     projectName: string,
     trigger: PipelineRun["trigger"],
+    only?: string[],
   ): PipelineRun {
     const project = this.projects.getProject(projectName);
     if (!project) throw new Error(`Project ${projectName} not found`);
@@ -232,7 +273,11 @@ export class PipelineService {
     const def = this.loadDefinition(project.path);
     const stages: PipelineStageResult[] = [
       { name: "checkout", status: "pending", log: "" },
-      ...def.map((d) => ({ name: d.name, status: "pending" as StageStatus, log: "" })),
+      ...def.map((d) => ({
+        name: d.name,
+        status: (only && !only.includes(d.name) ? "skipped" : "pending") as StageStatus,
+        log: "",
+      })),
     ];
     const run: PipelineRun = {
       id: crypto.randomUUID(),
@@ -268,6 +313,7 @@ export class PipelineService {
 
       for (let i = 0; i < def.length; i++) {
         const stage = run.stages[i + 1];
+        if (stage.status === "skipped") continue; // not selected for this run
         const ok = await this.runStageCommands(run, stage, def[i], projectPath, env);
         if (!ok && !def[i].continueOnError) {
           this.markRemainingSkipped(run, i + 2);

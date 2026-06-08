@@ -2253,19 +2253,28 @@ export function routes(
   );
 
   // ── Pipelines ────────────────────────────────────────────
+  // Overview of all projects' pipelines (powers the Pipelines page).
+  router.get(
+    "/pipelines",
+    asyncHandler(async (_req, res) => {
+      res.json({ success: true, data: pipelineService.listOverview() });
+    }),
+  );
+
   // Run a project's pipeline now (non-blocking; stream via WebSocket room
-  // `project:pipeline:<name>`).
+  // `project:pipeline:<name>`). Body `{ stage }` runs a single step.
   router.post(
     "/projects/:name/pipeline/run",
     asyncHandler(async (req, res) => {
       const { name } = req.params;
+      const stage = (req.body?.stage as string) || undefined;
       if (!projectService.getProject(name)) {
         return res.status(404).json({ success: false, message: "Project not found" });
       }
       if (pipelineService.isRunning(name)) {
         return res.status(409).json({ success: false, message: "Pipeline already running" });
       }
-      const run = pipelineService.startRun(name, "manual");
+      const run = pipelineService.startRun(name, "manual", stage ? [stage] : undefined);
       res.status(202).json({ success: true, data: run });
     }),
   );

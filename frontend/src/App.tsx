@@ -18,6 +18,7 @@ import { apiUrl, apiFetch } from "@/utils/api";
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Containers = lazy(() => import("@/pages/Containers"));
 const Projects = lazy(() => import("@/pages/Projects"));
+const Pipelines = lazy(() => import("@/pages/Pipelines"));
 const Images = lazy(() => import("@/pages/Images"));
 const Networks = lazy(() => import("@/pages/Networks"));
 const Volumes = lazy(() => import("@/pages/Volumes"));
@@ -52,6 +53,7 @@ function AppWithSocket() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="containers" element={<Containers />} />
           <Route path="projects" element={<Projects />} />
+          <Route path="pipelines" element={<Pipelines />} />
           <Route path="images" element={<Images />} />
           <Route path="networks" element={<Networks />} />
           <Route path="volumes" element={<Volumes />} />
