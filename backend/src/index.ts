@@ -21,6 +21,7 @@ import { GitAccountService } from "./services/git-account-service";
 import { AuthService } from "./services/auth-service";
 import { SettingsService } from "./services/settings-service";
 import { PruneService } from "./services/prune-service";
+import { PipelineService } from "./services/pipeline-service";
 import { initEncryption } from "./utils/encryption";
 import { errorHandler } from "./middleware/error-handler";
 import { routes } from "./routes";
@@ -45,6 +46,7 @@ class AdvancedContainerManager {
   private authService: AuthService;
   private settingsService: SettingsService;
   private pruneService: PruneService;
+  private pipelineService: PipelineService;
 
   constructor() {
     this.config = this.loadConfig();
@@ -137,6 +139,12 @@ class AdvancedContainerManager {
 
     this.projectService.setWebSocketHandler(this.wsHandler);
     this.projectService.startHealthPolling(this.wsHandler);
+    this.pipelineService = new PipelineService(
+      this.config,
+      this.logger,
+      this.projectService,
+    );
+    this.pipelineService.setWebSocketHandler(this.wsHandler);
     this.wsHandler.setAuthMiddleware((token) => this.authService.validateSession(token));
 
     // Start background services
@@ -202,6 +210,7 @@ class AdvancedContainerManager {
         this.authService,
         this.settingsService,
         this.pruneService,
+        this.pipelineService,
       ),
     );
 

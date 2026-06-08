@@ -17,6 +17,7 @@ import { GitAccountService } from "../services/git-account-service";
 import { AuthService } from "../services/auth-service";
 import { SettingsService } from "../services/settings-service";
 import { PruneService } from "../services/prune-service";
+import { PipelineService } from "../services/pipeline-service";
 import * as crypto from "crypto";
 
 export function routes(
@@ -29,6 +30,7 @@ export function routes(
   authService: AuthService,
   settingsService: SettingsService,
   pruneService: PruneService,
+  pipelineService: PipelineService,
 ): Router {
   const router = Router();
   const logger = new Logger(LogLevel.INFO);
@@ -78,6 +80,30 @@ export function routes(
     if (!username) return res.status(401).json({ success: false, message: "Unauthorized" });
     res.json({ success: true, data: { username } });
   }));
+
+  // Public pipeline webhook (git push → run pipeline). Authenticated by a
+  // per-project secret, so it sits BEFORE the auth middleware.
+  router.post(
+    "/webhooks/pipeline/:name",
+    asyncHandler(async (req, res) => {
+      const { name } = req.params;
+      const provided =
+        (req.headers["x-acm-secret"] as string) ||
+        (req.query.secret as string) ||
+        "";
+      if (!pipelineService.verifySecret(name, provided)) {
+        return res.status(401).json({ success: false, message: "Invalid webhook secret" });
+      }
+      if (!projectService.getProject(name)) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+      if (pipelineService.isRunning(name)) {
+        return res.status(409).json({ success: false, message: "Pipeline already running" });
+      }
+      const run = pipelineService.startRun(name, "webhook");
+      res.status(202).json({ success: true, data: { runId: run.id } });
+    }),
+  );
 
   // Auth middleware — applied to all subsequent routes
   router.use((req, res, next) => {
@@ -2223,6 +2249,83 @@ export function routes(
         logger.error("Error listing branches:", error);
         res.status(400).json({ success: false, message: error.message });
       }
+    }),
+  );
+
+  // ── Pipelines ────────────────────────────────────────────
+  // Run a project's pipeline now (non-blocking; stream via WebSocket room
+  // `project:pipeline:<name>`).
+  router.post(
+    "/projects/:name/pipeline/run",
+    asyncHandler(async (req, res) => {
+      const { name } = req.params;
+      if (!projectService.getProject(name)) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+      if (pipelineService.isRunning(name)) {
+        return res.status(409).json({ success: false, message: "Pipeline already running" });
+      }
+      const run = pipelineService.startRun(name, "manual");
+      res.status(202).json({ success: true, data: run });
+    }),
+  );
+
+  // The resolved stage definition for a project (from .acm/pipeline.yml or default).
+  router.get(
+    "/projects/:name/pipeline/definition",
+    asyncHandler(async (req, res) => {
+      const project = projectService.getProject(req.params.name);
+      if (!project) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+      res.json({ success: true, data: pipelineService.loadDefinition(project.path) });
+    }),
+  );
+
+  router.get(
+    "/projects/:name/pipeline/runs",
+    asyncHandler(async (req, res) => {
+      res.json({ success: true, data: pipelineService.listRuns(req.params.name) });
+    }),
+  );
+
+  router.get(
+    "/projects/:name/pipeline/runs/:id",
+    asyncHandler(async (req, res) => {
+      const run = pipelineService.getRun(req.params.id);
+      if (!run || run.projectName !== req.params.name) {
+        return res.status(404).json({ success: false, message: "Run not found" });
+      }
+      res.json({ success: true, data: run });
+    }),
+  );
+
+  // Webhook URL + secret for a project (creates one on first read).
+  router.get(
+    "/projects/:name/pipeline/webhook",
+    asyncHandler(async (req, res) => {
+      if (!projectService.getProject(req.params.name)) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+      const secret = pipelineService.getOrCreateSecret(req.params.name);
+      res.json({
+        success: true,
+        data: { path: `/api/webhooks/pipeline/${req.params.name}`, secret },
+      });
+    }),
+  );
+
+  router.post(
+    "/projects/:name/pipeline/webhook/regenerate",
+    asyncHandler(async (req, res) => {
+      if (!projectService.getProject(req.params.name)) {
+        return res.status(404).json({ success: false, message: "Project not found" });
+      }
+      const secret = pipelineService.regenerateSecret(req.params.name);
+      res.json({
+        success: true,
+        data: { path: `/api/webhooks/pipeline/${req.params.name}`, secret },
+      });
     }),
   );
 
