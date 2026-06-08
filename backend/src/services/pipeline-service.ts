@@ -73,6 +73,38 @@ export class PipelineService {
   ) {
     this.db = new Database(this.config.databasePath);
     this.initDb();
+    this.reconcileInterruptedRuns();
+  }
+
+  /** A run can't survive a backend restart (the child process dies), so any run
+   *  left "running" in the DB is orphaned — mark it failed on startup instead of
+   *  leaving it stuck forever. */
+  private reconcileInterruptedRuns(): void {
+    const rows = this.db
+      .prepare("SELECT id, stages FROM pipeline_runs WHERE status = 'running'")
+      .all();
+    for (const r of rows) {
+      let stages: PipelineStageResult[] = [];
+      try {
+        stages = JSON.parse(r.stages);
+      } catch {
+        /* leave empty */
+      }
+      for (const s of stages) {
+        if (s.status === "running") {
+          s.status = "failed";
+          s.log = (s.log || "") + "\n[interrupted — server restarted]\n";
+        } else if (s.status === "pending") {
+          s.status = "skipped";
+        }
+      }
+      this.db
+        .prepare("UPDATE pipeline_runs SET status='failed', stages=?, finished_at=? WHERE id=?")
+        .run(JSON.stringify(stages), new Date().toISOString(), r.id);
+    }
+    if (rows.length) {
+      this.logger.warn(`Marked ${rows.length} interrupted pipeline run(s) as failed on startup`);
+    }
   }
 
   public setWebSocketHandler(handler: WebSocketHandler): void {
