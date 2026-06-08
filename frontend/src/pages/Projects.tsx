@@ -903,8 +903,17 @@ export default function Projects() {
         ),
       );
     };
+    // Status reconciled from real containers (server poll) — update the card live.
+    const onStatus = (e: Event) => {
+      const { name, status } = (e as CustomEvent).detail as { name: string; status: string };
+      setProjects((prev) => prev.map((p) => (p.name === name ? { ...p, status } : p)));
+    };
     window.addEventListener("project_health", onHealth);
-    return () => window.removeEventListener("project_health", onHealth);
+    window.addEventListener("project_status", onStatus);
+    return () => {
+      window.removeEventListener("project_health", onHealth);
+      window.removeEventListener("project_status", onStatus);
+    };
   }, []);
 
   useEffect(() => {

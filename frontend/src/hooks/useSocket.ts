@@ -181,6 +181,10 @@ export function useSocket() {
         }
       });
 
+      socket.on("project_status", (data) => {
+        window.dispatchEvent(new CustomEvent("project_status", { detail: data }));
+      });
+
       // Metrics history response
       socket.on("system_metrics_history", (data) => {
         window.dispatchEvent(

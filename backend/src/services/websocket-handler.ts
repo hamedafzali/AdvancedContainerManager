@@ -271,6 +271,10 @@ export class WebSocketHandler {
     this.io.emit("project_health", event);
   }
 
+  public broadcastProjectStatus(event: { name: string; status: string }): void {
+    this.io.emit("project_status", event);
+  }
+
   public broadcastPipelineLog(event: {
     projectName: string;
     runId: string;

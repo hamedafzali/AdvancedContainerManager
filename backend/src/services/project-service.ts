@@ -1959,11 +1959,55 @@ export class ProjectService {
     }
   }
 
+  /** Reconcile a project's stored status with its actual containers, so the
+   *  card reflects reality even when something else (e.g. the pipeline's raw
+   *  `docker compose up`) started/stopped it. Only flips steady states —
+   *  never clobbers an in-progress action (building). Returns true if changed. */
+  private async reconcileStatus(name: string): Promise<boolean> {
+    const project = this.projects.get(name);
+    if (!project) return false;
+    if (project.status === "building") return false; // mid-action — leave it
+    const composeFile = this.resolveComposeFile(project);
+    if (!composeFile) return false;
+    try {
+      const res = await this.runCompose(project, [
+        "compose", "-f", composeFile, "ps", "--status", "running", "-q",
+      ]);
+      const running = res.stdout.split("\n").map((s) => s.trim()).filter(Boolean).length > 0;
+      const newStatus = running ? "running" : "stopped";
+      if (project.status !== newStatus) {
+        project.status = newStatus;
+        project.lastUpdated = new Date().toISOString();
+        return true;
+      }
+    } catch {
+      /* docker not reachable — leave status as-is */
+    }
+    return false;
+  }
+
+  /** Reconcile every project; persist + broadcast any changes. */
+  private async reconcileAllStatuses(): Promise<void> {
+    let changed = false;
+    for (const name of Array.from(this.projects.keys())) {
+      if (await this.reconcileStatus(name)) {
+        changed = true;
+        const project = this.projects.get(name);
+        if (project) this.wsHandler?.broadcastProjectStatus({ name, status: project.status });
+      }
+    }
+    if (changed) this.saveProjects();
+  }
+
   private healthPollInterval: ReturnType<typeof setInterval> | null = null;
 
-  public startHealthPolling(wsHandler: WebSocketHandler, intervalMs = 60_000): void {
+  public startHealthPolling(wsHandler: WebSocketHandler, intervalMs = 30_000): void {
     if (this.healthPollInterval) return;
-    this.healthPollInterval = setInterval(async () => {
+    this.wsHandler = wsHandler;
+    const tick = async () => {
+      // 1) sync stored status with reality (covers pipeline/manual docker changes)
+      await this.reconcileAllStatuses();
+      // 2) push health for the ones actually running
       for (const [name, project] of this.projects.entries()) {
         if (project.status !== "running") continue;
         try {
@@ -1971,7 +2015,9 @@ export class ProjectService {
           wsHandler.broadcastProjectHealth({ projectName: name, health });
         } catch {}
       }
-    }, intervalMs);
+    };
+    void tick(); // reconcile immediately on startup so cards are correct on boot
+    this.healthPollInterval = setInterval(tick, intervalMs);
   }
 
   public stopHealthPolling(): void {
