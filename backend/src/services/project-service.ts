@@ -34,9 +34,23 @@ export class ProjectService {
     this.legacyProjectsDir = config.legacyProjectsDir || this.projectsDir;
     this.legacyConfigPath = config.legacyConfigPath || this.configPath;
     this.ensureDirectories();
+    this.ensureGitSafeDirectories();
     this.database = new Database(this.databasePath);
     this.initializeDatabase();
     this.loadProjects();
+  }
+
+  /** ACM runs git (clone/pull) as root over repos owned by other uids, which
+   *  modern git rejects with "detected dubious ownership". Trust managed repos
+   *  globally (git ignores safe.directory unless it's in global/system config). */
+  private ensureGitSafeDirectories(): void {
+    try {
+      const { execSync } = require("child_process");
+      execSync("git config --global --replace-all safe.directory '*'", { stdio: "ignore" });
+      this.logger.info("Configured git safe.directory='*' for managed repos");
+    } catch (e) {
+      this.logger.warn(`Failed to set git safe.directory: ${e}`);
+    }
   }
 
   public setWebSocketHandler(handler: WebSocketHandler): void {
