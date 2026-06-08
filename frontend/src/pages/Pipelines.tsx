@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Play, RotateCw, Copy, Workflow, CircleDot } from "lucide-react";
+import { Play, RotateCw, Copy, Workflow, CircleDot, X } from "lucide-react";
 import { apiFetch } from "@/utils/api";
 import PipelineGraph, { GraphStage } from "@/components/PipelineGraph";
 
@@ -42,7 +42,7 @@ export default function Pipelines() {
   const [webhook, setWebhook] = useState<{ path: string; secret: string } | null>(null);
   const [activeRun, setActiveRun] = useState<PipelineRun | null>(null);
   const [stageLogs, setStageLogs] = useState<Record<string, string>>({});
-  const [selectedStage, setSelectedStage] = useState<string>("checkout");
+  const [openStage, setOpenStage] = useState<string | null>(null); // null = logs hidden
   const [running, setRunning] = useState(false);
   const [showWebhook, setShowWebhook] = useState(false);
   const [copied, setCopied] = useState("");
@@ -74,7 +74,7 @@ export default function Pipelines() {
     if (!selected) return;
     setActiveRun(null);
     setStageLogs({});
-    setSelectedStage("checkout");
+    setOpenStage(null);
     (async () => {
       const [defR, runsR, hookR] = await Promise.all([
         apiFetch(`/api/projects/${encodeURIComponent(selected)}/pipeline/definition`).then((r) => r.json()),
@@ -102,7 +102,8 @@ export default function Pipelines() {
     const onStatus = async (e: Event) => {
       const d = (e as CustomEvent).detail;
       if (d?.projectName !== selected) return;
-      if (d.status === "stage" && d.stage) setSelectedStage(d.stage);
+      // If a log is open, follow the running stage; otherwise stay closed.
+      if (d.status === "stage" && d.stage) setOpenStage((prev) => (prev ? d.stage : prev));
       if (d.runId) await loadRun(selected, d.runId);
       if (d.status === "success" || d.status === "failed") {
         setRunning(false);
@@ -120,12 +121,11 @@ export default function Pipelines() {
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [stageLogs, selectedStage]);
+  }, [stageLogs, openStage]);
 
   const run = async (stage?: string) => {
     if (!selected) return;
     setStageLogs({});
-    setSelectedStage(stage || "checkout");
     const r = await apiFetch(`/api/projects/${encodeURIComponent(selected)}/pipeline/run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -241,41 +241,59 @@ export default function Pipelines() {
               </div>
             )}
 
-            {/* Graph */}
+            {/* Graph — the default "checkpoint" view; live status updates as it runs */}
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-3 text-xs">
+                {running ? (
+                  <span className="flex items-center gap-1.5 text-amber-600 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" /> Running…
+                  </span>
+                ) : (
+                  <span className="text-gray-400">Tap a stage to view its log</span>
+                )}
+              </div>
               <PipelineGraph
                 stages={graphStages}
-                selected={selectedStage}
+                selected={openStage ?? undefined}
                 running={running}
-                onSelect={setSelectedStage}
+                onSelect={(name) => setOpenStage(name)}
                 onRunStage={(name) => run(name)}
               />
             </div>
 
-            {/* Logs + history */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2 bg-gray-950 rounded-xl overflow-hidden flex flex-col" style={{ minHeight: 320 }}>
-                <div className="px-4 py-2 border-b border-gray-800 text-xs text-gray-400 font-mono">{selectedStage} — logs</div>
-                <pre ref={logRef} className="flex-1 overflow-auto p-4 text-xs leading-relaxed text-gray-100 font-mono whitespace-pre-wrap">
-                  {stageLogs[selectedStage] || "No output yet. Run the pipeline or a single stage."}
-                </pre>
-              </div>
-              <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 overflow-y-auto" style={{ maxHeight: 360 }}>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2 px-1">History</h3>
-                <ul className="space-y-1">
-                  {runs.length === 0 && <li className="text-xs text-gray-400 px-1">No runs yet.</li>}
-                  {runs.map((r) => (
-                    <li key={r.id}>
-                      <button onClick={() => loadRun(selected, r.id)} className={`w-full flex items-center gap-2 text-left text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 ${activeRun?.id === r.id ? "bg-gray-50 dark:bg-gray-700" : ""}`}>
-                        <CircleDot className={`w-3.5 h-3.5 ${DOT[r.status] || "text-gray-300"}`} />
-                        <span className="text-gray-700 dark:text-gray-200">{r.trigger}</span>
-                        <span className="text-[11px] text-gray-400 ml-auto">{new Date(r.startedAt).toLocaleTimeString()}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {/* History (compact, default) */}
+            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2 px-1">History</h3>
+              <ul className="space-y-1 max-h-64 overflow-y-auto">
+                {runs.length === 0 && <li className="text-xs text-gray-400 px-1">No runs yet.</li>}
+                {runs.map((r) => (
+                  <li key={r.id}>
+                    <button onClick={() => loadRun(selected, r.id)} className={`w-full flex items-center gap-2 text-left text-sm px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 ${activeRun?.id === r.id ? "bg-gray-50 dark:bg-gray-700" : ""}`}>
+                      <CircleDot className={`w-3.5 h-3.5 ${DOT[r.status] || "text-gray-300"}`} />
+                      <span className="text-gray-700 dark:text-gray-200">{r.trigger}</span>
+                      <span className="text-[11px] text-gray-400 ml-auto">{new Date(r.startedAt).toLocaleString()}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             </div>
+
+            {/* Logs — on demand only (tap a stage) */}
+            {openStage && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setOpenStage(null)}>
+                <div className="bg-gray-950 rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+                    <span className="text-sm font-mono text-gray-300">{openStage} — logs</span>
+                    <button onClick={() => setOpenStage(null)} className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg" aria-label="Close logs">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <pre ref={logRef} className="flex-1 overflow-auto p-4 text-xs leading-relaxed text-gray-100 font-mono whitespace-pre-wrap">
+                    {stageLogs[openStage] || "No output yet for this stage."}
+                  </pre>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
