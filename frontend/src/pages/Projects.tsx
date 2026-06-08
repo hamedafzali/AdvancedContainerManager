@@ -26,6 +26,7 @@ import {
   Workflow,
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
+import ProjectEnvironments from "@/components/ProjectEnvironments";
 
 interface Project {
   name: string;
@@ -1232,6 +1233,7 @@ export default function Projects() {
                     </button>
                   </div>
                 </div>
+                <ProjectEnvironments projectName={project.name} />
               </div>
             </div>
           ))}

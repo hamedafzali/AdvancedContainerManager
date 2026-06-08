@@ -101,6 +101,8 @@ export interface ProjectInfo {
   dockerfile: string;
   composeFile: string;
   environmentVars: Record<string, string>;
+  // Per-environment variable overlays (dev/test/prod), merged over environmentVars.
+  envOverrides?: Record<string, Record<string, string>>;
   containers: string[];
   status: "configured" | "building" | "built" | "running" | "stopped" | "error";
   createdAt: string;

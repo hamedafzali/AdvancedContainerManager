@@ -11,6 +11,8 @@ import type { WebSocketHandler } from "./websocket-handler";
 
 const Database = require("better-sqlite3");
 
+export const PROJECT_ENVIRONMENTS = ["dev", "test", "prod"] as const;
+
 export class ProjectService {
   private config: AppConfig;
   private logger: Logger;
@@ -2040,6 +2042,138 @@ export class ProjectService {
 
   public getWebhookSecret(name: string): string | undefined {
     return (this.projects.get(name) as any)?.webhookSecret;
+  }
+
+  // ── Environments (dev / test / prod) ─────────────────────
+  // Each environment is a separate compose project on the host:
+  //   prod  -> <name>            (the existing deployment, unchanged)
+  //   dev   -> <name>-dev
+  //   test  -> <name>-test
+  // Per-env variables (e.g. ports/domains so they don't collide) are stored in
+  // envOverrides and also written to .env.<env> so the pipeline can reuse them.
+
+  private sanitizeProjectName(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9_-]/g, "");
+  }
+
+  public composeProjectFor(name: string, env: string): string {
+    const base = this.sanitizeProjectName(name);
+    return env === "prod" ? base : `${base}-${env}`;
+  }
+
+  private mergedEnvFor(project: ProjectInfo, env: string): Record<string, string> {
+    return { ...(project.environmentVars || {}), ...((project.envOverrides || {})[env] || {}) };
+  }
+
+  public getEnvVars(name: string, env: string): Record<string, string> {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    return (project.envOverrides || {})[env] || {};
+  }
+
+  public setEnvVars(name: string, env: string, vars: Record<string, string>): void {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
+    project.envOverrides = { ...(project.envOverrides || {}), [env]: vars };
+    this.saveProjects();
+    // Mirror to .env.<env> so a pipeline `--env-file` deploy uses the same values.
+    try {
+      const merged = this.mergedEnvFor(project, env);
+      fs.writeFileSync(
+        path.join(project.path, `.env.${env}`),
+        Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n") + "\n",
+      );
+    } catch (e) {
+      this.logger.warn(`Failed to write .env.${env} for ${name}: ${e}`);
+    }
+  }
+
+  /** Live status of every environment for a project (reconciled from Docker). */
+  public async getEnvironments(
+    name: string,
+  ): Promise<Array<{ env: string; status: "running" | "stopped"; composeProject: string; configured: boolean }>> {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    const composeFile = this.resolveComposeFile(project);
+    const out: Array<{ env: string; status: "running" | "stopped"; composeProject: string; configured: boolean }> = [];
+    for (const env of PROJECT_ENVIRONMENTS) {
+      const cp = this.composeProjectFor(name, env);
+      let status: "running" | "stopped" = "stopped";
+      if (composeFile) {
+        try {
+          const res = await this.runCommand(
+            "docker",
+            ["compose", "-p", cp, "-f", composeFile, "ps", "--status", "running", "-q"],
+            project.path,
+            project.environmentVars,
+          );
+          if (res.stdout.split("\n").map((s) => s.trim()).filter(Boolean).length > 0) status = "running";
+        } catch { /* docker unreachable */ }
+      }
+      out.push({
+        env,
+        status,
+        composeProject: cp,
+        configured: env === "prod" || !!(project.envOverrides || {})[env],
+      });
+    }
+    return out;
+  }
+
+  public async deployEnvironment(name: string, env: string): Promise<{ output: string }> {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
+    const composeFile = this.resolveComposeFile(project);
+    if (!composeFile) throw new Error("docker-compose file not found in project");
+
+    const cp = this.composeProjectFor(name, env);
+    const merged = this.mergedEnvFor(project, env);
+    const envFile = path.join(project.path, `.env.${env}`);
+    try {
+      fs.writeFileSync(envFile, Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n") + "\n");
+    } catch { /* best effort */ }
+
+    this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "started", timestamp: new Date().toISOString() });
+
+    const args = ["compose", "-p", cp, "-f", composeFile];
+    if (fs.existsSync(envFile)) args.push("--env-file", envFile);
+    args.push("up", "-d", "--build");
+
+    const result = await this.runCommand(
+      "docker", args, project.path, merged,
+      (chunk) => this.wsHandler?.broadcastProjectDeployLog({ projectName: name, stream: "stdout", chunk, timestamp: new Date().toISOString() }),
+      (chunk) => this.wsHandler?.broadcastProjectDeployLog({ projectName: name, stream: "stderr", chunk, timestamp: new Date().toISOString() }),
+    );
+
+    if (result.code !== 0) {
+      this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "failed", timestamp: new Date().toISOString(), code: result.code, error: result.stderr || result.stdout });
+      throw new Error(result.stderr || result.stdout || "Deploy failed");
+    }
+
+    if (env === "prod") { project.status = "running"; project.lastUpdated = new Date().toISOString(); this.saveProjects(); }
+    this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "completed", timestamp: new Date().toISOString(), code: 0 });
+    this.wsHandler?.broadcastProjectStatus({ name, status: env === "prod" ? "running" : project.status });
+    return { output: result.stdout || result.stderr || "" };
+  }
+
+  public async stopEnvironment(name: string, env: string): Promise<void> {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
+    const composeFile = this.resolveComposeFile(project);
+    if (!composeFile) throw new Error("docker-compose file not found in project");
+
+    const cp = this.composeProjectFor(name, env);
+    const merged = this.mergedEnvFor(project, env);
+    const result = await this.runCommand(
+      "docker",
+      ["compose", "-p", cp, "-f", composeFile, "down"],
+      project.path, merged,
+    );
+    if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Stop failed");
+    if (env === "prod") { project.status = "stopped"; project.lastUpdated = new Date().toISOString(); this.saveProjects(); }
   }
 }
 
