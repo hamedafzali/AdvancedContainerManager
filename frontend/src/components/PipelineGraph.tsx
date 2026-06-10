@@ -1,11 +1,11 @@
 import { Fragment } from "react";
 import {
-  ChevronRight, CheckCircle, XCircle, Clock, Circle, MinusCircle, Play, GitBranch,
+  ChevronRight, CheckCircle, XCircle, Clock, Circle, MinusCircle, Play, GitBranch, PauseCircle,
 } from "lucide-react";
 
 export interface GraphStage {
   name: string;
-  status: "pending" | "running" | "success" | "failed" | "skipped";
+  status: "pending" | "running" | "success" | "failed" | "skipped" | "awaiting_approval";
   durationMs?: number;
 }
 
@@ -15,6 +15,7 @@ const STYLE: Record<GraphStage["status"], { box: string; icon: JSX.Element; labe
   running: { box: "border-amber-300 bg-amber-50 animate-pulse", icon: <Clock className="w-4 h-4 text-amber-500" />, label: "Running" },
   pending: { box: "border-gray-200 bg-white", icon: <Circle className="w-4 h-4 text-gray-300" />, label: "Pending" },
   skipped: { box: "border-dashed border-gray-200 bg-gray-50", icon: <MinusCircle className="w-4 h-4 text-gray-400" />, label: "Skipped" },
+  awaiting_approval: { box: "border-blue-300 bg-blue-50 animate-pulse", icon: <PauseCircle className="w-4 h-4 text-blue-600" />, label: "Awaiting approval" },
 };
 
 export default function PipelineGraph({

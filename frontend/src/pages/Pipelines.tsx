@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Play, RotateCw, Copy, Workflow, CircleDot, X } from "lucide-react";
+import { Play, RotateCw, Copy, Workflow, CircleDot, X, Check, Ban, Download } from "lucide-react";
 import { apiFetch } from "@/utils/api";
 import PipelineGraph, { GraphStage } from "@/components/PipelineGraph";
 
@@ -9,12 +9,14 @@ interface StageResult {
   status: GraphStage["status"];
   durationMs?: number;
   log: string;
+  artifacts?: string[];
 }
 interface PipelineRun {
   id: string;
   projectName: string;
   trigger: string;
-  status: "running" | "success" | "failed";
+  status: "running" | "success" | "failed" | "awaiting_approval";
+  branch?: string;
   stages: StageResult[];
   startedAt: string;
   finishedAt?: string;
@@ -31,6 +33,7 @@ const DOT: Record<string, string> = {
   success: "text-green-500",
   failed: "text-red-500",
   running: "text-amber-500 animate-pulse",
+  awaiting_approval: "text-blue-500 animate-pulse",
 };
 
 export default function Pipelines() {
@@ -63,7 +66,7 @@ export default function Pipelines() {
       const run: PipelineRun = j.data;
       setActiveRun(run);
       setStageLogs(Object.fromEntries(run.stages.map((s) => [s.name, s.log])));
-      setRunning(run.status === "running");
+      setRunning(run.status === "running" || run.status === "awaiting_approval");
       return run;
     }
     return null;
@@ -138,6 +141,15 @@ export default function Pipelines() {
     }
   };
 
+  const decide = async (stage: string, decision: "approve" | "reject") => {
+    if (!selected || !activeRun) return;
+    await apiFetch(
+      `/api/projects/${encodeURIComponent(selected)}/pipeline/runs/${activeRun.id}/stages/${encodeURIComponent(stage)}/approve`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ decision }) },
+    );
+    // The run resumes server-side; the WebSocket stream refreshes our view.
+  };
+
   const regenerate = async () => {
     if (!selected) return;
     const r = await apiFetch(`/api/projects/${encodeURIComponent(selected)}/pipeline/webhook/regenerate`, { method: "POST" });
@@ -165,6 +177,12 @@ export default function Pipelines() {
   }, [activeRun, definition]);
 
   const webhookUrl = webhook ? `${window.location.origin}${webhook.path}` : "";
+  // A stage paused at a manual gate, waiting for approve/reject.
+  const awaiting = activeRun?.stages.find((s) => s.status === "awaiting_approval");
+  const openArtifacts =
+    openStage && activeRun
+      ? activeRun.stages.find((s) => s.name === openStage)?.artifacts ?? []
+      : [];
 
   return (
     <div className="h-full flex">
@@ -241,6 +259,32 @@ export default function Pipelines() {
               </div>
             )}
 
+            {/* Manual approval gate — a stage is paused waiting for a decision */}
+            {awaiting && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                    “{awaiting.name}” is awaiting approval
+                  </p>
+                  <p className="text-xs text-blue-600 dark:text-blue-300/80">
+                    The pipeline is paused before this stage. Approve to continue or reject to stop the run.
+                  </p>
+                </div>
+                <button
+                  onClick={() => decide(awaiting.name, "reject")}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-red-300 text-red-600 hover:bg-red-50"
+                >
+                  <Ban className="w-4 h-4" /> Reject
+                </button>
+                <button
+                  onClick={() => decide(awaiting.name, "approve")}
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+                >
+                  <Check className="w-4 h-4" /> Approve
+                </button>
+              </div>
+            )}
+
             {/* Graph — the default "checkpoint" view; live status updates as it runs */}
             <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
               <div className="flex items-center gap-2 mb-3 text-xs">
@@ -291,6 +335,20 @@ export default function Pipelines() {
                   <pre ref={logRef} className="flex-1 overflow-auto p-4 text-xs leading-relaxed text-gray-100 font-mono whitespace-pre-wrap">
                     {stageLogs[openStage] || "No output yet for this stage."}
                   </pre>
+                  {openArtifacts.length > 0 && activeRun && selected && (
+                    <div className="px-4 py-3 border-t border-gray-800 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] uppercase tracking-wide text-gray-500">Artifacts</span>
+                      {openArtifacts.map((file) => (
+                        <a
+                          key={file}
+                          href={`/api/projects/${encodeURIComponent(selected)}/pipeline/runs/${activeRun.id}/stages/${encodeURIComponent(openStage)}/artifacts/${encodeURIComponent(file)}`}
+                          className="flex items-center gap-1.5 text-xs text-blue-300 hover:text-blue-200 bg-gray-900 rounded-lg px-2.5 py-1.5"
+                        >
+                          <Download className="w-3.5 h-3.5" /> {file}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
