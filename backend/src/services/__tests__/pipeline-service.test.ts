@@ -91,6 +91,7 @@ function makeService(projectPath: string, branch = "main") {
   );
   // Stub the I/O boundaries.
   jest.spyOn(svc as any, "currentBranch").mockResolvedValue(branch);
+  jest.spyOn(svc as any, "gitSha").mockResolvedValue("abc1234");
   jest
     .spyOn(svc as any, "execCommand")
     .mockImplementation(async (...args: any[]) => (String(args[0]).includes("FAIL") ? 1 : 0));
@@ -214,6 +215,31 @@ stages:
     expect(run.status).toBe("success");
     expect(statusOf(run, "deploy")).toBe("skipped"); // branches: [main]
     expect(statusOf(run, "rollback")).toBe("skipped");
+  });
+});
+
+describe("PipelineService — CI env injection", () => {
+  it("injects ACM_* variables (incl. ACM_PREVIOUS_SHA) into stage commands", async () => {
+    const svc = makeService(
+      writePipeline(`
+stages:
+  - name: build
+    run: ["echo b"]
+`),
+      "main",
+    );
+    const run = await runToEnd(svc);
+    expect(run.status).toBe("success");
+
+    const call = (svc as any).execCommand.mock.calls.find((a: any[]) =>
+      String(a[0]).includes("echo b"),
+    );
+    expect(call).toBeTruthy();
+    const env = call[2];
+    expect(env.ACM_RUN_ID).toBe(run.id);
+    expect(env.ACM_PROJECT).toBe("demo");
+    expect(env.ACM_BRANCH).toBe("main");
+    expect(env.ACM_PREVIOUS_SHA).toBe("abc1234"); // the rollback target
   });
 });
 

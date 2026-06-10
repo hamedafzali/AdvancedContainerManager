@@ -482,6 +482,10 @@ export class PipelineService {
     def: PipelineDefinition,
   ): Promise<void> {
     try {
+      // Capture the commit BEFORE checkout pulls — that's the rollback target
+      // (the previously-deployed code), exposed to stages as ACM_PREVIOUS_SHA.
+      const previousSha = (await this.gitSha(projectPath)) || "";
+
       // Stage 0: checkout — pull latest so the pipeline runs on fresh code.
       const checkout = run.stages[0];
       const okCheckout = await this.runStageCheckout(run, checkout, projectPath, env);
@@ -495,7 +499,19 @@ export class PipelineService {
       run.branch = branch;
       this.saveRun(run);
 
-      await this.runGraph(run, def, projectPath, env, branch);
+      // CI variables injected into every stage command (like other CI systems).
+      // ACM_PREVIOUS_SHA gives rollback hooks a deterministic target instead of
+      // relying on the reflog.
+      const stageEnv: Record<string, string> = {
+        ...env,
+        ACM_RUN_ID: run.id,
+        ACM_PROJECT: run.projectName,
+        ACM_BRANCH: branch,
+        ACM_PREVIOUS_SHA: previousSha,
+        ACM_COMMIT_SHA: (await this.gitSha(projectPath)) || "",
+      };
+
+      await this.runGraph(run, def, projectPath, stageEnv, branch);
 
       const failed = run.stages.some(
         (s, i) => i > 0 && s.status === "failed" && !def.stages[i - 1]?.continueOnError,
@@ -850,6 +866,16 @@ export class PipelineService {
         if (timer) clearTimeout(timer);
         resolve(timedOut ? 124 : (code ?? 0));
       });
+    });
+  }
+
+  private gitSha(cwd: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      let out = "";
+      const child = spawn("git", ["rev-parse", "HEAD"], { cwd, shell: false });
+      child.stdout.on("data", (d) => (out += d.toString()));
+      child.on("error", () => resolve(null));
+      child.on("close", (code) => resolve(code === 0 ? out.trim() || null : null));
     });
   }
 
