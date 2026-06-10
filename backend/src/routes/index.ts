@@ -2396,6 +2396,43 @@ export function routes(
     }),
   );
 
+  // Approve or reject a stage paused at a manual gate. Body: { decision }.
+  router.post(
+    "/projects/:name/pipeline/runs/:id/stages/:stage/approve",
+    asyncHandler(async (req, res) => {
+      const { name, id, stage } = req.params;
+      const decision = req.body?.decision === "reject" ? "reject" : "approve";
+      const run = pipelineService.getRun(id);
+      if (!run || run.projectName !== name) {
+        return res.status(404).json({ success: false, message: "Run not found" });
+      }
+      const ok = pipelineService.resolveApproval(id, stage, decision);
+      if (!ok) {
+        return res
+          .status(409)
+          .json({ success: false, message: "Stage is not awaiting approval" });
+      }
+      res.json({ success: true, data: { decision } });
+    }),
+  );
+
+  // Download a captured artifact file from a stage.
+  router.get(
+    "/projects/:name/pipeline/runs/:id/stages/:stage/artifacts/:file",
+    asyncHandler(async (req, res) => {
+      const { name, id, stage, file } = req.params;
+      const run = pipelineService.getRun(id);
+      if (!run || run.projectName !== name) {
+        return res.status(404).json({ success: false, message: "Run not found" });
+      }
+      const abs = pipelineService.resolveArtifact(id, stage, file);
+      if (!abs) {
+        return res.status(404).json({ success: false, message: "Artifact not found" });
+      }
+      res.download(abs);
+    }),
+  );
+
   return router;
 }
 
