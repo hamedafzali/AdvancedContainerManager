@@ -1,4 +1,7 @@
 import { Router } from "express";
+import * as fs from "fs";
+import * as path from "path";
+import { spawn } from "child_process";
 import { DockerService } from "../services/docker-service";
 import { ProjectService } from "../services/project-service";
 import { TunnelService } from "../services/tunnel-service";
@@ -2416,7 +2419,9 @@ export function routes(
     }),
   );
 
-  // Download a captured artifact file from a stage.
+  // Download a captured artifact from a stage. A file is sent as-is; a directory
+  // (e.g. a Playwright HTML report) is streamed as a .tgz so the whole report
+  // comes down as one archive — the pipeline definition just lists the folder.
   router.get(
     "/projects/:name/pipeline/runs/:id/stages/:stage/artifacts/:file",
     asyncHandler(async (req, res) => {
@@ -2429,7 +2434,20 @@ export function routes(
       if (!abs) {
         return res.status(404).json({ success: false, message: "Artifact not found" });
       }
-      res.download(abs);
+      if (!fs.statSync(abs).isDirectory()) {
+        return res.download(abs);
+      }
+      // Directory → stream a gzipped tar of it.
+      const base = path.basename(abs);
+      res.setHeader("Content-Type", "application/gzip");
+      res.setHeader("Content-Disposition", `attachment; filename="${base}.tgz"`);
+      const tar = spawn("tar", ["-czf", "-", "-C", path.dirname(abs), base]);
+      tar.stdout.pipe(res);
+      tar.stderr.on("data", () => {});
+      tar.on("error", () => {
+        if (!res.headersSent) res.status(500).json({ success: false, message: "Failed to archive artifact" });
+        else res.end();
+      });
     }),
   );
 

@@ -141,6 +141,28 @@ export default function Pipelines() {
     }
   };
 
+  // Artifacts sit behind the authenticated API, so fetch with the bearer token
+  // (apiFetch) and save the blob — a plain <a href> would 401. The server names
+  // the file (a directory artifact comes down as <name>.tgz).
+  const downloadArtifact = async (stage: string, file: string) => {
+    if (!selected || !activeRun) return;
+    const res = await apiFetch(
+      `/api/projects/${encodeURIComponent(selected)}/pipeline/runs/${activeRun.id}/stages/${encodeURIComponent(stage)}/artifacts/${encodeURIComponent(file)}`,
+    );
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const cd = res.headers.get("Content-Disposition") || "";
+    const name = /filename="?([^"]+)"?/.exec(cd)?.[1] ?? file;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const decide = async (stage: string, decision: "approve" | "reject") => {
     if (!selected || !activeRun) return;
     await apiFetch(
@@ -339,13 +361,13 @@ export default function Pipelines() {
                     <div className="px-4 py-3 border-t border-gray-800 flex flex-wrap items-center gap-2">
                       <span className="text-[11px] uppercase tracking-wide text-gray-500">Artifacts</span>
                       {openArtifacts.map((file) => (
-                        <a
+                        <button
                           key={file}
-                          href={`/api/projects/${encodeURIComponent(selected)}/pipeline/runs/${activeRun.id}/stages/${encodeURIComponent(openStage)}/artifacts/${encodeURIComponent(file)}`}
+                          onClick={() => downloadArtifact(openStage, file)}
                           className="flex items-center gap-1.5 text-xs text-blue-300 hover:text-blue-200 bg-gray-900 rounded-lg px-2.5 py-1.5"
                         >
                           <Download className="w-3.5 h-3.5" /> {file}
-                        </a>
+                        </button>
                       ))}
                     </div>
                   )}
