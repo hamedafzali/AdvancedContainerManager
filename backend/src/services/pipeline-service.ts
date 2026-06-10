@@ -484,7 +484,7 @@ export class PipelineService {
     try {
       // Stage 0: checkout — pull latest so the pipeline runs on fresh code.
       const checkout = run.stages[0];
-      const okCheckout = await this.runStageCheckout(run, checkout);
+      const okCheckout = await this.runStageCheckout(run, checkout, projectPath, env);
       if (!okCheckout) {
         this.markRemainingSkipped(run, 1);
         return this.finishRun(run, "failed", def, env);
@@ -644,28 +644,32 @@ export class PipelineService {
     return decision === "approve";
   }
 
-  private async runStageCheckout(run: PipelineRun, stage: PipelineStageResult): Promise<boolean> {
+  private async runStageCheckout(
+    run: PipelineRun,
+    stage: PipelineStageResult,
+    projectPath: string,
+    env: Record<string, string>,
+  ): Promise<boolean> {
     const started = Date.now();
     stage.status = "running";
     this.broadcastStatus(run, "stage", stage.name);
     this.saveRun(run);
-    try {
-      const result = await this.projects.pullLatestProject(run.projectName);
-      const out = (result?.output as string) || "Pulled latest.";
-      this.appendLog(run, stage, out + "\n");
-      stage.status = "success";
-      stage.durationMs = Date.now() - started;
-      stage.exitCode = 0;
-      this.saveRun(run);
-      return true;
-    } catch (error) {
-      this.appendLog(run, stage, `\n[checkout failed] ${error}\n`);
-      stage.status = "failed";
-      stage.exitCode = 1;
-      stage.durationMs = Date.now() - started;
-      this.saveRun(run);
-      return false;
-    }
+    // Non-destructive fast-forward pull. We deliberately do NOT use the project
+    // service's "pull latest" here: that stops the project's containers before
+    // syncing, which would take the running app down for the whole pipeline —
+    // including any manual-approval wait — before the deploy stage brings it
+    // back. The deploy stage is what (re)starts containers; checkout only moves
+    // the code. A non-fast-forwardable history fails the stage cleanly.
+    this.appendLog(run, stage, "$ git pull --ff-only\n");
+    const code = await this.execCommand("git pull --ff-only", projectPath, env, 120, (c) =>
+      this.appendLog(run, stage, c),
+    );
+    stage.exitCode = code;
+    stage.durationMs = Date.now() - started;
+    stage.status = code === 0 ? "success" : "failed";
+    if (code !== 0) this.appendLog(run, stage, `\n[checkout failed — exit ${code}]\n`);
+    this.saveRun(run);
+    return code === 0;
   }
 
   private async runStageCommands(
