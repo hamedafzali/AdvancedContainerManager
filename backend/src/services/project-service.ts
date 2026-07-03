@@ -24,6 +24,11 @@ export class ProjectService {
   private database: any;
   private projects: Map<string, ProjectInfo> = new Map();
   private wsHandler?: WebSocketHandler;
+  /** Resolves an authenticated clone URL for a stored git account (wired in index.ts). */
+  private authenticatedUrlResolver?: (
+    accountId: string,
+    cloneUrl: string,
+  ) => string;
 
   constructor(config: AppConfig, logger: Logger) {
     this.config = config;
@@ -55,6 +60,29 @@ export class ProjectService {
 
   public setWebSocketHandler(handler: WebSocketHandler): void {
     this.wsHandler = handler;
+  }
+
+  /** Wire the git-account service so private repos can be re-cloned during
+   *  recovery/sync (see ensureProjectRepo). Set once at startup. */
+  public setAuthenticatedUrlResolver(
+    resolver: (accountId: string, cloneUrl: string) => string,
+  ): void {
+    this.authenticatedUrlResolver = resolver;
+  }
+
+  /** Strip embedded credentials (https://TOKEN@host/...) from text before it
+   *  reaches logs or API responses. */
+  private redactCredentials(text: string): string {
+    return text.replace(/(https?:\/\/)[^@/\s"']+@/g, "$1***@");
+  }
+
+  /** Best authenticated clone URL for a project: uses the stored git account
+   *  when available, otherwise the plain repo URL. */
+  private resolveCloneUrl(project: ProjectInfo): string {
+    if (project.accountId && this.authenticatedUrlResolver) {
+      return this.authenticatedUrlResolver(project.accountId, project.repoUrl);
+    }
+    return project.repoUrl;
   }
 
   private ensureDirectories(): void {
@@ -691,10 +719,18 @@ export class ProjectService {
 
     fs.mkdirSync(path.dirname(project.path), { recursive: true });
     const git = simpleGit();
-    await git.clone(project.repoUrl, project.path, [
-      "--branch",
-      project.branch || "main",
-    ]);
+    try {
+      // Use the stored git account so private repos recover too
+      await git.clone(this.resolveCloneUrl(project), project.path, [
+        "--branch",
+        project.branch || "main",
+      ]);
+    } catch (error: any) {
+      // simple-git errors embed the tokenized URL — scrub before rethrowing
+      throw new Error(
+        this.redactCredentials(String(error?.message ?? error)),
+      );
+    }
     this.logger.info(`Recovered project repository for ${project.name}`);
 
     return { recovered: true, note };
@@ -708,6 +744,7 @@ export class ProjectService {
     composeFile: string = "docker-compose.yml",
     environmentVars: Record<string, string> = {},
     authenticatedUrl?: string,
+    accountId?: string,
   ): Promise<ProjectInfo> {
     try {
       const projectPath = path.join(this.projectsDir, name);
@@ -738,6 +775,7 @@ export class ProjectService {
         name,
         repoUrl,
         branch,
+        accountId,
         path: projectPath,
         dockerfile,
         composeFile,
@@ -766,9 +804,13 @@ export class ProjectService {
 
       this.logger.info(`Project ${name} added successfully`);
       return project;
-    } catch (error) {
-      this.logger.error(`Error adding project ${name}:`, error);
-      throw error;
+    } catch (error: any) {
+      // Rethrow a plain Error with credentials scrubbed — simple-git errors
+      // carry the tokenized clone URL in their message and task payload,
+      // which must never reach logs or API responses.
+      const message = this.redactCredentials(String(error?.message ?? error));
+      this.logger.error(`Error adding project ${name}: ${message}`);
+      throw new Error(message);
     }
   }
 

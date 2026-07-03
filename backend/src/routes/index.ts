@@ -927,6 +927,7 @@ export function routes(
           composeFile,
           environmentVars,
           authenticatedUrl,
+          accountId,
         );
 
         res.json({

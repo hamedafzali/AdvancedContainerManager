@@ -138,6 +138,9 @@ class AdvancedContainerManager {
     );
 
     this.projectService.setWebSocketHandler(this.wsHandler);
+    this.projectService.setAuthenticatedUrlResolver((accountId, cloneUrl) =>
+      this.gitAccountService.getAuthenticatedUrl(accountId, cloneUrl),
+    );
     this.projectService.startHealthPolling(this.wsHandler);
     this.pipelineService = new PipelineService(
       this.config,

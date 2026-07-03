@@ -103,6 +103,9 @@ export interface ProjectInfo {
   environmentVars: Record<string, string>;
   // Per-environment variable overlays (dev/test/prod), merged over environmentVars.
   envOverrides?: Record<string, Record<string, string>>;
+  /** Git account used to clone this repo — lets recovery/sync rebuild an
+   *  authenticated URL instead of failing on private repos. */
+  accountId?: string;
   containers: string[];
   status: "configured" | "building" | "built" | "running" | "stopped" | "error";
   createdAt: string;
