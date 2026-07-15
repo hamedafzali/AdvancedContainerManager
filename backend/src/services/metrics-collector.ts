@@ -237,7 +237,7 @@ export class MetricsCollector {
   public async getSystemMetricsHistory(
     limit: number = 100,
   ): Promise<SystemMetrics[]> {
-    if (this.isRedisConnected) {
+    if (this.isRedisConnected()) {
       try {
         const keys = await this.redisClient.lRange(
           `${this.config.redis.keyPrefix}system:metrics`,
@@ -260,7 +260,7 @@ export class MetricsCollector {
     containerId: string,
     limit: number = 100,
   ): Promise<ContainerMetrics[]> {
-    if (this.isRedisConnected) {
+    if (this.isRedisConnected()) {
       try {
         const key = `${this.config.redis.keyPrefix}container:${containerId}`;
         const keys = await this.redisClient.lRange(key, 0, limit - 1);
@@ -281,7 +281,7 @@ export class MetricsCollector {
   private async storeSystemMetrics(metrics: SystemMetrics): Promise<void> {
     try {
       // Store in Redis
-      if (this.isRedisConnected) {
+      if (this.isRedisConnected()) {
         const key = `${this.config.redis.keyPrefix}system:metrics`;
         await this.redisClient.lPush(key, JSON.stringify(metrics));
         await this.redisClient.lTrim(key, 0, this.config.metricsRetention - 1);
@@ -304,7 +304,7 @@ export class MetricsCollector {
   ): Promise<void> {
     try {
       // Store in Redis
-      if (this.isRedisConnected) {
+      if (this.isRedisConnected()) {
         const key = `${this.config.redis.keyPrefix}container:${containerId}`;
         await this.redisClient.lPush(key, JSON.stringify(metrics));
         await this.redisClient.lTrim(key, 0, this.config.metricsRetention - 1);
@@ -401,7 +401,7 @@ export class MetricsCollector {
 
   public async cleanupOldMetrics(): Promise<void> {
     try {
-      if (this.isRedisConnected) {
+      if (this.isRedisConnected()) {
         // Clean up old metrics based on retention policy
         const pattern = `${this.config.redis.keyPrefix}*`;
         const keys = await this.redisClient.keys(pattern);

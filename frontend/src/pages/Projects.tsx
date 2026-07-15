@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Search,
@@ -25,8 +25,19 @@ import {
   BookOpen,
   Workflow,
 } from "lucide-react";
-import { apiUrl, apiFetch } from "@/utils/api";
+import { apiFetch, apiPost } from "@/utils/api";
 import ProjectEnvironments from "@/components/ProjectEnvironments";
+import { useTasks } from "@/hooks/useTasks";
+import {
+  Button,
+  IconButton,
+  ConfirmDialog,
+  DropdownMenu,
+  ErrorBanner,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+} from "@/components/ui";
 
 interface Project {
   name: string;
@@ -77,7 +88,9 @@ export default function Projects() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(
+    searchParams.get("search") || "",
+  );
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -85,12 +98,25 @@ export default function Projects() {
   const [projectLogs, setProjectLogs] = useState<
     Array<{ containerId: string; logs: string }>
   >([]);
-  const [showDeployLogs, setShowDeployLogs] = useState(false);
-  const [deployLogs, setDeployLogs] = useState<string>("");
-  const [deployLogsTitle, setDeployLogsTitle] = useState<string>("");
-  const [activeDeployProject, setActiveDeployProject] = useState<string | null>(
+  const [pendingProjects, setPendingProjects] = useState<
+    Record<string, string>
+  >({});
+  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const { startTask, appendTaskLog, finishTask, openTask } = useTasks();
+  // Active streaming deploy/build; websocket chunks append to this task
+  const deployTaskRef = useRef<{ project: string; taskId: string } | null>(
     null,
   );
+
+  const setPending = (name: string, action: string | null) => {
+    setPendingProjects((prev) => {
+      const next = { ...prev };
+      if (action === null) delete next[name];
+      else next[name] = action;
+      return next;
+    });
+  };
   const [showEnvModal, setShowEnvModal] = useState(false);
   const [envProject, setEnvProject] = useState<Project | null>(null);
   const [envEditor, setEnvEditor] = useState<
@@ -595,233 +621,192 @@ export default function Projects() {
     }
   };
 
-  const handleSyncDeploy = async (projectName: string) => {
-    const conflicts = await checkPortConflicts(projectName);
-    if (conflicts.length > 0) {
-      setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
-      return;
-    }
-    try {
-      setDeployLogs("");
-      setDeployLogsTitle(`Sync & Deploy: ${projectName}`);
-      setShowDeployLogs(true);
-      setActiveDeployProject(projectName);
-
-      window.dispatchEvent(new CustomEvent("subscribe_project_deploy", { detail: { projectName } }));
-
-      const response = await apiFetch(`/api/projects/${projectName}/sync-deploy`, { method: "POST" });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result?.message || "Failed to sync & deploy");
-
-      const syncOut = result?.data?.sync?.output || "";
-      const deployOut = result?.data?.deploy?.output || "";
-      setDeployLogs(`[sync]\n${syncOut}\n\n[deploy]\n${deployOut}`.trim());
-      await fetchProjects();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to sync & deploy";
-      setActionError(message);
-      setDeployLogs(message);
-    }
-  };
-
-  // Build project
-  const handleBuildProject = async (projectName: string) => {
-    try {
-      const response = await fetch(
-        apiUrl(`/api/projects/${projectName}/build`),
-        {
-          method: "POST",
-        },
-      );
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result?.message || "Failed to build project");
-      }
-
-      await fetchProjects();
-    } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to build project",
-      );
-    }
-  };
-
-  const handleSyncProject = async (projectName: string) => {
-    const requestedAt = new Date().toLocaleString();
-    try {
-      setActionError(null);
-      setDeployLogs("");
-      setDeployLogsTitle(`Sync Logs: ${projectName} (${requestedAt})`);
-      setShowDeployLogs(true);
-      const response = await fetch(
-        apiUrl(`/api/projects/${projectName}/sync`),
-        {
-          method: "POST",
-          cache: "no-store",
-          headers: {
-            "Cache-Control": "no-cache",
-            Pragma: "no-cache",
-          },
-        },
-      );
-
-      const result = await response.json().catch(() => null);
-      const logOutput = formatSyncLog(
-        projectName,
-        requestedAt,
-        response.status,
-        result,
-      );
-
-      if (!response.ok) {
-        setDeployLogs(logOutput);
-        throw new Error(
-          result?.message || `Failed to sync project (${response.status})`,
-        );
-      }
-
-      setDeployLogs(logOutput);
-      await fetchProjects();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to sync project";
-      setActionError(message);
-      setDeployLogs(
-        (prev) =>
-          prev ||
-          `Project: ${projectName}\nRequested: ${requestedAt}\nResult: ${message}`,
-      );
-    }
-  };
-
-  // Deploy project
-  const handleDeployProject = async (projectName: string) => {
-    const conflicts = await checkPortConflicts(projectName);
-    if (conflicts.length > 0) {
-      setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
-      return;
-    }
-    try {
-      setDeployLogs("");
-      setDeployLogsTitle(`Deploy Logs: ${projectName}`);
-      setShowDeployLogs(true);
-      setActiveDeployProject(projectName);
-
-      window.dispatchEvent(
-        new CustomEvent("subscribe_project_deploy", {
-          detail: { projectName },
-        }),
-      );
-
-      const response = await fetch(
-        apiUrl(`/api/projects/${projectName}/deploy`),
-        {
-          method: "POST",
-        },
-      );
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result?.message || "Failed to deploy project");
-      }
-
-      const output = result?.data?.output || "(no output)";
-      const command = result?.data?.command
-        ? `Command: ${result.data.command}`
-        : "";
-      setDeployLogs((prev) => {
-        if (prev) {
-          return `${prev}\n\n${command}\n${output}`.trim();
-        }
-        return `${command}\n${output}`.trim();
-      });
-      await fetchProjects();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to deploy project";
-      setActionError(message);
-      setDeployLogs(message);
-    }
-  };
-
+  // Stream deploy/build logs from the backend into the active task.
   useEffect(() => {
-    if (!showDeployLogs || !activeDeployProject) {
-      return;
-    }
-
     const onDeployLog = (event: Event) => {
       const detail = (event as CustomEvent).detail as {
         projectName?: string;
-        stream?: "stdout" | "stderr";
         chunk?: string;
-        timestamp?: string;
       };
-
-      if (!detail?.projectName || detail.projectName !== activeDeployProject) {
-        return;
-      }
-
-      const chunk = detail.chunk || "";
-      if (!chunk) {
-        return;
-      }
-
-      setDeployLogs((prev) => `${prev}${chunk}`);
+      const current = deployTaskRef.current;
+      if (!current || detail?.projectName !== current.project) return;
+      if (detail.chunk) appendTaskLog(current.taskId, detail.chunk);
     };
 
     const onDeployStatus = (event: Event) => {
       const detail = (event as CustomEvent).detail as {
         projectName?: string;
         status?: "started" | "completed" | "failed";
-        timestamp?: string;
         error?: string;
       };
-
-      if (!detail?.projectName || detail.projectName !== activeDeployProject) {
-        return;
-      }
-
+      const current = deployTaskRef.current;
+      if (!current || detail?.projectName !== current.project) return;
       if (detail.status === "failed" && detail.error) {
-        setDeployLogs((prev) => `${prev}\n${detail.error}\n`);
+        appendTaskLog(current.taskId, `\n${detail.error}\n`);
       }
     };
 
     window.addEventListener("project_deploy_log", onDeployLog);
     window.addEventListener("project_deploy_status", onDeployStatus);
-
     return () => {
       window.removeEventListener("project_deploy_log", onDeployLog);
       window.removeEventListener("project_deploy_status", onDeployStatus);
-
-      window.dispatchEvent(
-        new CustomEvent("unsubscribe_project_deploy", {
-          detail: { projectName: activeDeployProject },
-        }),
-      );
     };
-  }, [showDeployLogs, activeDeployProject]);
+  }, [appendTaskLog]);
+
+  const beginStreamingTask = (projectName: string, title: string) => {
+    const taskId = startTask(title, projectName);
+    deployTaskRef.current = { project: projectName, taskId };
+    window.dispatchEvent(
+      new CustomEvent("subscribe_project_deploy", { detail: { projectName } }),
+    );
+    openTask(taskId);
+    return taskId;
+  };
+
+  const endStreamingTask = (projectName: string) => {
+    window.dispatchEvent(
+      new CustomEvent("unsubscribe_project_deploy", {
+        detail: { projectName },
+      }),
+    );
+    if (deployTaskRef.current?.project === projectName) {
+      deployTaskRef.current = null;
+    }
+  };
+
+  const handleSyncDeploy = async (projectName: string) => {
+    const conflicts = await checkPortConflicts(projectName);
+    if (conflicts.length > 0) {
+      setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
+      return;
+    }
+    setPending(projectName, "deploy");
+    const taskId = beginStreamingTask(projectName, `Sync & Deploy ${projectName}`);
+    appendTaskLog(taskId, `Syncing repository…\n`);
+    try {
+      const result = await apiPost(
+        `/api/projects/${encodeURIComponent(projectName)}/sync-deploy`,
+      );
+      const syncOut = result?.data?.sync?.output || "";
+      if (syncOut) appendTaskLog(taskId, `\n[sync]\n${syncOut}\n`);
+      appendTaskLog(taskId, `\n✔ Sync & deploy completed\n`);
+      finishTask(taskId, "success");
+      await fetchProjects();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to sync & deploy";
+      appendTaskLog(taskId, `\n${message}\n`);
+      finishTask(taskId, "failed", message);
+      setActionError(message);
+    } finally {
+      endStreamingTask(projectName);
+      setPending(projectName, null);
+    }
+  };
+
+  // Build project — logs stream live over the deploy channel
+  const handleBuildProject = async (projectName: string) => {
+    setPending(projectName, "build");
+    const taskId = beginStreamingTask(projectName, `Build ${projectName}`);
+    appendTaskLog(taskId, `Starting build…\n`);
+    try {
+      await apiPost(`/api/projects/${encodeURIComponent(projectName)}/build`);
+      appendTaskLog(taskId, `\n✔ Build completed\n`);
+      finishTask(taskId, "success");
+      await fetchProjects();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to build project";
+      appendTaskLog(taskId, `\n${message}\n`);
+      finishTask(taskId, "failed", message);
+      setActionError(message);
+    } finally {
+      endStreamingTask(projectName);
+      setPending(projectName, null);
+    }
+  };
+
+  const handleSyncProject = async (projectName: string) => {
+    const requestedAt = new Date().toLocaleString();
+    setPending(projectName, "sync");
+    const taskId = startTask(`Sync repo ${projectName}`, "git pull");
+    openTask(taskId);
+    try {
+      setActionError(null);
+      const response = await apiFetch(
+        `/api/projects/${encodeURIComponent(projectName)}/sync`,
+        {
+          method: "POST",
+          cache: "no-store",
+          headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+        },
+      );
+      const result = await response.json().catch(() => null);
+      appendTaskLog(
+        taskId,
+        formatSyncLog(projectName, requestedAt, response.status, result),
+      );
+      if (!response.ok) {
+        throw new Error(
+          result?.message || `Failed to sync project (${response.status})`,
+        );
+      }
+      finishTask(taskId, "success");
+      await fetchProjects();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to sync project";
+      finishTask(taskId, "failed", message);
+      setActionError(message);
+    } finally {
+      setPending(projectName, null);
+    }
+  };
+
+  // Deploy without syncing the repo first
+  const handleDeployProject = async (projectName: string) => {
+    const conflicts = await checkPortConflicts(projectName);
+    if (conflicts.length > 0) {
+      setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
+      return;
+    }
+    setPending(projectName, "deploy");
+    const taskId = beginStreamingTask(projectName, `Deploy ${projectName}`);
+    try {
+      const result = await apiPost(
+        `/api/projects/${encodeURIComponent(projectName)}/deploy`,
+      );
+      const command = result?.data?.command
+        ? ` (${result.data.command})`
+        : "";
+      appendTaskLog(taskId, `\n✔ Deploy completed${command}\n`);
+      finishTask(taskId, "success");
+      await fetchProjects();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to deploy project";
+      appendTaskLog(taskId, `\n${message}\n`);
+      finishTask(taskId, "failed", message);
+      setActionError(message);
+    } finally {
+      endStreamingTask(projectName);
+      setPending(projectName, null);
+    }
+  };
 
   // Stop project
   const handleStopProject = async (projectName: string) => {
+    setPending(projectName, "stop");
     try {
-      const response = await fetch(
-        apiUrl(`/api/projects/${projectName}/stop`),
-        {
-          method: "POST",
-        },
-      );
-
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result?.message || "Failed to stop project");
-      }
-
+      await apiPost(`/api/projects/${encodeURIComponent(projectName)}/stop`);
       await fetchProjects();
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Failed to stop project",
       );
+    } finally {
+      setPending(projectName, null);
     }
   };
 
@@ -849,13 +834,10 @@ export default function Projects() {
     fetchProjectLogs(project.name);
   };
 
-  // Delete project
+  // Delete project (invoked from the ConfirmDialog)
   const handleDeleteProject = async (projectName: string) => {
-    if (!confirm(`Are you sure you want to delete project "${projectName}"?`)) {
-      return;
-    }
-
     try {
+      setDeleting(true);
       const response = await apiFetch(`/api/projects/${projectName}`, {
         method: "DELETE",
       });
@@ -865,11 +847,15 @@ export default function Projects() {
         throw new Error(result?.message || "Failed to delete project");
       }
 
+      setDeleteTarget(null);
       await fetchProjects();
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Failed to delete project",
       );
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -937,7 +923,7 @@ export default function Projects() {
       case "running":
         return <CheckCircle className="w-4 h-4 text-green-600" />;
       case "stopped":
-        return <Square className="w-4 h-4 text-gray-600" />;
+        return <Square className="w-4 h-4 text-gray-600 dark:text-gray-300" />;
       case "error":
         return <XCircle className="w-4 h-4 text-red-600" />;
       default:
@@ -956,11 +942,11 @@ export default function Projects() {
       case "running":
         return "text-green-600";
       case "stopped":
-        return "text-gray-600";
+        return "text-gray-600 dark:text-gray-300";
       case "error":
         return "text-red-600";
       default:
-        return "text-gray-600";
+        return "text-gray-600 dark:text-gray-300";
     }
   };
 
@@ -970,86 +956,55 @@ export default function Projects() {
       project.repoUrl.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-light text-gray-900 mb-2">
-            Loading Projects...
-          </h2>
-          <p className="text-gray-500">Fetching project data</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <XCircle className="w-8 h-8 text-red-600" />
-          </div>
-          <h2 className="text-xl font-light text-gray-900 mb-2">
-            Error Loading Projects
-          </h2>
-          <p className="text-gray-500 mb-4">{error}</p>
-          <button
-            onClick={fetchProjects}
-            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+  if (loading && projects.length === 0 && !error) {
+    return <LoadingState label="Fetching project data…" />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {actionError && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 flex items-center justify-between">
-            <div className="text-sm">{actionError}</div>
-            <button
-              onClick={() => setActionError(null)}
-              className="text-red-600 hover:text-red-800 text-sm"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-light text-gray-900 tracking-tight">
-            Projects
-          </h1>
-          <div className="flex items-center space-x-4">
+    <div className="max-w-7xl mx-auto space-y-6">
+      <PageHeader
+        title="Projects"
+        subtitle={`${projects.length} projects`}
+        actions={
+          <div className="flex items-center gap-3">
             <div className="relative">
-              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search projects..."
+                placeholder="Search projects…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <button
+            <Button
+              variant="primary"
+              icon={<Plus className="w-4 h-4" />}
               onClick={() => setShowAddModal(true)}
-              className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
             >
-              <Plus className="w-4 h-4 mr-2" />
               Add Project
-            </button>
+            </Button>
           </div>
-        </div>
+        }
+      />
+
+      <ErrorBanner
+        message={error}
+        onDismiss={() => setError(null)}
+        onRetry={fetchProjects}
+      />
+      <ErrorBanner
+        message={actionError}
+        onDismiss={() => setActionError(null)}
+      />
+
+      <div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredProjects.map((project, index) => (
             <div
               key={index}
-              className="bg-white rounded-2xl shadow-sm border border-gray-200 flex flex-col hover:shadow-md hover:border-gray-300 transition-all duration-200"
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col hover:shadow-md hover:border-gray-300 transition-all duration-200"
             >
               {/* Card header — status stripe */}
               <div className={`h-1 rounded-t-2xl ${
@@ -1066,23 +1021,23 @@ export default function Projects() {
                 <div className="mb-4">
                   <div className="flex items-center gap-2 mb-1">
                     {getStatusIcon(project.status)}
-                    <h3 className="text-base font-semibold text-gray-900 break-all leading-snug" title={project.name}>
+                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 break-all leading-snug" title={project.name}>
                       {project.name}
                     </h3>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      project.status === "running" ? "bg-green-100 text-green-700" :
-                      project.status === "error" ? "bg-red-100 text-red-700" :
-                      project.status === "building" ? "bg-yellow-100 text-yellow-700" :
+                      project.status === "running" ? "bg-green-100 text-green-700 dark:text-green-300" :
+                      project.status === "error" ? "bg-red-100 text-red-700 dark:text-red-300" :
+                      project.status === "building" ? "bg-yellow-100 text-yellow-700 dark:text-yellow-300" :
                       project.status === "built" ? "bg-indigo-100 text-indigo-700" :
-                      project.status === "stopped" ? "bg-gray-100 text-gray-600" :
-                      "bg-blue-100 text-blue-700"
+                      project.status === "stopped" ? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300" :
+                      "bg-blue-100 text-blue-700 dark:text-blue-300"
                     }`}>
                       {project.status}
                     </span>
                     {project.containers.length > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                         <Activity className="w-3 h-3" />
                         {project.containers.length} container{project.containers.length !== 1 ? "s" : ""}
                       </span>
@@ -1107,9 +1062,9 @@ export default function Projects() {
                   </div>
 
                   {/* Branch */}
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                     <GitBranch className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <span className="font-mono text-xs bg-gray-100 px-1.5 py-0.5 rounded">{project.branch}</span>
+                    <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{project.branch}</span>
                   </div>
 
                   {/* Ports + conflict warnings */}
@@ -1127,8 +1082,8 @@ export default function Projects() {
                               title={hasConflict ? portConflicts[project.name].find((c) => c.includes(`port ${port.hostPort}`)) : undefined}
                               className={`font-mono text-xs px-1.5 py-0.5 rounded ${
                                 hasConflict
-                                  ? "bg-red-100 text-red-700 ring-1 ring-red-300"
-                                  : "bg-blue-50 text-blue-700"
+                                  ? "bg-red-100 text-red-700 dark:text-red-300 ring-1 ring-red-300"
+                                  : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
                               }`}
                             >
                               {port.hostPort ? `${port.hostPort}→` : ""}{port.containerPort}
@@ -1152,7 +1107,7 @@ export default function Projects() {
                         <a href={`https://${project.tunnelUrl}`} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-800 text-xs truncate min-w-0">
                           {project.tunnelUrl}
                         </a>
-                        <button onClick={() => navigator.clipboard.writeText(`https://${project.tunnelUrl}`)} className="p-0.5 text-gray-400 hover:text-gray-600 shrink-0" title="Copy tunnel URL">
+                        <button onClick={() => navigator.clipboard.writeText(`https://${project.tunnelUrl}`)} className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0" title="Copy tunnel URL">
                           <Copy className="w-3 h-3" />
                         </button>
                         {(project as any).tunnelService && (
@@ -1165,7 +1120,7 @@ export default function Projects() {
                             {(project as any).tunnelDomain}
                           </a>
                           <span className="text-xs bg-blue-100 text-blue-600 px-1 rounded">CF</span>
-                          <button onClick={() => navigator.clipboard.writeText(`https://${(project as any).tunnelDomain}`)} className="p-0.5 text-gray-400 hover:text-gray-600 shrink-0" title="Copy domain">
+                          <button onClick={() => navigator.clipboard.writeText(`https://${(project as any).tunnelDomain}`)} className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0" title="Copy domain">
                             <Copy className="w-3 h-3" />
                           </button>
                           <button onClick={() => handleDetachDomain(project.name)} className="text-xs text-red-400 hover:text-red-600 shrink-0">remove</button>
@@ -1186,51 +1141,100 @@ export default function Projects() {
                   </div>
                 </div>
 
-                {/* Action toolbar — separated at bottom */}
-                <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between">
-                  {/* Primary actions */}
-                  <div className="flex items-center gap-0.5">
-                    <button onClick={() => handleSyncDeploy(project.name)} className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium text-white bg-gray-900 hover:bg-gray-700 rounded-lg transition-colors" title="Sync & Deploy">
-                      <Zap className="w-3.5 h-3.5" />
+                {/* Action toolbar — one primary CTA, the rest in an overflow menu */}
+                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <Button
+                      variant="primary"
+                      className="!px-3 !py-1.5 !text-xs"
+                      icon={<Zap className="w-3.5 h-3.5" />}
+                      loading={pendingProjects[project.name] === "deploy"}
+                      disabled={Boolean(pendingProjects[project.name])}
+                      onClick={() => handleSyncDeploy(project.name)}
+                      title="Sync repository, then deploy"
+                    >
                       Deploy
-                    </button>
-                    <button onClick={() => handleDeployProject(project.name)} className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors" title="Deploy only">
-                      <Play className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleStopProject(project.name)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Stop">
-                      <Square className="w-4 h-4" />
-                    </button>
+                    </Button>
+                    {pendingProjects[project.name] &&
+                      pendingProjects[project.name] !== "deploy" && (
+                        <span className="text-xs text-gray-400 italic">
+                          {pendingProjects[project.name]}ing…
+                        </span>
+                      )}
                   </div>
 
-                  {/* Secondary actions */}
                   <div className="flex items-center gap-0.5">
-                    <button onClick={() => handleSyncProject(project.name)} className="p-1.5 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Sync repo">
-                      <RefreshCw className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleBuildProject(project.name)} className="p-1.5 text-blue-500 hover:bg-blue-50 rounded-lg transition-colors" title="Build">
-                      <Code2 className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => navigate(`/pipelines?project=${encodeURIComponent(project.name)}`)} className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors" title="Pipeline">
-                      <Workflow className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleViewLogs(project)} className="p-1.5 text-purple-500 hover:bg-purple-50 rounded-lg transition-colors" title="Logs">
-                      <Terminal className="w-4 h-4" />
-                    </button>
-                    {project.tunnelId ? (
-                      <button onClick={() => handleStopTunnel(project.name)} disabled={tunnelLoading === project.name} className="p-1.5 text-orange-500 hover:bg-orange-50 rounded-lg transition-colors disabled:opacity-40" title="Stop tunnel">
-                        <Link2Off className="w-4 h-4" />
-                      </button>
-                    ) : (
-                      <button onClick={() => openTunnelModal(project)} disabled={tunnelLoading === project.name} className="p-1.5 text-teal-500 hover:bg-teal-50 rounded-lg transition-colors disabled:opacity-40" title="Create tunnel">
-                        <Globe className="w-4 h-4" />
-                      </button>
+                    {project.status === "running" && (
+                      <IconButton
+                        label="Stop project"
+                        loading={pendingProjects[project.name] === "stop"}
+                        disabled={Boolean(pendingProjects[project.name])}
+                        onClick={() => handleStopProject(project.name)}
+                      >
+                        <Square className="w-4 h-4" />
+                      </IconButton>
                     )}
-                    <button onClick={() => openEnvModal(project)} className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Settings">
-                      <Settings className="w-4 h-4" />
-                    </button>
-                    <button onClick={() => handleDeleteProject(project.name)} className="p-1.5 text-red-400 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <IconButton
+                      label="Container logs"
+                      onClick={() => handleViewLogs(project)}
+                    >
+                      <Terminal className="w-4 h-4" />
+                    </IconButton>
+                    <DropdownMenu
+                      items={[
+                        {
+                          label: "Deploy only (no sync)",
+                          icon: <Play className="w-4 h-4" />,
+                          disabled: Boolean(pendingProjects[project.name]),
+                          onClick: () => handleDeployProject(project.name),
+                        },
+                        {
+                          label: "Sync repo only",
+                          icon: <RefreshCw className="w-4 h-4" />,
+                          disabled: Boolean(pendingProjects[project.name]),
+                          onClick: () => handleSyncProject(project.name),
+                        },
+                        {
+                          label: "Build",
+                          icon: <Code2 className="w-4 h-4" />,
+                          disabled: Boolean(pendingProjects[project.name]),
+                          onClick: () => handleBuildProject(project.name),
+                        },
+                        {
+                          label: "Pipeline",
+                          icon: <Workflow className="w-4 h-4" />,
+                          onClick: () =>
+                            navigate(
+                              `/pipelines?project=${encodeURIComponent(project.name)}`,
+                            ),
+                        },
+                        project.tunnelId
+                          ? {
+                              label: "Stop tunnel",
+                              icon: <Link2Off className="w-4 h-4" />,
+                              disabled: tunnelLoading === project.name,
+                              onClick: () => handleStopTunnel(project.name),
+                            }
+                          : {
+                              label: "Create tunnel",
+                              icon: <Globe className="w-4 h-4" />,
+                              disabled: tunnelLoading === project.name,
+                              onClick: () => openTunnelModal(project),
+                            },
+                        {
+                          label: "Settings",
+                          icon: <Settings className="w-4 h-4" />,
+                          onClick: () => openEnvModal(project),
+                        },
+                        {
+                          label: "Delete project",
+                          icon: <Trash2 className="w-4 h-4" />,
+                          danger: true,
+                          dividerAbove: true,
+                          onClick: () => setDeleteTarget(project),
+                        },
+                      ]}
+                    />
                   </div>
                 </div>
                 <ProjectEnvironments projectName={project.name} />
@@ -1240,35 +1244,70 @@ export default function Projects() {
         </div>
 
         {filteredProjects.length === 0 && (
-          <div className="text-center py-12">
-            <Code2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No projects found
-            </h3>
-            <p className="text-gray-500">
-              Get started by adding your first project
-            </p>
-          </div>
+          <EmptyState
+            icon={<Code2 className="w-6 h-6" />}
+            title={
+              projects.length === 0
+                ? "No projects yet"
+                : "No projects match your search"
+            }
+            description={
+              projects.length === 0
+                ? "Connect a Git repository and deploy it with docker-compose in a couple of clicks."
+                : "Try a different search term."
+            }
+            action={
+              projects.length === 0 ? (
+                <Button
+                  variant="primary"
+                  icon={<Plus className="w-4 h-4" />}
+                  onClick={() => setShowAddModal(true)}
+                >
+                  Add your first project
+                </Button>
+              ) : undefined
+            }
+          />
         )}
       </div>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete project"
+        message={
+          <>
+            This will remove{" "}
+            <span className="font-mono font-semibold">
+              {deleteTarget?.name}
+            </span>{" "}
+            and stop its containers. The Git repository itself is not affected.
+          </>
+        }
+        confirmLabel="Delete"
+        requireText={deleteTarget?.name}
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && handleDeleteProject(deleteTarget.name)}
+      />
 
       {/* Add Project Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-2xl w-full m-4 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Add New Project</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-2xl w-full m-4 flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Add New Project</h3>
               {/* Mode tabs */}
-              <div className="flex mt-3 space-x-1 bg-gray-100 rounded-lg p-1 w-fit">
+              <div className="flex mt-3 space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-fit">
                 <button
                   onClick={() => setAddMode("manual")}
-                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${addMode === "manual" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${addMode === "manual" ? "bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
                 >
                   Manual URL
                 </button>
                 <button
                   onClick={() => { setAddMode("browse"); if (gitAccounts.length > 0 && !selectedAccount) handleSelectAccount(gitAccounts[0]); }}
-                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${addMode === "browse" ? "bg-white shadow text-gray-900" : "text-gray-500 hover:text-gray-700"}`}
+                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${addMode === "browse" ? "bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
                 >
                   Browse Repositories
                 </button>
@@ -1280,13 +1319,13 @@ export default function Projects() {
                 <div className="mb-6">
                   {/* Account selector */}
                   <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm font-medium text-gray-700">Git Account:</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Git Account:</span>
                     <div className="flex gap-2 flex-wrap">
                       {gitAccounts.map((acc) => (
                         <button
                           key={acc.id}
                           onClick={() => handleSelectAccount(acc)}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors ${selectedAccount?.id === acc.id ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 hover:border-gray-500"}`}
+                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors ${selectedAccount?.id === acc.id ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 dark:border-gray-600 hover:border-gray-500"}`}
                         >
                           <Github className="w-3 h-3" />
                           {acc.username}
@@ -1294,7 +1333,7 @@ export default function Projects() {
                       ))}
                       <button
                         onClick={() => setShowGitAccountModal(true)}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-400 text-gray-500 dark:text-gray-400 hover:text-blue-600 transition-colors"
                       >
                         <Plus className="w-3 h-3" />
                         Connect Account
@@ -1311,30 +1350,30 @@ export default function Projects() {
                           placeholder="Search repositories..."
                           value={repoSearch}
                           onChange={(e) => setRepoSearch(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
-                      <div className="border border-gray-200 rounded-lg overflow-y-auto max-h-48">
+                      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-y-auto max-h-48">
                         {reposLoading ? (
-                          <div className="p-4 text-center text-sm text-gray-500">Loading repositories...</div>
+                          <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">Loading repositories...</div>
                         ) : repos.filter(r => r.name.toLowerCase().includes(repoSearch.toLowerCase())).length === 0 ? (
-                          <div className="p-4 text-center text-sm text-gray-500">No repositories found</div>
+                          <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">No repositories found</div>
                         ) : (
                           repos.filter(r => r.name.toLowerCase().includes(repoSearch.toLowerCase())).map((repo) => (
                             <button
                               key={repo.id}
                               onClick={() => handleSelectRepo(repo)}
-                              className={`w-full text-left px-4 py-3 border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors ${selectedRepo?.id === repo.id ? "bg-blue-50" : ""}`}
+                              className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${selectedRepo?.id === repo.id ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
                             >
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
                                   <BookOpen className="w-4 h-4 text-gray-400" />
-                                  <span className="text-sm font-medium text-gray-900">{repo.name}</span>
-                                  {repo.private && <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">private</span>}
+                                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{repo.name}</span>
+                                  {repo.private && <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">private</span>}
                                 </div>
                                 <span className="text-xs text-gray-400">{repo.defaultBranch}</span>
                               </div>
-                              {repo.description && <p className="text-xs text-gray-500 mt-0.5 truncate pl-6">{repo.description}</p>}
+                              {repo.description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate pl-6">{repo.description}</p>}
                             </button>
                           ))
                         )}
@@ -1343,7 +1382,7 @@ export default function Projects() {
                   )}
 
                   {!selectedAccount && gitAccounts.length === 0 && (
-                    <div className="text-center py-6 text-sm text-gray-500">
+                    <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
                       No git accounts connected.{" "}
                       <button onClick={() => setShowGitAccountModal(true)} className="text-blue-600 hover:underline">Connect one</button> to browse repositories.
                     </div>
@@ -1353,32 +1392,32 @@ export default function Projects() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name</label>
                   <input
                     type="text"
                     value={newProject.name}
                     onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Enter project name"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Repository URL</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository URL</label>
                   <input
                     type="text"
                     value={newProject.repository}
                     onChange={(e) => setNewProject({ ...newProject, repository: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="https://github.com/user/repo"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Branch</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
                   {branches.length > 0 ? (
                     <select
                       value={newProject.branch}
                       onChange={(e) => setNewProject({ ...newProject, branch: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       {branches.map((b) => <option key={b} value={b}>{b}</option>)}
                     </select>
@@ -1387,13 +1426,13 @@ export default function Projects() {
                       type="text"
                       value={newProject.branch}
                       onChange={(e) => setNewProject({ ...newProject, branch: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                       placeholder={branchesLoading ? "Loading branches..." : "main"}
                     />
                   )}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Compose File Path</label>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Compose File Path</label>
                   {detectedComposeFiles.length > 1 ? (
                     <div className="space-y-1">
                       <p className="text-xs text-amber-600 mb-2">Multiple compose files found — pick one to use:</p>
@@ -1401,7 +1440,7 @@ export default function Projects() {
                         <button
                           key={f}
                           onClick={() => setNewProject((p) => ({ ...p, composeFile: f }))}
-                          className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${newProject.composeFile === f ? "bg-blue-50 border-blue-400 text-blue-700" : "border-gray-200 hover:border-gray-400"}`}
+                          className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${newProject.composeFile === f ? "bg-blue-50 dark:bg-blue-900/20 border-blue-400 text-blue-700 dark:text-blue-300" : "border-gray-200 dark:border-gray-700 hover:border-gray-400"}`}
                         >
                           {f}
                         </button>
@@ -1413,7 +1452,7 @@ export default function Projects() {
                         type="text"
                         value={newProject.composeFile}
                         onChange={(e) => setNewProject({ ...newProject, composeFile: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         placeholder="docker-compose.yml (default)"
                       />
                       <p className="text-xs text-gray-400 mt-1">Relative path from repo root, e.g. <code>infra/docker-compose.yml</code></p>
@@ -1423,7 +1462,7 @@ export default function Projects() {
 
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">Environment Variables</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Environment Variables</label>
                     <button onClick={addEnvironmentVar} className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center">
                       <Plus className="w-3 h-3 mr-1" />Add Variable
                     </button>
@@ -1431,19 +1470,19 @@ export default function Projects() {
                   <div className="space-y-2 max-h-32 overflow-y-auto">
                     {newProject.environmentVars.map((env, index) => (
                       <div key={index} className="flex items-center space-x-2">
-                        <input type="text" placeholder="KEY" value={env.key} onChange={(e) => updateEnvironmentVar(index, "key", e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
-                        <input type="text" placeholder="VALUE" value={env.value} onChange={(e) => updateEnvironmentVar(index, "value", e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                        <input type="text" placeholder="KEY" value={env.key} onChange={(e) => updateEnvironmentVar(index, "key", e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
+                        <input type="text" placeholder="VALUE" value={env.value} onChange={(e) => updateEnvironmentVar(index, "value", e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
                         <button onClick={() => removeEnvironmentVar(index)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                       </div>
                     ))}
-                    {newProject.environmentVars.length === 0 && <div className="text-center py-4 text-gray-500 text-sm">No environment variables configured</div>}
+                    {newProject.environmentVars.length === 0 && <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">No environment variables configured</div>}
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
-              <button onClick={() => { setShowAddModal(false); setAddMode("manual"); setSelectedRepo(null); setBranches([]); setDetectedComposeFiles([]); }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Cancel</button>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+              <button onClick={() => { setShowAddModal(false); setAddMode("manual"); setSelectedRepo(null); setBranches([]); setDetectedComposeFiles([]); }} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">Cancel</button>
               {detectedComposeFiles.length > 1 ? (
                 <button
                   onClick={async () => {
@@ -1476,41 +1515,41 @@ export default function Projects() {
       {/* Connect Git Account Modal */}
       {showGitAccountModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-md w-full m-4">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Connect Git Account</h3>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full m-4">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Connect Git Account</h3>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Provider</label>
                 <div className="flex gap-2">
                   {(["github", "gitlab"] as const).map((p) => (
-                    <button key={p} onClick={() => setGitProvider(p)} className={`flex-1 py-2 rounded-lg border text-sm capitalize transition-colors ${gitProvider === p ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 hover:border-gray-500"}`}>{p}</button>
+                    <button key={p} onClick={() => setGitProvider(p)} className={`flex-1 py-2 rounded-lg border text-sm capitalize transition-colors ${gitProvider === p ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 dark:border-gray-600 hover:border-gray-500"}`}>{p}</button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Personal Access Token</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token</label>
                 <input
                   type="password"
                   value={gitToken}
                   onChange={(e) => setGitToken(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder={gitProvider === "github" ? "ghp_..." : "glpat-..."}
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   {gitProvider === "github" ? "Needs repo scope. Create at GitHub → Settings → Developer settings → PATs." : "Needs read_api scope. Create at GitLab → User Settings → Access Tokens."}
                 </p>
               </div>
-              {gitAccountError && <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{gitAccountError}</div>}
+              {gitAccountError && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{gitAccountError}</div>}
 
               {gitAccounts.length > 0 && (
                 <div>
-                  <div className="text-sm font-medium text-gray-700 mb-2">Connected Accounts</div>
+                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Connected Accounts</div>
                   {gitAccounts.map((acc) => (
-                    <div key={acc.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                    <div key={acc.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
                       <div className="flex items-center gap-2 text-sm">
-                        <Github className="w-4 h-4 text-gray-500" />
+                        <Github className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                         <span className="font-medium">{acc.username}</span>
                         <span className="text-gray-400 capitalize">({acc.provider})</span>
                       </div>
@@ -1520,8 +1559,8 @@ export default function Projects() {
                 </div>
               )}
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
-              <button onClick={() => { setShowGitAccountModal(false); setGitToken(""); setGitAccountError(null); }} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg">Close</button>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
+              <button onClick={() => { setShowGitAccountModal(false); setGitToken(""); setGitAccountError(null); }} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">Close</button>
               <button onClick={handleAddGitAccount} disabled={gitAccountLoading || !gitToken.trim()} className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-50">
                 {gitAccountLoading ? "Connecting..." : "Connect"}
               </button>
@@ -1532,17 +1571,17 @@ export default function Projects() {
 
       {showLogsModal && selectedProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-3xl w-full m-4">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-3xl w-full m-4">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Terminal className="w-5 h-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">
+                <Terminal className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   Logs: {selectedProject.name}
                 </h3>
               </div>
               <button
                 onClick={() => setShowLogsModal(false)}
-                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                 title="Close"
               >
                 <XCircle className="w-4 h-4" />
@@ -1550,16 +1589,16 @@ export default function Projects() {
             </div>
             <div className="p-6 max-h-[60vh] overflow-auto">
               {logsLoading ? (
-                <div className="text-sm text-gray-500">Loading logs...</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Loading logs...</div>
               ) : projectLogs.length === 0 ? (
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   No logs found for this project.
                 </div>
               ) : (
                 <div className="space-y-4">
                   {projectLogs.map((entry) => (
                     <div key={entry.containerId}>
-                      <div className="text-xs text-gray-500 mb-1">
+                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                         Container: {entry.containerId}
                       </div>
                       <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 overflow-auto whitespace-pre-wrap">
@@ -1570,7 +1609,7 @@ export default function Projects() {
                 </div>
               )}
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
               <button
                 onClick={() => fetchProjectLogs(selectedProject.name)}
                 className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
@@ -1584,11 +1623,11 @@ export default function Projects() {
 
       {showEnvModal && envProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-2xl w-full m-4">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-2xl w-full m-4">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Settings className="w-5 h-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">
+                <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                   Environment Vars: {envProject.name}
                 </h3>
               </div>
@@ -1602,7 +1641,7 @@ export default function Projects() {
                   setComposeFileEditor("");
                   setPortEditor([]);
                 }}
-                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
+                className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
                 title="Close"
               >
                 <XCircle className="w-4 h-4" />
@@ -1611,59 +1650,59 @@ export default function Projects() {
             <div className="p-6 max-h-[60vh] overflow-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Repository URL
                   </label>
                   <input
                     type="text"
                     value={repoUrlEditor}
                     onChange={(e) => setRepoUrlEditor(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="https://github.com/user/repo"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Branch
                   </label>
                   <input
                     type="text"
                     value={branchEditor}
                     onChange={(e) => setBranchEditor(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="main"
                   />
                 </div>
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Compose File
                 </label>
                 <input
                   type="text"
                   value={composeFileEditor}
                   onChange={(e) => setComposeFileEditor(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="docker-compose.yml"
                 />
               </div>
 
               <div className="mb-6">
-                <div className="text-sm font-medium text-gray-700 mb-2">Webhook (Auto-Deploy)</div>
-                <div className="bg-gray-50 rounded-lg p-3 space-y-2">
-                  <p className="text-xs text-gray-500">Generate a secret and point your GitHub/GitLab webhook to trigger automatic sync & deploy on push.</p>
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Webhook (Auto-Deploy)</div>
+                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 space-y-2">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Generate a secret and point your GitHub/GitLab webhook to trigger automatic sync & deploy on push.</p>
                   <div className="flex items-center gap-2">
-                    <code className="text-xs bg-white border border-gray-200 rounded px-2 py-1 flex-1 truncate">
+                    <code className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 flex-1 truncate">
                       {window.location.protocol}//{window.location.hostname}:5003/api/webhook/{envProject?.name}
                     </code>
-                    <button onClick={() => navigator.clipboard.writeText(`${window.location.protocol}//${window.location.hostname}:5003/api/webhook/${envProject?.name}`)} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border border-gray-200 rounded bg-white">Copy</button>
+                    <button onClick={() => navigator.clipboard.writeText(`${window.location.protocol}//${window.location.hostname}:5003/api/webhook/${envProject?.name}`)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800">Copy</button>
                   </div>
                   {webhookSecret && (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500">Secret:</span>
-                      <code className="text-xs bg-white border border-gray-200 rounded px-2 py-1 flex-1 font-mono truncate">{webhookSecret}</code>
-                      <button onClick={() => navigator.clipboard.writeText(webhookSecret)} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1 border border-gray-200 rounded bg-white">Copy</button>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Secret:</span>
+                      <code className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 flex-1 font-mono truncate">{webhookSecret}</code>
+                      <button onClick={() => navigator.clipboard.writeText(webhookSecret)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800">Copy</button>
                     </div>
                   )}
                   <button onClick={() => handleGenerateWebhook(envProject!.name)} disabled={webhookLoading} className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50">
@@ -1673,11 +1712,11 @@ export default function Projects() {
               </div>
 
               <div className="mb-6">
-                <div className="text-sm font-medium text-gray-700 mb-2">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Port Mappings
                 </div>
                 {portEditor.length === 0 ? (
-                  <div className="text-sm text-gray-500">
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
                     No ports detected in compose file.
                   </div>
                 ) : (
@@ -1687,10 +1726,10 @@ export default function Projects() {
                         key={`${port.service}-${port.containerPort}-${port.protocol}-${index}`}
                         className="grid grid-cols-4 gap-2 items-center"
                       >
-                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700 truncate">
+                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-700 dark:text-gray-300 truncate">
                           {port.service}
                         </div>
-                        <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-700">
+                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-700 dark:text-gray-300">
                           {port.containerPort}/{port.protocol}
                         </div>
                         <input
@@ -1707,10 +1746,10 @@ export default function Projects() {
                               ),
                             )
                           }
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                           placeholder="Host port"
                         />
-                        <div className="text-xs text-gray-500">
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
                           Leave blank to keep unchanged
                         </div>
                       </div>
@@ -1720,7 +1759,7 @@ export default function Projects() {
               </div>
 
               <div className="space-y-3">
-                <div className="text-sm font-medium text-gray-700">
+                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Environment Variables
                 </div>
                 {envEditor.map((env, index) => (
@@ -1732,7 +1771,7 @@ export default function Projects() {
                       onChange={(e) =>
                         updateEnvEditorRow(index, "key", e.target.value)
                       }
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <input
                       type="text"
@@ -1741,7 +1780,7 @@ export default function Projects() {
                       onChange={(e) =>
                         updateEnvEditorRow(index, "value", e.target.value)
                       }
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       onClick={() => removeEnvEditorRow(index)}
@@ -1756,13 +1795,13 @@ export default function Projects() {
               <div className="mt-4">
                 <button
                   onClick={addEnvEditorRow}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   Add Variable
                 </button>
               </div>
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
               <button
                 onClick={() => {
                   setShowEnvModal(false);
@@ -1771,7 +1810,7 @@ export default function Projects() {
                   setRepoUrlEditor("");
                   setBranchEditor("");
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
+                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200"
               >
                 Cancel
               </button>
@@ -1786,51 +1825,19 @@ export default function Projects() {
         </div>
       )}
 
-      {showDeployLogs && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-3xl w-full m-4">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Terminal className="w-5 h-5 text-gray-600" />
-                <h3 className="text-lg font-semibold text-gray-900">
-                  {deployLogsTitle}
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowDeployLogs(false)}
-                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
-                title="Close"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-6 max-h-[60vh] overflow-auto">
-              {deployLogs ? (
-                <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 overflow-auto whitespace-pre-wrap">
-                  {deployLogs}
-                </pre>
-              ) : (
-                <div className="text-sm text-gray-500">
-                  Deploying... please wait.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
       {/* Port picker modal for multi-port tunnel creation */}
       {showTunnelModal && tunnelModalProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-sm w-full m-4">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Choose port to expose</h3>
-              <p className="text-sm text-gray-500 mt-1">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-sm w-full m-4">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Choose port to expose</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 <span className="font-medium">{tunnelModalProject.name}</span> has multiple ports. Pick the one to make public.
               </p>
             </div>
             <div className="p-6 space-y-2">
               {tunnelModalProject.ports.filter((p) => p.hostPort).map((port, i) => (
-                <label key={i} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${tunnelSelectedPort === port.hostPort ? "border-teal-500 bg-teal-50" : "border-gray-200 hover:border-gray-300"}`}>
+                <label key={i} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${tunnelSelectedPort === port.hostPort ? "border-teal-500 bg-teal-50 dark:bg-teal-900/20" : "border-gray-200 dark:border-gray-700 hover:border-gray-300"}`}>
                   <input
                     type="radio"
                     name="tunnelPort"
@@ -1840,14 +1847,14 @@ export default function Projects() {
                     className="text-teal-600"
                   />
                   <div>
-                    <div className="text-sm font-medium text-gray-900">{port.service}</div>
-                    <div className="text-xs text-gray-500 font-mono">host:{port.hostPort} → container:{port.containerPort}/{port.protocol}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{port.service}</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">host:{port.hostPort} → container:{port.containerPort}/{port.protocol}</div>
                   </div>
                 </label>
               ))}
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button onClick={() => setShowTunnelModal(false)} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">Cancel</button>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button onClick={() => setShowTunnelModal(false)} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm">Cancel</button>
               <button
                 onClick={() => handleCreateTunnel(tunnelModalProject.name, tunnelSelectedPort!)}
                 disabled={!tunnelSelectedPort || tunnelLoading === tunnelModalProject.name}
@@ -1863,38 +1870,38 @@ export default function Projects() {
       {/* Cloudflare domain attachment modal */}
       {showDomainModal && domainModalProject && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-md w-full m-4">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900">Attach Cloudflare Domain</h3>
-              <p className="text-sm text-gray-500 mt-1">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full m-4">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Attach Cloudflare Domain</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                 Creates a CNAME record on your Cloudflare zone pointing to <span className="font-mono text-xs">{domainModalProject.tunnelUrl}</span>
               </p>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cloudflare Zone (domain)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cloudflare Zone (domain)</label>
                 {cfZonesLoading ? (
-                  <div className="text-sm text-gray-500">Loading zones…</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Loading zones…</div>
                 ) : cfZones.length === 0 ? (
                   <div className="text-sm text-red-500">No zones found. Configure Cloudflare in Settings → Cloudflare first.</div>
                 ) : (
-                  <select value={cfZoneId} onChange={(e) => setCfZoneId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                  <select value={cfZoneId} onChange={(e) => setCfZoneId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                     <option value="">— select a zone —</option>
                     {cfZones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
                   </select>
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Subdomain</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subdomain</label>
                 <div className="flex items-center gap-1">
                   <input
                     type="text"
                     value={cfSubdomain}
                     onChange={(e) => setCfSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
                     placeholder="myapp"
                   />
-                  {cfZoneId && <span className="text-sm text-gray-500">.{cfZones.find((z) => z.id === cfZoneId)?.name}</span>}
+                  {cfZoneId && <span className="text-sm text-gray-500 dark:text-gray-400">.{cfZones.find((z) => z.id === cfZoneId)?.name}</span>}
                 </div>
                 {cfZoneId && cfSubdomain && (
                   <p className="text-xs text-gray-400 mt-1">
@@ -1903,8 +1910,8 @@ export default function Projects() {
                 )}
               </div>
             </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end gap-3">
-              <button onClick={() => setShowDomainModal(false)} className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">Cancel</button>
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+              <button onClick={() => setShowDomainModal(false)} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm">Cancel</button>
               <button
                 onClick={handleAttachDomain}
                 disabled={cfDomainLoading || !cfZoneId || !cfSubdomain}

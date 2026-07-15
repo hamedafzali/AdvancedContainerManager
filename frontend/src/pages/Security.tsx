@@ -200,17 +200,17 @@ export default function Security() {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "critical":
-        return "text-red-600 bg-red-50";
+        return "text-red-600 bg-red-50 dark:bg-red-900/20";
       case "high":
         return "text-orange-600 bg-orange-50";
       case "medium":
-        return "text-yellow-600 bg-yellow-50";
+        return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20";
       case "low":
-        return "text-blue-600 bg-blue-50";
+        return "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
       case "info":
-        return "text-gray-600 bg-gray-50";
+        return "text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50";
       default:
-        return "text-gray-600 bg-gray-50";
+        return "text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50";
     }
   };
 
@@ -229,19 +229,19 @@ export default function Security() {
       case "warning":
         return <AlertTriangle className="w-4 h-4 text-orange-600" />;
       default:
-        return <Activity className="w-4 h-4 text-gray-600" />;
+        return <Activity className="w-4 h-4 text-gray-600 dark:text-gray-300" />;
     }
   };
 
   const getRiskLevel = (score: number) => {
     if (score >= 80)
-      return { level: "Critical", color: "text-red-600 bg-red-50" };
+      return { level: "Critical", color: "text-red-600 bg-red-50 dark:bg-red-900/20" };
     if (score >= 60)
       return { level: "High", color: "text-orange-600 bg-orange-50" };
     if (score >= 40)
-      return { level: "Medium", color: "text-yellow-600 bg-yellow-50" };
-    if (score >= 20) return { level: "Low", color: "text-blue-600 bg-blue-50" };
-    return { level: "Minimal", color: "text-green-600 bg-green-50" };
+      return { level: "Medium", color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20" };
+    if (score >= 20) return { level: "Low", color: "text-blue-600 bg-blue-50 dark:bg-blue-900/20" };
+    return { level: "Minimal", color: "text-green-600 bg-green-50 dark:bg-green-900/20" };
   };
 
   const filteredAlerts = alerts.filter((alert) => {
@@ -270,13 +270,13 @@ export default function Security() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 mb-2">
+          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">
             Loading Security Data...
           </h2>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             Fetching security scans and vulnerability data
           </p>
         </div>
@@ -286,13 +286,13 @@ export default function Security() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
         <div className="text-center">
           <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 mb-2">
+          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">
             Error Loading Security Data
           </h2>
-          <p className="text-gray-500 mb-4">{error}</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
           <button
             onClick={fetchSecurityData}
             className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
@@ -305,24 +305,24 @@ export default function Security() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="p-8">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <h1 className="text-3xl font-light text-gray-900 tracking-tight">
+                <h1 className="text-3xl font-light text-gray-900 dark:text-gray-100 tracking-tight">
                   Security Center
                 </h1>
-                <p className="text-gray-500 text-sm tracking-wide">
+                <p className="text-gray-500 dark:text-gray-400 text-sm tracking-wide">
                   Container vulnerability scanning and compliance monitoring
                 </p>
               </div>
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => setShowPolicyModal(true)}
-                  className="flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors duration-200"
+                  className="flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 text-gray-700 dark:text-gray-300 rounded-lg transition-colors duration-200"
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Policies
@@ -341,28 +341,28 @@ export default function Security() {
 
         {/* Security Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
                   {criticalVulnerabilities}
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   Critical Vulnerabilities
                 </div>
               </div>
-              <div className="p-3 bg-red-50 rounded-lg">
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
                   {highVulnerabilities}
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 dark:text-gray-400">
                   High Vulnerabilities
                 </div>
               </div>
@@ -371,28 +371,28 @@ export default function Security() {
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
                   {openAlerts}
                 </div>
-                <div className="text-sm text-gray-500">Open Alerts</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Open Alerts</div>
               </div>
-              <div className="p-3 bg-yellow-50 rounded-lg">
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
                 <Shield className="w-5 h-5 text-yellow-600" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
                   {criticalAlerts}
                 </div>
-                <div className="text-sm text-gray-500">Critical Alerts</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Critical Alerts</div>
               </div>
-              <div className="p-3 bg-red-50 rounded-lg">
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                 <Zap className="w-5 h-5 text-red-600" />
               </div>
             </div>
@@ -401,7 +401,7 @@ export default function Security() {
 
         {/* Security Metrics */}
         {metrics && (
-          <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl shadow-sm border border-gray-200 p-8 text-white">
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-white">
             <div className="flex items-center space-x-3 mb-6">
               <Shield className="w-8 h-8" />
               <h2 className="text-2xl font-light">Security Posture</h2>
@@ -432,10 +432,10 @@ export default function Security() {
         )}
 
         {/* Recent Security Scans */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-light text-gray-900">
+              <h2 className="text-xl font-light text-gray-900 dark:text-gray-100">
                 Recent Security Scans
               </h2>
               <button className="text-blue-600 hover:text-blue-700 text-sm">
@@ -450,17 +450,17 @@ export default function Security() {
                 return (
                   <div
                     key={scan.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
                   >
                     <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-gray-100 rounded-lg">
-                        <Shield className="w-4 h-4 text-gray-600" />
+                      <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <Shield className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                       </div>
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
                           {scan.imageName}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
                           Container: {scan.containerId} •{" "}
                           {new Date(scan.timestamp).toLocaleString()}
                         </div>
@@ -480,7 +480,7 @@ export default function Security() {
                       </div>
                       <button
                         onClick={() => setSelectedScan(scan)}
-                        className="p-1.5 text-gray-600 hover:bg-gray-200 rounded"
+                        className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
@@ -493,17 +493,17 @@ export default function Security() {
         </div>
 
         {/* Security Alerts */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-light text-gray-900">
+              <h2 className="text-xl font-light text-gray-900 dark:text-gray-100">
                 Security Alerts
               </h2>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="p-6 border-b border-gray-200">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-4">
               <div className="flex-1 relative">
                 <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
@@ -512,13 +512,13 @@ export default function Security() {
                   placeholder="Search alerts..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
                 />
               </div>
               <select
                 value={filterSeverity}
                 onChange={(e) => setFilterSeverity(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
+                className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
               >
                 <option value="all">All Severities</option>
                 <option value="critical">Critical</option>
@@ -529,7 +529,7 @@ export default function Security() {
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
+                className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
               >
                 <option value="all">All Status</option>
                 <option value="open">Open</option>
@@ -545,7 +545,7 @@ export default function Security() {
               {filteredAlerts.slice(0, 10).map((alert) => (
                 <div
                   key={alert.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
                 >
                   <div className="flex items-center space-x-4">
                     <div
@@ -554,10 +554,10 @@ export default function Security() {
                       <AlertTriangle className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
                         {alert.title}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {alert.description}
                       </div>
                       <div className="text-xs text-gray-400 mt-1">
@@ -581,7 +581,7 @@ export default function Security() {
                           e.target.value as SecurityAlert["status"],
                         )
                       }
-                      className="px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-gray-900"
+                      className="px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded focus:outline-none focus:ring-1 focus:ring-gray-900"
                     >
                       <option value="open">Open</option>
                       <option value="acknowledged">Acknowledged</option>

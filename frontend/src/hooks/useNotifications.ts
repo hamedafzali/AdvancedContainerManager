@@ -67,7 +67,7 @@ function NotificationContainer() {
         {
           key: notification.id,
           className:
-            "bg-white rounded-lg shadow-lg p-4 flex items-center space-x-3 animate-slide-in",
+            "bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 flex items-center space-x-3 animate-slide-in",
         },
         React.createElement("div", {
           className: `w-2 h-2 rounded-full ${
@@ -85,7 +85,7 @@ function NotificationContainer() {
           null,
           React.createElement(
             "p",
-            { className: "text-sm font-medium text-gray-900" },
+            { className: "text-sm font-medium text-gray-900 dark:text-gray-100" },
             notification.message,
           ),
         ),

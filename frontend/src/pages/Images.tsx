@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Search,
   Plus,
@@ -9,488 +10,412 @@ import {
   Package,
   CheckCircle,
   AlertCircle,
-  MoreVertical,
 } from "lucide-react";
-import { apiUrl, apiFetch } from "@/utils/api";
+import { apiFetch, apiPost, apiJson } from "@/utils/api";
+import { useTasks } from "@/hooks/useTasks";
+import {
+  Button,
+  IconButton,
+  Card,
+  Modal,
+  ConfirmDialog,
+  StatTile,
+  ErrorBanner,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+} from "@/components/ui";
 
 interface DockerImage {
   id: string;
   name: string;
   tag: string;
-  size: string;
+  sizeBytes: number;
   created: string;
-  author: string;
   status: "ready" | "downloading" | "error";
-  containers: number;
+}
+
+function formatBytes(bytes: number) {
+  if (!bytes) return "—";
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${units[i]}`;
 }
 
 export default function Images() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { startTask, appendTaskLog, finishTask } = useTasks();
   const [images, setImages] = useState<DockerImage[]>([]);
+  const [pullingImages, setPullingImages] = useState<DockerImage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [showPullModal, setShowPullModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
+  const [showPullModal, setShowPullModal] = useState(
+    searchParams.get("pull") === "1",
+  );
   const [pullImage, setPullImage] = useState({ name: "", tag: "latest" });
-  const [isPulling, setIsPulling] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DockerImage | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  // Fetch images from backend
-  const fetchImages = async () => {
+  // Clear one-shot URL param after applying it
+  useEffect(() => {
+    if (searchParams.get("pull") === "1") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("pull");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const fetchImages = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await apiFetch("/api/images");
-      if (!response.ok) {
-        throw new Error("Failed to fetch images");
-      }
-      const result = await response.json();
-      const data = result.data;
+      const result = await apiJson("/api/images");
+      const data = result.data || [];
 
-      // Transform backend data to frontend format
-      const transformedImages = data.map((image: any) => ({
+      const transformed: DockerImage[] = data.map((image: any) => ({
         id: image.id,
-        name: image.tags?.[0]?.split(":")[0] || "unknown",
+        name: image.tags?.[0]?.split(":")[0] || "<none>",
         tag: image.tags?.[0]?.split(":")[1] || "latest",
-        size: image.size
-          ? `${(image.size / 1024 / 1024).toFixed(1)}GB`
-          : "Unknown",
+        sizeBytes: image.size || 0,
         created: new Date(image.created * 1000).toLocaleString(),
-        author: image.author || "Unknown",
-        status: "ready",
-        containers: 0, // Will be calculated
+        status: "ready" as const,
       }));
 
-      setImages(transformedImages);
+      setImages(transformed);
+      setError(null);
+      setHasLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch images");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchImages();
-
-    // Set up real-time updates
-    const interval = setInterval(fetchImages, 10000);
+    const interval = setInterval(fetchImages, 15000);
     return () => clearInterval(interval);
-  }, []);
-
-  const getStatusIcon = (status: DockerImage["status"]) => {
-    switch (status) {
-      case "ready":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "downloading":
-        return <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />;
-      case "error":
-        return <AlertCircle className="w-4 h-4 text-red-600" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusText = (status: DockerImage["status"]) => {
-    switch (status) {
-      case "ready":
-        return "text-green-600 bg-green-50";
-      case "downloading":
-        return "text-blue-600 bg-blue-50";
-      case "error":
-        return "text-red-600 bg-red-50";
-      default:
-        return "text-gray-600 bg-gray-50";
-    }
-  };
+  }, [fetchImages]);
 
   const handlePullImage = async () => {
-    if (!pullImage.name) {
-      return;
-    }
+    if (!pullImage.name) return;
+
+    const name = pullImage.name.trim();
+    const tag = pullImage.tag.trim() || "latest";
+    const placeholderId = `pulling-${Date.now()}`;
+
+    const placeholder: DockerImage = {
+      id: placeholderId,
+      name,
+      tag,
+      sizeBytes: 0,
+      created: "Just now",
+      status: "downloading",
+    };
+
+    // Close the modal immediately; the task tray owns the waiting state.
+    setPullingImages((prev) => [placeholder, ...prev]);
+    setPullImage({ name: "", tag: "latest" });
+    setShowPullModal(false);
+
+    const taskId = startTask(`Pull image ${name}:${tag}`, "docker pull");
+    appendTaskLog(taskId, `Pulling ${name}:${tag}…\n`);
 
     try {
-      setIsPulling(true);
-      setError(null);
-
-      // Add image with downloading status
-      const newImage: DockerImage = {
-        id: Date.now().toString(),
-        name: pullImage.name,
-        tag: pullImage.tag,
-        size: "Downloading...",
-        created: "Just now",
-        author: "Unknown",
-        status: "downloading",
-        containers: 0,
-      };
-
-      setImages((prev) => [newImage, ...prev]);
-      setPullImage({ name: "", tag: "latest" });
-      setShowPullModal(false);
-
-      // Pull image via backend
-      const response = await apiFetch("/api/images/pull", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: newImage.name,
-          tag: newImage.tag,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to pull image");
-      }
-
-      // Update image status to ready
-      setImages((prev) =>
-        prev.map((img) =>
-          img.id === newImage.id
-            ? { ...img, status: "ready", size: "Calculating..." }
-            : img,
-        ),
-      );
-
-      // Fetch updated image list
+      await apiPost("/api/images/pull", { name, tag });
+      appendTaskLog(taskId, "Pull completed.\n");
+      finishTask(taskId, "success");
       await fetchImages();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to pull image");
-      // Remove failed image from list
-      setImages((prev) =>
-        prev.filter((img) => img.id !== Date.now().toString()),
-      );
+      const message = err instanceof Error ? err.message : "Failed to pull image";
+      appendTaskLog(taskId, `${message}\n`);
+      finishTask(taskId, "failed", message);
+      setError(message);
     } finally {
-      setIsPulling(false);
+      setPullingImages((prev) => prev.filter((img) => img.id !== placeholderId));
     }
   };
 
-  const handleDelete = async (imageId: string) => {
-    if (!confirm("Are you sure you want to delete this image?")) {
-      return;
-    }
-
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      const response = await apiFetch(`/api/images/${imageId}`, {
+      setDeleting(true);
+      const response = await apiFetch(`/api/images/${deleteTarget.id}`, {
         method: "DELETE",
       });
-
       if (!response.ok) {
         throw new Error("Failed to delete image");
       }
-
-      // Refresh images after action
+      setDeleteTarget(null);
       await fetchImages();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete image");
-      setTimeout(() => setError(null), 3000);
+      setDeleteTarget(null);
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const filteredImages = images.filter(
+  const allImages = [...pullingImages, ...images];
+  const filteredImages = allImages.filter(
     (image) =>
       image.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       image.tag.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
-  const totalSize = images
-    .filter((img) => img.status === "ready")
-    .reduce((total, img) => {
-      const size = parseFloat(img.size);
-      return total + (isNaN(size) ? 0 : size);
-    }, 0);
+  const totalSizeBytes = images.reduce((sum, img) => sum + img.sizeBytes, 0);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 mb-2">
-            Loading Images...
-          </h2>
-          <p className="text-gray-500">Fetching Docker images from registry</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 mb-2">
-            Error Loading Images
-          </h2>
-          <p className="text-gray-500 mb-4">{error}</p>
-          <button
-            onClick={fetchImages}
-            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
+  if (loading && !hasLoaded) {
+    return <LoadingState label="Fetching Docker images…" />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-          <div className="p-8">
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-light text-gray-900 tracking-tight">
-                  Images
-                </h1>
-                <p className="text-gray-500 text-sm tracking-wide">
-                  Manage Docker images and repositories
-                </p>
-              </div>
-              <button
-                onClick={() => setShowPullModal(true)}
-                className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white font-light rounded-lg transition-colors duration-200"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Pull Image
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="max-w-7xl mx-auto space-y-6">
+      <PageHeader
+        title="Images"
+        subtitle="Manage Docker images and repositories"
+        actions={
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={() => setShowPullModal(true)}
+          >
+            Pull Image
+          </Button>
+        }
+      />
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900">
-                  {images.length}
-                </div>
-                <div className="text-sm text-gray-500">Total Images</div>
-              </div>
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <Package className="w-5 h-5 text-gray-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900">
-                  {totalSize.toFixed(1)}GB
-                </div>
-                <div className="text-sm text-gray-500">Total Size</div>
-              </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <HardDrive className="w-5 h-5 text-blue-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900">
-                  {images.filter((img) => img.status === "ready").length}
-                </div>
-                <div className="text-sm text-gray-500">Ready</div>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900">
-                  {images.reduce((total, img) => total + img.containers, 0)}
-                </div>
-                <div className="text-sm text-gray-500">Containers</div>
-              </div>
-              <div className="p-3 bg-purple-50 rounded-lg">
-                <Package className="w-5 h-5 text-purple-600" />
-              </div>
-            </div>
-          </div>
-        </div>
+      <ErrorBanner
+        message={error}
+        onDismiss={() => setError(null)}
+        onRetry={fetchImages}
+      />
 
-        {/* Search */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search images..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
-            />
-          </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <StatTile
+          value={images.length}
+          label="Total images"
+          icon={
+            <div className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <Package className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            </div>
+          }
+        />
+        <StatTile
+          value={formatBytes(totalSizeBytes)}
+          label="Total size on disk"
+          icon={
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+              <HardDrive className="w-5 h-5 text-blue-600" />
+            </div>
+          }
+        />
+      </div>
 
-        {/* Images List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      <Card>
+        <div className="relative">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search images…"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-300 focus:border-transparent"
+          />
+        </div>
+      </Card>
+
+      <Card padded={false}>
+        {filteredImages.length === 0 ? (
+          <EmptyState
+            icon={<Package className="w-6 h-6" />}
+            title={
+              allImages.length === 0
+                ? "No images yet"
+                : "No images match your search"
+            }
+            description={
+              allImages.length === 0
+                ? "Pull an image from a registry to get started."
+                : "Try a different search term."
+            }
+            action={
+              allImages.length === 0 ? (
+                <Button
+                  variant="primary"
+                  icon={<Plus className="w-4 h-4" />}
+                  onClick={() => setShowPullModal(true)}
+                >
+                  Pull Image
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Image
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Size
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Created
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Author
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Containers
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  {["Image", "Size", "Created", "Status", "Actions"].map(
+                    (header) => (
+                      <th
+                        key={header}
+                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                      >
+                        {header}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {filteredImages.map((image) => (
                   <tr
                     key={image.id}
-                    className="hover:bg-gray-50 transition-colors duration-150"
+                    className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="p-2 bg-gray-100 rounded-lg mr-3">
-                          <Package className="w-4 h-4 text-gray-600" />
+                        <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg mr-3">
+                          <Package className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                         </div>
                         <div>
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                             {image.name}
                           </div>
-                          <div className="text-xs text-gray-500">
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
                             {image.tag}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{image.size}</div>
+                      <div className="text-sm text-gray-900 dark:text-gray-100">
+                        {image.status === "downloading"
+                          ? "Downloading…"
+                          : formatBytes(image.sizeBytes)}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center text-sm text-gray-900">
+                      <div className="flex items-center text-sm text-gray-900 dark:text-gray-100">
                         <Clock className="w-4 h-4 text-gray-400 mr-2" />
                         {image.created}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {image.author}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       <div
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusText(image.status)}`}
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          image.status === "ready"
+                            ? "text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400"
+                            : image.status === "downloading"
+                              ? "text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400"
+                              : "text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400"
+                        }`}
                       >
-                        {getStatusIcon(image.status)}
+                        {image.status === "ready" ? (
+                          <CheckCircle className="w-4 h-4" />
+                        ) : image.status === "downloading" ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4" />
+                        )}
                         <span className="ml-1">{image.status}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
-                        {image.containers}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <button className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200">
-                          <RefreshCw className="w-4 h-4" />
-                        </button>
-                        <button className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200">
-                          <MoreVertical className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(image.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <IconButton
+                        label="Delete image"
+                        tone="danger"
+                        disabled={image.status === "downloading"}
+                        onClick={() => setDeleteTarget(image)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </IconButton>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
-
-        {/* Pull Image Modal */}
-        {showPullModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md border border-gray-200">
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-2xl font-light text-gray-900">
-                    Pull Image
-                  </h2>
-                  <p className="text-gray-500 text-sm mt-1">
-                    Download a Docker image from registry
-                  </p>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Image Name
-                    </label>
-                    <input
-                      type="text"
-                      value={pullImage.name}
-                      onChange={(e) =>
-                        setPullImage({ ...pullImage, name: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
-                      placeholder="nginx, redis, postgres..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tag
-                    </label>
-                    <input
-                      type="text"
-                      value={pullImage.tag}
-                      onChange={(e) =>
-                        setPullImage({ ...pullImage, tag: e.target.value })
-                      }
-                      className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
-                      placeholder="latest"
-                    />
-                  </div>
-                </div>
-                <div className="flex items-center justify-end space-x-3">
-                  <button
-                    onClick={() => setShowPullModal(false)}
-                    className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg font-light transition-colors duration-200"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handlePullImage}
-                    disabled={isPulling}
-                    className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg font-light transition-colors duration-200 disabled:opacity-50"
-                  >
-                    {isPulling ? "Pulling..." : "Pull Image"}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
         )}
-      </div>
+      </Card>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete image"
+        message={
+          <>
+            This will remove{" "}
+            <span className="font-mono font-semibold">
+              {deleteTarget?.name}:{deleteTarget?.tag}
+            </span>{" "}
+            from the local Docker host. Containers using it will keep running
+            but the image can't be reused until pulled again.
+          </>
+        }
+        confirmLabel="Delete"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
+
+      {/* Pull modal */}
+      <Modal
+        open={showPullModal}
+        onClose={() => setShowPullModal(false)}
+        title="Pull Image"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowPullModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              disabled={!pullImage.name.trim()}
+              onClick={handlePullImage}
+            >
+              Pull Image
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            The pull runs in the background — watch its progress from the Tasks
+            tray in the header.
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Image Name
+            </label>
+            <input
+              type="text"
+              value={pullImage.name}
+              onChange={(e) =>
+                setPullImage({ ...pullImage, name: e.target.value })
+              }
+              className="w-full px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-300 focus:border-transparent"
+              placeholder="nginx, redis, postgres…"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Tag
+            </label>
+            <input
+              type="text"
+              value={pullImage.tag}
+              onChange={(e) =>
+                setPullImage({ ...pullImage, tag: e.target.value })
+              }
+              className="w-full px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-300 focus:border-transparent"
+              placeholder="latest"
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -514,13 +514,13 @@ export default function Terminal() {
           }}
         >
           {lines.length === 0 && !isConnected ? (
-            <div className="text-gray-500 text-sm">
+            <div className="text-gray-500 dark:text-gray-400 text-sm">
               Select a container and click Connect to start a session.
             </div>
           ) : (
             lines.map((line) => (
             <div key={line.id} className="flex">
-              <span className="text-gray-500 mr-2 text-xs">
+              <span className="text-gray-500 dark:text-gray-400 mr-2 text-xs">
                 {new Date(line.timestamp).toLocaleTimeString()}
               </span>
               <span
@@ -543,7 +543,7 @@ export default function Terminal() {
           {/* Input Line */}
           {isConnected && (
             <div className="flex items-center">
-              <span className="text-gray-500 mr-2 text-xs">
+              <span className="text-gray-500 dark:text-gray-400 mr-2 text-xs">
                 {new Date().toLocaleTimeString()}
               </span>
               <span className="text-blue-400">$</span>

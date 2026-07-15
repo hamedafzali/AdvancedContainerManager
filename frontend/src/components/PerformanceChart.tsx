@@ -25,15 +25,19 @@ export default function PerformanceChart({
   title = "System Performance",
 }: PerformanceChartProps) {
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <select className="text-sm border border-gray-300 rounded-md px-3 py-1">
-          <option value="1">Last Hour</option>
-          <option value="6">Last 6 Hours</option>
-          <option value="24">Last 24 Hours</option>
-        </select>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          {title}
+        </h3>
+        <span className="text-xs text-gray-400">live · last {data.length} samples</span>
       </div>
+      {data.length === 0 && (
+        <div className="h-64 flex items-center justify-center text-sm text-gray-400">
+          Collecting samples… data appears as metrics stream in.
+        </div>
+      )}
+      {data.length > 0 && (
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={data}>
@@ -75,6 +79,7 @@ export default function PerformanceChart({
           </LineChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }

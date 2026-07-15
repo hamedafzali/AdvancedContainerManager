@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { Request, Response, NextFunction } from "express";
 
 // Rate limiting configuration
@@ -95,7 +95,9 @@ export const createMethodRateLimit = (method: string, options: { windowMs: numbe
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req: Request) => {
-      return `${req.ip}-${req.method}`;
+      // ipKeyGenerator normalizes IPv6 addresses so users can't rotate
+      // within their /64 to bypass the limit
+      return `${ipKeyGenerator(req.ip || "")}-${req.method}`;
     },
   });
 };
@@ -105,8 +107,8 @@ export const authenticatedRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 1000, // Higher limit for authenticated users
   keyGenerator: (req: Request) => {
-    // Use user ID if available, otherwise IP
-    return (req as any).user?.id || req.ip;
+    // Use user ID if available, otherwise the IPv6-safe IP key
+    return (req as any).user?.id || ipKeyGenerator(req.ip || "");
   },
   message: {
     success: false,

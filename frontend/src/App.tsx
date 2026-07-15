@@ -11,6 +11,7 @@ import Layout from "@/components/Layout";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { lazy, Suspense, useState, useEffect } from "react";
 import { NotificationProvider } from "@/hooks/useNotifications";
+import { TasksProvider } from "@/hooks/useTasks";
 import Login from "@/pages/Login";
 import { apiUrl, apiFetch } from "@/utils/api";
 
@@ -22,12 +23,12 @@ const Pipelines = lazy(() => import("@/pages/Pipelines"));
 const Images = lazy(() => import("@/pages/Images"));
 const Networks = lazy(() => import("@/pages/Networks"));
 const Volumes = lazy(() => import("@/pages/Volumes"));
-const Tunnels = lazy(() => import("@/pages/Tunnels"));
-const Cloudflare = lazy(() => import("@/pages/Cloudflare"));
+const Edge = lazy(() => import("@/pages/Edge"));
 const Terminal = lazy(() => import("@/pages/Terminal"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Analytics = lazy(() => import("@/pages/Analytics"));
 const Security = lazy(() => import("@/pages/Security"));
+const NotFound = lazy(() => import("@/pages/NotFound"));
 
 function AppWithSocket() {
   useSocket();
@@ -57,12 +58,20 @@ function AppWithSocket() {
           <Route path="images" element={<Images />} />
           <Route path="networks" element={<Networks />} />
           <Route path="volumes" element={<Volumes />} />
-          <Route path="tunnels" element={<Tunnels />} />
-          <Route path="cloudflare" element={<Cloudflare />} />
+          <Route path="edge" element={<Edge />} />
+          <Route
+            path="tunnels"
+            element={<Navigate to="/edge?tab=tunnels" replace />}
+          />
+          <Route
+            path="cloudflare"
+            element={<Navigate to="/edge?tab=cloudflare" replace />}
+          />
           <Route path="terminal/:containerId?" element={<Terminal />} />
           <Route path="settings" element={<Settings />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="security" element={<Security />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
     </Suspense>
@@ -106,7 +115,9 @@ function App() {
       <QueryProvider>
         <ThemeProvider>
           <NotificationProvider>
-            <AppWithSocket />
+            <TasksProvider>
+              <AppWithSocket />
+            </TasksProvider>
           </NotificationProvider>
         </ThemeProvider>
       </QueryProvider>

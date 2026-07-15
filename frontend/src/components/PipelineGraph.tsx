@@ -10,12 +10,12 @@ export interface GraphStage {
 }
 
 const STYLE: Record<GraphStage["status"], { box: string; icon: JSX.Element; label: string }> = {
-  success: { box: "border-green-300 bg-green-50", icon: <CheckCircle className="w-4 h-4 text-green-600" />, label: "Passed" },
-  failed:  { box: "border-red-300 bg-red-50", icon: <XCircle className="w-4 h-4 text-red-600" />, label: "Failed" },
-  running: { box: "border-amber-300 bg-amber-50 animate-pulse", icon: <Clock className="w-4 h-4 text-amber-500" />, label: "Running" },
-  pending: { box: "border-gray-200 bg-white", icon: <Circle className="w-4 h-4 text-gray-300" />, label: "Pending" },
-  skipped: { box: "border-dashed border-gray-200 bg-gray-50", icon: <MinusCircle className="w-4 h-4 text-gray-400" />, label: "Skipped" },
-  awaiting_approval: { box: "border-blue-300 bg-blue-50 animate-pulse", icon: <PauseCircle className="w-4 h-4 text-blue-600" />, label: "Awaiting approval" },
+  success: { box: "border-green-300 bg-green-50 dark:bg-green-900/20", icon: <CheckCircle className="w-4 h-4 text-green-600" />, label: "Passed" },
+  failed:  { box: "border-red-300 bg-red-50 dark:bg-red-900/20", icon: <XCircle className="w-4 h-4 text-red-600" />, label: "Failed" },
+  running: { box: "border-amber-300 bg-amber-50 dark:bg-amber-900/20 animate-pulse", icon: <Clock className="w-4 h-4 text-amber-500" />, label: "Running" },
+  pending: { box: "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800", icon: <Circle className="w-4 h-4 text-gray-300" />, label: "Pending" },
+  skipped: { box: "border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50", icon: <MinusCircle className="w-4 h-4 text-gray-400" />, label: "Skipped" },
+  awaiting_approval: { box: "border-blue-300 bg-blue-50 dark:bg-blue-900/20 animate-pulse", icon: <PauseCircle className="w-4 h-4 text-blue-600" />, label: "Awaiting approval" },
 };
 
 export default function PipelineGraph({
@@ -55,10 +55,10 @@ export default function PipelineGraph({
               title={s.name}
             >
               <div className="flex items-center gap-2 pr-6">
-                {isCheckout ? <GitBranch className="w-4 h-4 text-gray-500" /> : st.icon}
-                <span className="font-semibold text-sm text-gray-800 truncate">{s.name}</span>
+                {isCheckout ? <GitBranch className="w-4 h-4 text-gray-500 dark:text-gray-400" /> : st.icon}
+                <span className="font-semibold text-sm text-gray-800 dark:text-gray-200 truncate">{s.name}</span>
               </div>
-              <div className="text-[11px] mt-1 text-gray-500 flex items-center gap-1">
+              <div className="text-[11px] mt-1 text-gray-500 dark:text-gray-400 flex items-center gap-1">
                 <span>{st.label}</span>
                 {typeof s.durationMs === "number" && (
                   <span className="text-gray-400">· {(Math.round(s.durationMs / 100) / 10).toFixed(1)}s</span>

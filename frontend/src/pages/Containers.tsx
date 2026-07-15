@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Play,
   Square,
@@ -14,16 +15,25 @@ import {
   Eye,
   Activity,
   HardDrive,
-  Settings,
-  Download,
   Copy,
-  X,
-  Edit3,
-  Save,
-  ArrowUpDown,
+  Download,
   Layers,
+  Package2,
 } from "lucide-react";
-import { apiUrl, apiFetch } from "@/utils/api";
+import { apiFetch, apiJson, apiPost } from "@/utils/api";
+import {
+  Button,
+  IconButton,
+  Card,
+  Modal,
+  ConfirmDialog,
+  StatTile,
+  ErrorBanner,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+  ToggleChip,
+} from "@/components/ui";
 
 interface Container {
   id: string;
@@ -31,19 +41,184 @@ interface Container {
   image: string;
   status: "running" | "stopped" | "paused" | "restarting";
   ports: string[];
-  cpu: number;
-  memory: number;
+  cpu: number | null;
+  memory: number | null;
   uptime: string;
   created: string;
   projectName?: string;
 }
 
+type ContainerAction = "start" | "stop" | "restart" | "delete";
+
+const STATS_FETCH_LIMIT = 10;
+
+function getStatusIcon(status: Container["status"]) {
+  switch (status) {
+    case "running":
+      return <CheckCircle className="w-4 h-4 text-green-600" />;
+    case "stopped":
+      return <XCircle className="w-4 h-4 text-red-600" />;
+    case "paused":
+      return <AlertCircle className="w-4 h-4 text-yellow-600" />;
+    case "restarting":
+      return <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />;
+    default:
+      return null;
+  }
+}
+
+function getStatusClasses(status: Container["status"]) {
+  switch (status) {
+    case "running":
+      return "text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400";
+    case "stopped":
+      return "text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400";
+    case "paused":
+      return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400";
+    case "restarting":
+      return "text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400";
+    default:
+      return "text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300";
+  }
+}
+
+function ContainerRow({
+  container,
+  pendingAction,
+  onAction,
+  onViewLogs,
+  onOpenTerminal,
+}: {
+  container: Container;
+  pendingAction: ContainerAction | null;
+  onAction: (container: Container, action: ContainerAction) => void;
+  onViewLogs: (container: Container) => void;
+  onOpenTerminal: (container: Container) => void;
+}) {
+  const busy = pendingAction !== null;
+  const running = container.status === "running";
+
+  return (
+    <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          {container.name}
+        </div>
+        <div className="text-xs text-gray-500 dark:text-gray-400">
+          ID: {container.id.slice(0, 12)}
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="text-sm text-gray-900 dark:text-gray-100 font-mono">
+          {container.image}
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div
+          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusClasses(container.status)}`}
+        >
+          {pendingAction ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            getStatusIcon(container.status)
+          )}
+          <span className="ml-1">
+            {pendingAction ? `${pendingAction}ing…` : container.status}
+          </span>
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="text-sm text-gray-900 dark:text-gray-100 font-mono">
+          {container.ports.join(", ") || "—"}
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex items-center">
+          <Activity className="w-4 h-4 text-gray-400 mr-2" />
+          <span className="text-sm text-gray-900 dark:text-gray-100">
+            {container.cpu === null ? "—" : `${container.cpu.toFixed(1)}%`}
+          </span>
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex items-center">
+          <HardDrive className="w-4 h-4 text-gray-400 mr-2" />
+          <span className="text-sm text-gray-900 dark:text-gray-100">
+            {container.memory === null ? "—" : `${container.memory}MB`}
+          </span>
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex items-center">
+          <Clock className="w-4 h-4 text-gray-400 mr-2" />
+          <span className="text-sm text-gray-900 dark:text-gray-100">
+            {container.uptime}
+          </span>
+        </div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex items-center space-x-1">
+          <IconButton
+            label="View logs"
+            onClick={() => onViewLogs(container)}
+            disabled={busy}
+          >
+            <Eye className="w-4 h-4" />
+          </IconButton>
+          <IconButton
+            label={running ? "Stop" : "Start"}
+            tone={running ? "danger" : "success"}
+            loading={pendingAction === "start" || pendingAction === "stop"}
+            disabled={busy}
+            onClick={() => onAction(container, running ? "stop" : "start")}
+          >
+            {running ? (
+              <Square className="w-4 h-4" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
+          </IconButton>
+          <IconButton
+            label="Restart"
+            tone="info"
+            loading={pendingAction === "restart"}
+            disabled={busy || !running}
+            onClick={() => onAction(container, "restart")}
+          >
+            <RefreshCw className="w-4 h-4" />
+          </IconButton>
+          <IconButton
+            label="Open terminal"
+            disabled={busy || !running}
+            onClick={() => onOpenTerminal(container)}
+          >
+            <Terminal className="w-4 h-4" />
+          </IconButton>
+          <IconButton
+            label="Delete"
+            tone="danger"
+            loading={pendingAction === "delete"}
+            disabled={busy}
+            onClick={() => onAction(container, "delete")}
+          >
+            <Trash2 className="w-4 h-4" />
+          </IconButton>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function Containers() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [containers, setContainers] = useState<Container[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState(searchParams.get("search") || "");
+  const [filterStatus, setFilterStatus] = useState<string>(
+    searchParams.get("status") || "all",
+  );
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [selectedContainer, setSelectedContainer] = useState<Container | null>(
     null,
@@ -51,16 +226,17 @@ export default function Containers() {
   const [logs, setLogs] = useState<string[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
   const [logsError, setLogsError] = useState<string | null>(null);
-  const [autoRefresh, setAutoRefresh] = useState(false);
-  const [showPortModal, setShowPortModal] = useState(false);
-  const [selectedContainerForPorts, setSelectedContainerForPorts] =
-    useState<Container | null>(null);
-  const [portModifications, setPortModifications] = useState<
-    Record<string, { hostPort?: number; containerPort: number }>
-  >({});
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
   const [groupByProject, setGroupByProject] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(
+    searchParams.get("create") === "1",
+  );
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [pendingActions, setPendingActions] = useState<
+    Record<string, ContainerAction>
+  >({});
+  const [deleteTarget, setDeleteTarget] = useState<Container | null>(null);
   const [createForm, setCreateForm] = useState({
     name: "",
     image: "alpine:latest",
@@ -71,98 +247,39 @@ export default function Containers() {
     command: "",
   });
 
-  // Debouncing ref to prevent excessive API calls
-  const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hasLoadedRef = useRef(false);
 
-  // Fetch container logs
-  const fetchLogs = async (containerId: string) => {
-    try {
-      setLogsLoading(true);
-      setLogsError(null);
-      const response = await fetch(
-        apiUrl(`/api/containers/${containerId}/logs`),
-      );
-      const text = await response.text();
-      if (!response.ok) {
-        throw new Error(text || "Failed to fetch logs");
-      }
-
-      if (text.trim()) {
-        // Handle Docker logs which are plain text with special characters
-        const logLines = text.split("\n").filter((line) => line.trim());
-        setLogs(logLines);
-      } else {
-        setLogs(["No logs available"]);
-      }
-    } catch (err) {
-      setLogsError(err instanceof Error ? err.message : "Failed to fetch logs");
-    } finally {
-      setLogsLoading(false);
+  // Clear one-shot URL params (create=1) after applying them
+  useEffect(() => {
+    if (searchParams.get("create") === "1") {
+      const next = new URLSearchParams(searchParams);
+      next.delete("create");
+      setSearchParams(next, { replace: true });
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Handle view logs
-  const handleViewLogs = (container: Container) => {
-    setSelectedContainer(container);
-    setShowLogsModal(true);
-    fetchLogs(container.id);
-  };
-
-  // Copy logs to clipboard
-  const copyLogs = () => {
-    const logsText = logs.join("\n");
-    navigator.clipboard.writeText(logsText);
-  };
-
-  // Download logs
-  const downloadLogs = () => {
-    const logsText = logs.join("\n");
-    const blob = new Blob([logsText], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${selectedContainer?.name}-logs-${new Date().toISOString()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-  const fetchContainers = async () => {
+  const fetchContainers = useCallback(async () => {
     if (fetchTimeoutRef.current) {
       clearTimeout(fetchTimeoutRef.current);
     }
 
-    const shouldShowLoading = containers.length === 0;
-
     fetchTimeoutRef.current = setTimeout(async () => {
       try {
-        if (shouldShowLoading) {
-          setLoading(true);
-        }
-        const response = await apiFetch("/api/containers");
-        const text = await response.text();
-        if (!response.ok) {
-          throw new Error(text || "Failed to fetch containers");
-        }
+        if (!hasLoadedRef.current) setLoading(true);
+        const result = await apiJson("/api/containers");
+        const data = result.data || [];
 
-        let result: any = null;
-        try {
-          result = JSON.parse(text);
-        } catch (parseError) {
-          throw new Error(
-            `Invalid JSON from /api/containers. First 200 chars: ${text.slice(0, 200)}`,
-          );
-        }
-        const data = result.data;
-
-        const transformedContainers: Container[] = data.map(
+        const transformed: Container[] = data.map(
           (container: any): Container => ({
             id: container.id,
             name: container.name,
             image: container.image,
             status: container.status.toLowerCase(),
-            ports: Object.keys(container.ports || {}).map((key) => key),
-            cpu: 0,
-            memory: 0,
+            ports: Object.keys(container.ports || {}),
+            cpu: null,
+            memory: null,
             uptime:
               container.status === "running"
                 ? "Running"
@@ -170,40 +287,37 @@ export default function Containers() {
                   ? new Date(container.startedAt).toLocaleString()
                   : "Never started",
             created: new Date(container.created * 1000).toLocaleString(),
-            projectName: (container.labels || {})["com.docker.compose.project"] || undefined,
+            projectName:
+              (container.labels || {})["com.docker.compose.project"] ||
+              undefined,
           }),
         );
 
-        setContainers(transformedContainers);
+        setContainers(transformed);
+        setError(null);
+        hasLoadedRef.current = true;
 
-        const runningContainers = transformedContainers
-          .filter((c: Container) => c.status === "running")
-          .slice(0, 5);
+        const runningContainers = transformed
+          .filter((c) => c.status === "running")
+          .slice(0, STATS_FETCH_LIMIT);
 
-        type ContainerStats = { id: string; cpu: number; memory: number };
-        const statsResults: PromiseSettledResult<ContainerStats>[] =
-          await Promise.allSettled(
-            runningContainers.map(async (container: Container) => {
-              const statsResponse = await fetch(
-                apiUrl(`/api/containers/${container.id}/stats`),
-              );
-              if (!statsResponse.ok) {
-                throw new Error(`Stats request failed for ${container.id}`);
-              }
-              const statsText = await statsResponse.text();
-              const statsResult = JSON.parse(statsText);
-              const stats = statsResult.data || statsResult;
-              return {
-                id: container.id,
-                cpu: stats.cpuPercent || 0,
-                memory:
-                  Math.round((stats.memoryUsage / 1024 / 1024) * 100) / 100,
-              };
-            }),
-          );
+        const statsResults = await Promise.allSettled(
+          runningContainers.map(async (container) => {
+            const statsResult = await apiJson(
+              `/api/containers/${container.id}/stats`,
+            );
+            const stats = statsResult.data || statsResult;
+            return {
+              id: container.id,
+              cpu: stats.cpuPercent || 0,
+              memory:
+                Math.round((stats.memoryUsage / 1024 / 1024) * 100) / 100,
+            };
+          }),
+        );
 
         const statsMap = new Map<string, { cpu: number; memory: number }>();
-        statsResults.forEach((result: PromiseSettledResult<ContainerStats>) => {
+        statsResults.forEach((result) => {
           if (result.status === "fulfilled") {
             statsMap.set(result.value.id, {
               cpu: result.value.cpu,
@@ -226,61 +340,103 @@ export default function Containers() {
           err instanceof Error ? err.message : "Failed to fetch containers",
         );
       } finally {
-        if (shouldShowLoading) {
-          setLoading(false);
-        }
+        setLoading(false);
       }
     }, 200);
-  };
+  }, []);
 
   useEffect(() => {
     fetchContainers();
-
-    // Clear existing interval
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    // Set up auto-refresh only if enabled
-    if (autoRefresh) {
-      intervalRef.current = setInterval(fetchContainers, 15000);
-    }
-
+    const interval = autoRefresh
+      ? setInterval(fetchContainers, 15000)
+      : undefined;
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (interval) clearInterval(interval);
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
     };
-  }, [autoRefresh]);
+  }, [autoRefresh, fetchContainers]);
 
-  const getStatusIcon = (status: Container["status"]) => {
-    switch (status) {
-      case "running":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "stopped":
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      case "paused":
-        return <AlertCircle className="w-4 h-4 text-yellow-600" />;
-      case "restarting":
-        return <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />;
-      default:
-        return null;
+  // Refresh live when the backend reports container changes
+  useEffect(() => {
+    const onEvent = () => fetchContainers();
+    window.addEventListener("container_event", onEvent);
+    return () => window.removeEventListener("container_event", onEvent);
+  }, [fetchContainers]);
+
+  const fetchLogs = async (containerId: string) => {
+    try {
+      setLogsLoading(true);
+      setLogsError(null);
+      const response = await apiFetch(`/api/containers/${containerId}/logs`);
+      const text = await response.text();
+      if (!response.ok) {
+        throw new Error(text || "Failed to fetch logs");
+      }
+      const logLines = text.split("\n").filter((line) => line.trim());
+      setLogs(logLines.length > 0 ? logLines : ["No logs available"]);
+    } catch (err) {
+      setLogsError(err instanceof Error ? err.message : "Failed to fetch logs");
+    } finally {
+      setLogsLoading(false);
     }
   };
 
-  const getStatusText = (status: Container["status"]) => {
-    switch (status) {
-      case "running":
-        return "text-green-600 bg-green-50";
-      case "stopped":
-        return "text-red-600 bg-red-50";
-      case "paused":
-        return "text-yellow-600 bg-yellow-50";
-      case "restarting":
-        return "text-blue-600 bg-blue-50";
-      default:
-        return "text-gray-600 bg-gray-50";
+  const handleViewLogs = (container: Container) => {
+    setSelectedContainer(container);
+    setShowLogsModal(true);
+    fetchLogs(container.id);
+  };
+
+  const copyLogs = () => {
+    navigator.clipboard.writeText(logs.join("\n"));
+  };
+
+  const downloadLogs = () => {
+    const blob = new Blob([logs.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${selectedContainer?.name}-logs-${new Date().toISOString()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const runContainerAction = useCallback(
+    async (container: Container, action: ContainerAction) => {
+      setPendingActions((prev) => ({ ...prev, [container.id]: action }));
+      try {
+        if (action === "delete") {
+          const response = await apiFetch(`/api/containers/${container.id}`, {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error("Failed to delete container");
+        } else {
+          await apiPost(`/api/containers/${container.id}/${action}`);
+        }
+        await fetchContainers();
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : `Failed to ${action} ${container.name}`,
+        );
+      } finally {
+        setPendingActions((prev) => {
+          const next = { ...prev };
+          delete next[container.id];
+          return next;
+        });
+      }
+    },
+    [fetchContainers],
+  );
+
+  const handleAction = (container: Container, action: ContainerAction) => {
+    if (action === "delete") {
+      setDeleteTarget(container);
+      return;
     }
+    runContainerAction(container, action);
   };
 
   const createContainer = async () => {
@@ -323,23 +479,15 @@ export default function Containers() {
         : [];
 
     try {
-      const response = await apiFetch("/api/containers/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: createForm.name.trim() || undefined,
-          image: createForm.image.trim(),
-          ports,
-          env,
-          packages,
-          command: createForm.command.trim() || undefined,
-        }),
+      setCreating(true);
+      await apiPost("/api/containers/create", {
+        name: createForm.name.trim() || undefined,
+        image: createForm.image.trim(),
+        ports,
+        env,
+        packages,
+        command: createForm.command.trim() || undefined,
       });
-
-      const result = await response.json();
-      if (!response.ok || !result.success) {
-        throw new Error(result?.message || "Failed to create container");
-      }
 
       setShowCreateModal(false);
       setCreateForm({
@@ -356,87 +504,21 @@ export default function Containers() {
       setCreateError(
         err instanceof Error ? err.message : "Failed to create container",
       );
+    } finally {
+      setCreating(false);
     }
   };
 
-  const handleContainerAction = useCallback(
-    async (
-      containerId: string,
-      action: "start" | "stop" | "restart" | "delete",
-    ) => {
-      try {
-        const container = containers.find(
-          (c: Container) => c.id === containerId,
-        );
-        if (!container) return;
+  const applyStatusFilter = (status: string) => {
+    const next = filterStatus === status ? "all" : status;
+    setFilterStatus(next);
+    const params = new URLSearchParams(searchParams);
+    if (next === "all") params.delete("status");
+    else params.set("status", next);
+    setSearchParams(params, { replace: true });
+  };
 
-        switch (action) {
-          case "start":
-            const startResponse = await fetch(
-              apiUrl(`/api/containers/${containerId}/start`),
-              {
-                method: "POST",
-              },
-            );
-            if (!startResponse.ok) {
-              throw new Error("Failed to start container");
-            }
-            break;
-          case "stop":
-            const stopResponse = await fetch(
-              apiUrl(`/api/containers/${containerId}/stop`),
-              {
-                method: "POST",
-              },
-            );
-            if (!stopResponse.ok) {
-              throw new Error("Failed to stop container");
-            }
-            break;
-          case "restart":
-            const restartResponse = await fetch(
-              apiUrl(`/api/containers/${containerId}/restart`),
-              {
-                method: "POST",
-              },
-            );
-            if (!restartResponse.ok) {
-              throw new Error("Failed to restart container");
-            }
-            break;
-          case "delete":
-            if (!confirm("Are you sure you want to delete this container?")) {
-              return;
-            }
-            const deleteResponse = await fetch(
-              apiUrl(`/api/containers/${containerId}`),
-              {
-                method: "DELETE",
-              },
-            );
-            if (!deleteResponse.ok) {
-              throw new Error("Failed to delete container");
-            }
-            break;
-          default:
-            throw new Error("Invalid action");
-        }
-
-        // Refresh containers after action
-        await fetchContainers();
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : `Failed to ${containerId ? "perform action" : "perform action"}`,
-        );
-        setTimeout(() => setError(null), 3000);
-      }
-    },
-    [containers, fetchContainers],
-  );
-
-  const filteredContainers = containers.filter((container: Container) => {
+  const filteredContainers = containers.filter((container) => {
     const matchesSearch =
       container.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       container.image.toLowerCase().includes(searchTerm.toLowerCase());
@@ -453,753 +535,422 @@ export default function Containers() {
       }, {})
     : null;
 
-  const runningCount = containers.filter(
-    (c: Container) => c.status === "running",
-  ).length;
-  const stoppedCount = containers.filter(
-    (c: Container) => c.status === "stopped",
-  ).length;
-  const pausedCount = containers.filter(
-    (c: Container) => c.status === "paused",
-  ).length;
+  const runningCount = containers.filter((c) => c.status === "running").length;
+  const stoppedCount = containers.filter((c) => c.status === "stopped").length;
+  const pausedCount = containers.filter((c) => c.status === "paused").length;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 mb-2">
-            Loading Containers...
-          </h2>
-          <p className="text-gray-500">
-            Fetching container information from Docker
-          </p>
-        </div>
-      </div>
-    );
+  if (loading && !hasLoadedRef.current) {
+    return <LoadingState label="Fetching container information from Docker…" />;
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 mb-2">
-            Error Loading Containers
-          </h2>
-          <p className="text-gray-500 mb-4">{error}</p>
-          <button
-            onClick={fetchContainers}
-            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const renderRow = (container: Container) => (
+    <ContainerRow
+      key={container.id}
+      container={container}
+      pendingAction={pendingActions[container.id] || null}
+      onAction={handleAction}
+      onViewLogs={handleViewLogs}
+      onOpenTerminal={(c) => navigate(`/terminal/${c.id}`)}
+    />
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-          <div className="p-8">
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-light text-gray-900 tracking-tight">
-                  Containers
-                </h1>
-                <p className="text-gray-500 text-sm tracking-wide">
-                  Manage and monitor Docker containers
-                </p>
-              </div>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-light rounded-lg transition-colors duration-200"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Container
-              </button>
-            </div>
-          </div>
-        </div>
+    <div className="max-w-7xl mx-auto space-y-6">
+      <PageHeader
+        title="Containers"
+        subtitle={`${containers.length} containers · ${runningCount} running`}
+        actions={
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={() => setShowCreateModal(true)}
+          >
+            New Container
+          </Button>
+        }
+      />
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900">
-                  {runningCount}
-                </div>
-                <div className="text-sm text-gray-500">Running</div>
-              </div>
-              <div className="p-3 bg-green-50 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900">
-                  {stoppedCount}
-                </div>
-                <div className="text-sm text-gray-500">Stopped</div>
-              </div>
-              <div className="p-3 bg-red-50 rounded-lg">
-                <XCircle className="w-5 h-5 text-red-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900">
-                  {pausedCount}
-                </div>
-                <div className="text-sm text-gray-500">Paused</div>
-              </div>
-              <div className="p-3 bg-yellow-50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-        </div>
+      <ErrorBanner
+        message={error}
+        onDismiss={() => setError(null)}
+        onRetry={fetchContainers}
+      />
 
-        {/* Search and Filter */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center space-x-4">
-            <div className="flex-1 relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search containers..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
-              />
+      {/* Clickable stat tiles double as status filters */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <StatTile
+          value={runningCount}
+          label="Running"
+          active={filterStatus === "running"}
+          icon={
+            <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
+              <CheckCircle className="w-5 h-5 text-green-600" />
             </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
-            >
-              <option value="all">All Status</option>
-              <option value="running">Running</option>
-              <option value="stopped">Stopped</option>
-              <option value="paused">Paused</option>
-              <option value="restarting">Restarting</option>
-            </select>
-            <button
-              onClick={fetchContainers}
-              disabled={loading}
-              className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-400 text-white rounded-lg transition-colors duration-200"
-              title="Refresh containers"
-            >
-              <RefreshCw
-                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-              />
-            </button>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="auto-refresh"
-                checked={autoRefresh}
-                onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900 focus:ring-2"
-              />
-              <label
-                htmlFor="auto-refresh"
-                className="text-sm text-gray-700 cursor-pointer select-none"
-              >
-                Auto Refresh
-              </label>
+          }
+          onClick={() => applyStatusFilter("running")}
+        />
+        <StatTile
+          value={stoppedCount}
+          label="Stopped"
+          active={filterStatus === "stopped"}
+          icon={
+            <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg">
+              <XCircle className="w-5 h-5 text-red-600" />
             </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id="group-by-project"
-                checked={groupByProject}
-                onChange={(e) => setGroupByProject(e.target.checked)}
-                className="w-4 h-4 text-gray-900 border-gray-300 rounded focus:ring-gray-900 focus:ring-2"
-              />
-              <label
-                htmlFor="group-by-project"
-                className="text-sm text-gray-700 cursor-pointer select-none flex items-center gap-1"
-              >
-                <Layers className="w-3.5 h-3.5" />
-                Group by Project
-              </label>
+          }
+          onClick={() => applyStatusFilter("stopped")}
+        />
+        <StatTile
+          value={pausedCount}
+          label="Paused"
+          active={filterStatus === "paused"}
+          icon={
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
+              <AlertCircle className="w-5 h-5 text-yellow-600" />
             </div>
-          </div>
-        </div>
+          }
+          onClick={() => applyStatusFilter("paused")}
+        />
+      </div>
 
-        {/* Containers List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+      {/* Toolbar */}
+      <Card>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-[220px] relative">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search containers…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-300 focus:border-transparent"
+            />
+          </div>
+          <select
+            value={filterStatus}
+            onChange={(e) => applyStatusFilter(e.target.value)}
+            className="px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-300"
+          >
+            <option value="all">All Status</option>
+            <option value="running">Running</option>
+            <option value="stopped">Stopped</option>
+            <option value="paused">Paused</option>
+            <option value="restarting">Restarting</option>
+          </select>
+          <IconButton label="Refresh" onClick={fetchContainers}>
+            <RefreshCw className="w-4 h-4" />
+          </IconButton>
+          <ToggleChip
+            label="Auto refresh"
+            checked={autoRefresh}
+            onChange={setAutoRefresh}
+          />
+          <ToggleChip
+            label="Group by project"
+            icon={<Layers className="w-3.5 h-3.5" />}
+            checked={groupByProject}
+            onChange={setGroupByProject}
+          />
+        </div>
+      </Card>
+
+      {/* Containers table */}
+      <Card padded={false}>
+        {filteredContainers.length === 0 ? (
+          <EmptyState
+            icon={<Package2 className="w-6 h-6" />}
+            title={
+              containers.length === 0
+                ? "No containers yet"
+                : "No containers match your filters"
+            }
+            description={
+              containers.length === 0
+                ? "Create your first container or deploy a project to get started."
+                : "Try adjusting the search or status filter."
+            }
+            action={
+              containers.length === 0 ? (
+                <Button
+                  variant="primary"
+                  icon={<Plus className="w-4 h-4" />}
+                  onClick={() => setShowCreateModal(true)}
+                >
+                  New Container
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
+              <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Image
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ports
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    CPU
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Memory
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Uptime
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
+                  {[
+                    "Name",
+                    "Image",
+                    "Status",
+                    "Ports",
+                    "CPU",
+                    "Memory",
+                    "Uptime",
+                    "Actions",
+                  ].map((header) => (
+                    <th
+                      key={header}
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                    >
+                      {header}
+                    </th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                 {groupedContainers
-                  ? Object.entries(groupedContainers).map(([projectName, group]) => (
-                      <>
-                        <tr key={`group-${projectName}`} className="bg-gray-100">
-                          <td colSpan={8} className="px-6 py-2">
-                            <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                              <Layers className="w-3.5 h-3.5" />
-                              {projectName}
-                              <span className="font-normal text-gray-400">({group.length})</span>
-                            </div>
-                          </td>
-                        </tr>
-                        {group.map((container) => (
+                  ? Object.entries(groupedContainers).map(
+                      ([projectName, group]) => (
+                        <>
                           <tr
-                            key={container.id}
-                            className="hover:bg-gray-50 transition-colors duration-150"
+                            key={`group-${projectName}`}
+                            className="bg-gray-100 dark:bg-gray-900/60"
                           >
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm font-medium text-gray-900">{container.name}</div>
-                              <div className="text-xs text-gray-500">ID: {container.id}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900 font-mono">{container.image}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusText(container.status)}`}>
-                                {getStatusIcon(container.status)}
-                                <span className="ml-1">{container.status}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="text-sm text-gray-900 font-mono">{container.ports.join(", ")}</div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <Activity className="w-4 h-4 text-gray-400 mr-2" />
-                                <span className="text-sm text-gray-900">{container.cpu.toFixed(1)}%</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <HardDrive className="w-4 h-4 text-gray-400 mr-2" />
-                                <span className="text-sm text-gray-900">{container.memory}MB</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center">
-                                <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                                <span className="text-sm text-gray-900">{container.uptime}</span>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex items-center space-x-2">
-                                <button onClick={() => handleViewLogs(container)} className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"><Eye className="w-4 h-4" /></button>
-                                <button onClick={() => { if (container.status === "running") { handleContainerAction(container.id, "stop"); } else { handleContainerAction(container.id, "start"); } }} className={`p-1.5 rounded transition-colors duration-200 ${container.status === "running" ? "text-red-600 hover:bg-red-50" : "text-green-600 hover:bg-green-50"}`}>{container.status === "running" ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}</button>
-                                <button onClick={() => handleContainerAction(container.id, "restart")} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"><RefreshCw className="w-4 h-4" /></button>
-                                <button className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"><Terminal className="w-4 h-4" /></button>
-                                <button onClick={() => handleContainerAction(container.id, "delete")} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"><Trash2 className="w-4 h-4" /></button>
+                            <td colSpan={8} className="px-6 py-2">
+                              <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                                <Layers className="w-3.5 h-3.5" />
+                                {projectName}
+                                <span className="font-normal text-gray-400">
+                                  ({group.length})
+                                </span>
                               </div>
                             </td>
                           </tr>
-                        ))}
-                      </>
-                    ))
-                  : filteredContainers.map((container) => (
-                  <tr
-                    key={container.id}
-                    className="hover:bg-gray-50 transition-colors duration-150"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {container.name}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        ID: {container.id}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 font-mono">
-                        {container.image}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusText(container.status)}`}
-                      >
-                        {getStatusIcon(container.status)}
-                        <span className="ml-1">{container.status}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900 font-mono">
-                        {container.ports.join(", ")}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Activity className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900">
-                          {container.cpu.toFixed(1)}%
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <HardDrive className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900">
-                          {container.memory}MB
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <Clock className="w-4 h-4 text-gray-400 mr-2" />
-                        <span className="text-sm text-gray-900">
-                          {container.uptime}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => handleViewLogs(container)}
-                          className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (container.status === "running") {
-                              handleContainerAction(container.id, "stop");
-                            } else {
-                              handleContainerAction(container.id, "start");
-                            }
-                          }}
-                          className={`p-1.5 rounded transition-colors duration-200 ${
-                            container.status === "running"
-                              ? "text-red-600 hover:bg-red-50"
-                              : "text-green-600 hover:bg-green-50"
-                          }`}
-                        >
-                          {container.status === "running" ? (
-                            <Square className="w-4 h-4" />
-                          ) : (
-                            <Play className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleContainerAction(container.id, "restart")
-                          }
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors duration-200"
-                        >
-                          <RefreshCw className="w-4 h-4" />
-                        </button>
-                        <button className="p-1.5 text-gray-600 hover:bg-gray-50 rounded transition-colors duration-200">
-                          <Terminal className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() =>
-                            handleContainerAction(container.id, "delete")
-                          }
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors duration-200"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {group.map(renderRow)}
+                        </>
+                      ),
+                    )
+                  : filteredContainers.map(renderRow)}
               </tbody>
             </table>
           </div>
-        </div>
-      </div>
+        )}
+      </Card>
 
-      {/* Logs Modal */}
-      {showLogsModal && selectedContainer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-4xl w-full max-h-[80vh] m-4">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <Terminal className="w-5 h-5 text-gray-600" />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {selectedContainer.name} - Logs
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {selectedContainer.image}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={copyLogs}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                  title="Copy logs"
-                >
-                  <Copy className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={downloadLogs}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                  title="Download logs"
-                >
-                  <Download className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => setShowLogsModal(false)}
-                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <div
-              className="p-6 overflow-auto"
-              style={{ maxHeight: "calc(80vh - 120px)" }}
+      {/* Logs modal */}
+      <Modal
+        open={showLogsModal && selectedContainer !== null}
+        onClose={() => setShowLogsModal(false)}
+        title={
+          <span className="flex items-center gap-2">
+            <Terminal className="w-5 h-5 text-gray-500" />
+            {selectedContainer?.name} — Logs
+          </span>
+        }
+        wide
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              icon={<Copy className="w-4 h-4" />}
+              onClick={copyLogs}
             >
-              {logsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mr-3"></div>
-                  <span className="text-gray-600">Loading logs...</span>
-                </div>
-              ) : logsError ? (
-                <div className="flex items-center justify-center py-12 text-red-600">
-                  <Terminal className="w-8 h-8 mr-3" />
-                  <span>{logsError}</span>
-                </div>
-              ) : logs.length > 0 ? (
-                <div className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-gray-300">
-                  {logs.map((log, index) => (
-                    <div key={index} className="mb-1">
-                      <span className="text-gray-500 mr-2">
-                        {new Date().toLocaleTimeString()}
-                      </span>
-                      <span className="whitespace-pre-wrap">{log}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex items-center justify-center py-12 text-gray-500">
-                  <Terminal className="w-8 h-8 mr-3" />
-                  <span>No logs available</span>
-                </div>
-              )}
+              Copy
+            </Button>
+            <Button
+              variant="secondary"
+              icon={<Download className="w-4 h-4" />}
+              onClick={downloadLogs}
+            >
+              Download
+            </Button>
+          </>
+        }
+      >
+        {logsLoading ? (
+          <LoadingState label="Loading logs…" />
+        ) : logsError ? (
+          <ErrorBanner
+            message={logsError}
+            onRetry={() =>
+              selectedContainer && fetchLogs(selectedContainer.id)
+            }
+          />
+        ) : (
+          <pre className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre-wrap max-h-[55vh] overflow-y-auto">
+            {logs.join("\n")}
+          </pre>
+        )}
+      </Modal>
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete container"
+        message={
+          <>
+            This will permanently remove{" "}
+            <span className="font-mono font-semibold">
+              {deleteTarget?.name}
+            </span>
+            {deleteTarget?.status === "running" && (
+              <>
+                {" "}
+                — it is currently <strong>running</strong> and will be stopped
+                first
+              </>
+            )}
+            .
+          </>
+        }
+        confirmLabel="Delete"
+        requireText={
+          deleteTarget?.status === "running" ? deleteTarget.name : undefined
+        }
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (deleteTarget) {
+            runContainerAction(deleteTarget, "delete");
+            setDeleteTarget(null);
+          }
+        }}
+      />
+
+      {/* Create modal */}
+      <Modal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create Container"
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setShowCreateModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button variant="primary" loading={creating} onClick={createContainer}>
+              Create
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {createError && <ErrorBanner message={createError} />}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Image
+            </label>
+            <select
+              value={createForm.image}
+              onChange={(e) =>
+                setCreateForm((prev) => ({ ...prev, image: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="alpine:latest">alpine:latest</option>
+              <option value="ubuntu:latest">ubuntu:latest</option>
+              <option value="debian:latest">debian:latest</option>
+              <option value="node:20-alpine">node:20-alpine</option>
+              <option value="node:20-bookworm">node:20-bookworm</option>
+            </select>
+            <input
+              type="text"
+              value={createForm.image}
+              onChange={(e) =>
+                setCreateForm((prev) => ({ ...prev, image: e.target.value }))
+              }
+              className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="custom-image:tag"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Container Port
+              </label>
+              <input
+                type="number"
+                value={createForm.containerPort}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    containerPort: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="8080"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Host Port (optional)
+              </label>
+              <input
+                type="number"
+                value={createForm.hostPort}
+                onChange={(e) =>
+                  setCreateForm((prev) => ({
+                    ...prev,
+                    hostPort: e.target.value,
+                  }))
+                }
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="3001"
+              />
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Port Modification Modal */}
-      {showPortModal && selectedContainerForPorts && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Modify Port Mapping - {selectedContainerForPorts.name}
-              </h2>
-              <button
-                onClick={() => setShowPortModal(false)}
-                className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors duration-200"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="border border-gray-200 rounded-lg p-4">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Current Port Configuration
-                </h3>
-                <div className="space-y-3">
-                  {selectedContainerForPorts.ports.map((port, index) => (
-                    <div key={index} className="space-y-2">
-                      <div className="flex items-center justify-between py-2 px-3 bg-gray-50 rounded">
-                        <span className="text-sm text-gray-600">{port}</span>
-                        <span className="text-sm text-gray-500 ml-2">
-                          {selectedContainerForPorts.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <input
-                          type="number"
-                          placeholder="New host port"
-                          className="w-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          onChange={(e) => {
-                            const newPortModifications = {
-                              ...portModifications,
-                            };
-                            const portKey = `${selectedContainerForPorts.id}-${port}`;
-                            newPortModifications[portKey] = {
-                              ...portModifications[portKey],
-                              hostPort: e.target.value
-                                ? parseInt(e.target.value)
-                                : undefined,
-                            };
-                            setPortModifications(newPortModifications);
-                          }}
-                        />
-                        <button
-                          onClick={async () => {
-                            try {
-                              const response = await fetch(
-                                `/api/containers/${selectedContainerForPorts.id}/ports`,
-                                {
-                                  method: "PUT",
-                                  headers: {
-                                    "Content-Type": "application/json",
-                                  },
-                                  body: JSON.stringify({
-                                    ports: selectedContainerForPorts.ports.map(
-                                      (p) => {
-                                        const portKey = `${selectedContainerForPorts.id}-${p}`;
-                                        const modification =
-                                          portModifications[portKey];
-                                        return {
-                                          hostPort: modification?.hostPort,
-                                          port: p,
-                                        };
-                                      },
-                                    ),
-                                  }),
-                                },
-                              );
-
-                              if (response.ok) {
-                                setShowPortModal(false);
-                                setPortModifications({});
-                                // Refresh containers to show updated ports
-                                fetchContainers();
-                              } else {
-                                alert("Failed to update port mapping");
-                              }
-                            } catch (error) {
-                              console.error(
-                                "Error updating port mapping:",
-                                error,
-                              );
-                              alert("Error updating port mapping");
-                            }
-                          }}
-                          className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors duration-200 text-sm"
-                        >
-                          Apply Changes
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4">
-              <button
-                onClick={() => setShowPortModal(false)}
-                className="px-4 py-2 text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors duration-200"
-              >
-                Cancel
-              </button>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Packages (optional)
+            </label>
+            <input
+              type="text"
+              value={createForm.packagesText}
+              onChange={(e) =>
+                setCreateForm((prev) => ({
+                  ...prev,
+                  packagesText: e.target.value,
+                }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="nodejs npm curl"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              Space or comma separated. Supports alpine/ubuntu/debian package
+              managers.
+            </p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Environment Variables (optional)
+            </label>
+            <textarea
+              value={createForm.envText}
+              onChange={(e) =>
+                setCreateForm((prev) => ({ ...prev, envText: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[90px]"
+              placeholder="KEY=value"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Command (optional)
+            </label>
+            <input
+              type="text"
+              value={createForm.command}
+              onChange={(e) =>
+                setCreateForm((prev) => ({ ...prev, command: e.target.value }))
+              }
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="bash -lc 'echo hello'"
+            />
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              If empty, container will run `sleep infinity`.
+            </p>
           </div>
         </div>
-      )}
-
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-2xl w-full m-4">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Create Empty Container
-              </h3>
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded"
-                title="Close"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4 max-h-[70vh] overflow-auto">
-              {createError && (
-                <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
-                  {createError}
-                </div>
-              )}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Image
-                </label>
-                <select
-                  value={createForm.image}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      image: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="alpine:latest">alpine:latest</option>
-                  <option value="ubuntu:latest">ubuntu:latest</option>
-                  <option value="debian:latest">debian:latest</option>
-                  <option value="node:20-alpine">node:20-alpine</option>
-                  <option value="node:20-bookworm">node:20-bookworm</option>
-                </select>
-                <input
-                  type="text"
-                  value={createForm.image}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      image: e.target.value,
-                    }))
-                  }
-                  className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="custom-image:tag"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Container Port
-                  </label>
-                  <input
-                    type="number"
-                    value={createForm.containerPort}
-                    onChange={(e) =>
-                      setCreateForm((prev) => ({
-                        ...prev,
-                        containerPort: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="8080"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Host Port (optional)
-                  </label>
-                  <input
-                    type="number"
-                    value={createForm.hostPort}
-                    onChange={(e) =>
-                      setCreateForm((prev) => ({
-                        ...prev,
-                        hostPort: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="3001"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Packages (optional)
-                </label>
-                <input
-                  type="text"
-                  value={createForm.packagesText}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      packagesText: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="nodejs npm curl"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Space or comma separated. Supports alpine/ubuntu/debian
-                  package managers.
-                </p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Environment Variables (optional)
-                </label>
-                <textarea
-                  value={createForm.envText}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      envText: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[90px]"
-                  placeholder="KEY=value"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Command (optional)
-                </label>
-                <input
-                  type="text"
-                  value={createForm.command}
-                  onChange={(e) =>
-                    setCreateForm((prev) => ({
-                      ...prev,
-                      command: e.target.value,
-                    }))
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="bash -lc 'echo hello'"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  If empty, container will run `sleep infinity`.
-                </p>
-              </div>
-            </div>
-            <div className="p-4 border-t border-gray-200 flex justify-end space-x-3">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={createContainer}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
-              >
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </Modal>
     </div>
   );
 }

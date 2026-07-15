@@ -29,11 +29,11 @@
   }
 
   .sidebar-item {
-    @apply transition-all duration-200 border-l-4 border-transparent hover:bg-primary-50 hover:border-primary-500;
+    @apply transition-all duration-200 border-l-4 border-transparent hover:bg-primary-50 hover:border-primary-500 dark:hover:bg-gray-700;
   }
 
   .sidebar-item.active {
-    @apply bg-primary-100 border-primary-500;
+    @apply bg-primary-100 border-primary-500 dark:bg-gray-700;
   }
 
   .container-card {

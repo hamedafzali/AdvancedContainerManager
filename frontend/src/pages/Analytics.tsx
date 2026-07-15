@@ -160,15 +160,15 @@ export default function Analytics() {
   const getSeverityColor = (severity: string) => {
     switch (severity) {
       case "critical":
-        return "text-red-600 bg-red-50";
+        return "text-red-600 bg-red-50 dark:bg-red-900/20";
       case "high":
         return "text-orange-600 bg-orange-50";
       case "medium":
-        return "text-yellow-600 bg-yellow-50";
+        return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20";
       case "low":
-        return "text-blue-600 bg-blue-50";
+        return "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
       default:
-        return "text-gray-600 bg-gray-50";
+        return "text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50";
     }
   };
 
@@ -183,32 +183,32 @@ export default function Analytics() {
       case "volatile":
         return <AlertTriangle className="w-4 h-4 text-orange-600" />;
       default:
-        return <Activity className="w-4 h-4 text-gray-600" />;
+        return <Activity className="w-4 h-4 text-gray-600 dark:text-gray-300" />;
     }
   };
 
   const getRiskColor = (risk: string) => {
     switch (risk) {
       case "high":
-        return "text-red-600 bg-red-50";
+        return "text-red-600 bg-red-50 dark:bg-red-900/20";
       case "medium":
-        return "text-yellow-600 bg-yellow-50";
+        return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20";
       case "low":
-        return "text-green-600 bg-green-50";
+        return "text-green-600 bg-green-50 dark:bg-green-900/20";
       default:
-        return "text-gray-600 bg-gray-50";
+        return "text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50";
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 mb-2">
+          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">
             Loading Analytics...
           </h2>
-          <p className="text-gray-500">
+          <p className="text-gray-500 dark:text-gray-400">
             Fetching predictive insights and analytics
           </p>
         </div>
@@ -218,13 +218,13 @@ export default function Analytics() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 mb-2">
+          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">
             Error Loading Analytics
           </h2>
-          <p className="text-gray-500 mb-4">{error}</p>
+          <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
           <button
             onClick={fetchAnalyticsData}
             className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
@@ -237,17 +237,17 @@ export default function Analytics() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
       <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
         {/* Header */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="p-8">
             <div className="flex items-center justify-between">
               <div className="space-y-2">
-                <h1 className="text-3xl font-light text-gray-900 tracking-tight">
+                <h1 className="text-3xl font-light text-gray-900 dark:text-gray-100 tracking-tight">
                   Advanced Analytics
                 </h1>
-                <p className="text-gray-500 text-sm tracking-wide">
+                <p className="text-gray-500 dark:text-gray-400 text-sm tracking-wide">
                   AI-powered insights and predictive analytics
                 </p>
               </div>
@@ -255,7 +255,7 @@ export default function Analytics() {
                 <select
                   value={timeRange}
                   onChange={(e) => setTimeRange(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
+                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
                 >
                   <option value="1d">Last 24 Hours</option>
                   <option value="7d">Last 7 Days</option>
@@ -267,7 +267,7 @@ export default function Analytics() {
                   className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
                     autoRefresh
                       ? "bg-green-600 hover:bg-green-700 text-white"
-                      : "bg-gray-200 hover:bg-gray-300 text-gray-700"
+                      : "bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 text-gray-700 dark:text-gray-300"
                   }`}
                 >
                   <RefreshCw
@@ -284,7 +284,7 @@ export default function Analytics() {
 
         {/* AI Insights Summary */}
         {insights && (
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-sm border border-gray-200 p-8 text-white">
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-white">
             <div className="flex items-center space-x-3 mb-6">
               <Brain className="w-8 h-8" />
               <h2 className="text-2xl font-light">AI Insights</h2>
@@ -330,57 +330,57 @@ export default function Analytics() {
 
         {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
                   {anomalies.filter((a) => a.severity === "critical").length}
                 </div>
-                <div className="text-sm text-gray-500">Critical Anomalies</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Critical Anomalies</div>
               </div>
-              <div className="p-3 bg-red-50 rounded-lg">
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
                   {trends.filter((t) => t.trend === "increasing").length}
                 </div>
-                <div className="text-sm text-gray-500">Increasing Trends</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">Increasing Trends</div>
               </div>
-              <div className="p-3 bg-green-50 rounded-lg">
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
                 <TrendingUp className="w-5 h-5 text-green-600" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
                   {capacityPlans.filter((p) => p.riskLevel === "high").length}
                 </div>
-                <div className="text-sm text-gray-500">High Risk Resources</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">High Risk Resources</div>
               </div>
               <div className="p-3 bg-orange-50 rounded-lg">
                 <AlertCircle className="w-5 h-5 text-orange-600" />
               </div>
             </div>
           </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-2xl font-light text-gray-900">
+                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
                   $
                   {costForecasts
                     .reduce((sum, f) => sum + f.forecast, 0)
                     .toFixed(0)}
                 </div>
-                <div className="text-sm text-gray-500">30-Day Forecast</div>
+                <div className="text-sm text-gray-500 dark:text-gray-400">30-Day Forecast</div>
               </div>
-              <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                 <DollarSign className="w-5 h-5 text-blue-600" />
               </div>
             </div>
@@ -388,10 +388,10 @@ export default function Analytics() {
         </div>
 
         {/* Recent Anomalies */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-          <div className="p-6 border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
-              <h2 className="text-xl font-light text-gray-900">
+              <h2 className="text-xl font-light text-gray-900 dark:text-gray-100">
                 Recent Anomalies
               </h2>
               <button className="text-blue-600 hover:text-blue-700 text-sm">
@@ -404,7 +404,7 @@ export default function Analytics() {
               {anomalies.slice(0, 5).map((anomaly, index) => (
                 <div
                   key={index}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
                 >
                   <div className="flex items-center space-x-4">
                     <div
@@ -413,10 +413,10 @@ export default function Analytics() {
                       <AlertTriangle className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-gray-900 dark:text-gray-100">
                         {anomaly.metric}
                       </div>
-                      <div className="text-sm text-gray-500">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {anomaly.description}
                       </div>
                     </div>
@@ -427,7 +427,7 @@ export default function Analytics() {
                     >
                       {anomaly.severity}
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       {new Date(anomaly.timestamp).toLocaleString()}
                     </div>
                   </div>
@@ -439,9 +439,9 @@ export default function Analytics() {
 
         {/* Trends Analysis */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-light text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-light text-gray-900 dark:text-gray-100">
                 Trend Analysis
               </h2>
             </div>
@@ -450,25 +450,25 @@ export default function Analytics() {
                 {trends.slice(0, 4).map((trend, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                    className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
                   >
                     <div className="flex items-center space-x-3">
                       {getTrendIcon(trend.trend)}
                       <div>
-                        <div className="font-medium text-gray-900">
+                        <div className="font-medium text-gray-900 dark:text-gray-100">
                           {trend.metric}
                         </div>
-                        <div className="text-sm text-gray-500">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
                           {trend.changeRate > 0 ? "+" : ""}
                           {trend.changeRate.toFixed(1)}%
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         Next Hour: {trend.prediction.nextHour.toFixed(1)}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         {trend.confidence.toFixed(1)}% confidence
                       </div>
                     </div>
@@ -478,31 +478,31 @@ export default function Analytics() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-light text-gray-900">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-light text-gray-900 dark:text-gray-100">
                 Capacity Planning
               </h2>
             </div>
             <div className="p-6">
               <div className="space-y-4">
                 {capacityPlans.slice(0, 4).map((plan, index) => (
-                  <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                  <div key={index} className="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-2">
                         {plan.resource === "cpu" && (
-                          <Cpu className="w-4 h-4 text-gray-600" />
+                          <Cpu className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                         )}
                         {plan.resource === "memory" && (
-                          <HardDrive className="w-4 h-4 text-gray-600" />
+                          <HardDrive className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                         )}
                         {plan.resource === "storage" && (
-                          <Server className="w-4 h-4 text-gray-600" />
+                          <Server className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                         )}
                         {plan.resource === "network" && (
-                          <Wifi className="w-4 h-4 text-gray-600" />
+                          <Wifi className="w-4 h-4 text-gray-600 dark:text-gray-300" />
                         )}
-                        <span className="font-medium text-gray-900 capitalize">
+                        <span className="font-medium text-gray-900 dark:text-gray-100 capitalize">
                           {plan.resource}
                         </span>
                       </div>
@@ -514,13 +514,13 @@ export default function Analytics() {
                     </div>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-500">Current:</span>
+                        <span className="text-gray-500 dark:text-gray-400">Current:</span>
                         <span className="ml-2 font-medium">
                           {plan.current.toFixed(1)}
                         </span>
                       </div>
                       <div>
-                        <span className="text-gray-500">6 Months:</span>
+                        <span className="text-gray-500 dark:text-gray-400">6 Months:</span>
                         <span className="ml-2 font-medium">
                           {plan.projected.sixMonths.toFixed(1)}
                         </span>

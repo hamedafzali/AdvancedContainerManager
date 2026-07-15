@@ -19,17 +19,25 @@ interface ContainerChartProps {
 
 export default function ContainerChart({ data }: ContainerChartProps) {
   const total = data.reduce((acc, item) => acc + item.value, 0);
+  const runningPercent =
+    total > 0 ? Math.round(((data[0]?.value || 0) / total) * 100) : 0;
 
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
       <div className="flex items-center justify-between mb-4">
-        <span className="text-2xl font-bold text-gray-900">
-          {Math.round((data[0]?.value / total) * 100)}%
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          Container states
+        </h3>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          {runningPercent}% running
         </span>
-        <button className="text-sm text-blue-600 hover:text-blue-800">
-          View Details
-        </button>
       </div>
+      {total === 0 && (
+        <div className="h-64 flex items-center justify-center text-sm text-gray-400">
+          No containers yet.
+        </div>
+      )}
+      {total > 0 && (
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -61,6 +69,7 @@ export default function ContainerChart({ data }: ContainerChartProps) {
           </PieChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }

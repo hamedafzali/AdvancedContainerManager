@@ -66,14 +66,26 @@ export function useSocket() {
 
       socket.on("connect", () => {
         console.log("Connected to Advanced Container Manager WebSocket");
+        window.dispatchEvent(
+          new CustomEvent("socket_status", { detail: { connected: true } }),
+        );
         socket.emit("get_system_metrics");
         if ("Notification" in window && Notification.permission === "default") {
           Notification.requestPermission();
         }
       });
 
+      socket.on("disconnect", () => {
+        window.dispatchEvent(
+          new CustomEvent("socket_status", { detail: { connected: false } }),
+        );
+      });
+
       socket.on("connect_error", (error) => {
         console.log("Unable to connect to backend WebSocket", error);
+        window.dispatchEvent(
+          new CustomEvent("socket_status", { detail: { connected: false } }),
+        );
       });
 
       // System metrics updates

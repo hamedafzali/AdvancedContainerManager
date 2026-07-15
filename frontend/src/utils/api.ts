@@ -32,3 +32,33 @@ export const apiFetch = (path: string, init?: RequestInit): Promise<Response> =>
   };
   return fetch(url, { ...init, headers });
 };
+
+// JSON convenience wrapper: parses the body, throws Error with the backend
+// message on non-2xx responses, and returns the parsed payload.
+export const apiJson = async <T = any>(
+  path: string,
+  init?: RequestInit,
+): Promise<T> => {
+  const response = await apiFetch(path, init);
+  const text = await response.text();
+  let payload: any = null;
+  try {
+    payload = text ? JSON.parse(text) : null;
+  } catch {
+    if (!response.ok) {
+      throw new Error(text.slice(0, 300) || `Request failed (${response.status})`);
+    }
+    throw new Error(`Invalid JSON from ${path}: ${text.slice(0, 200)}`);
+  }
+  if (!response.ok || payload?.success === false) {
+    throw new Error(payload?.message || `Request failed (${response.status})`);
+  }
+  return payload as T;
+};
+
+export const apiPost = <T = any>(path: string, body?: unknown): Promise<T> =>
+  apiJson<T>(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });

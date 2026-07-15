@@ -1411,7 +1411,25 @@ export class ProjectService {
       throw new Error(`Project ${name} not found`);
     }
 
+    // Stream build output over the same channel as deploys so the UI can
+    // show live progress in its task log.
+    const onBuildChunk =
+      (stream: "stdout" | "stderr") => (chunk: string) => {
+        this.wsHandler?.broadcastProjectDeployLog({
+          projectName: name,
+          stream,
+          chunk,
+          timestamp: new Date().toISOString(),
+        });
+      };
+
     try {
+      this.wsHandler?.broadcastProjectDeployStatus({
+        projectName: name,
+        status: "started",
+        timestamp: new Date().toISOString(),
+      });
+
       project.status = "building";
       project.lastUpdated = new Date().toISOString();
       this.saveProjects();
@@ -1438,12 +1456,12 @@ export class ProjectService {
           );
         }
 
-        buildResult = await this.runCompose(project, [
-          "compose",
-          "-f",
-          composeFile,
-          "build",
-        ]);
+        buildResult = await this.runCompose(
+          project,
+          ["compose", "-f", composeFile, "build"],
+          onBuildChunk("stdout"),
+          onBuildChunk("stderr"),
+        );
       } else {
         const dockerfile = project.dockerfile || "Dockerfile";
         const dockerfilePath = path.join(project.path, dockerfile);
@@ -1458,6 +1476,8 @@ export class ProjectService {
             ["build", "-f", dockerfilePath, "-t", imageId, "."],
             project.path,
             project.environmentVars,
+            onBuildChunk("stdout"),
+            onBuildChunk("stderr"),
           )),
           command: "docker",
         };
@@ -1484,6 +1504,12 @@ export class ProjectService {
       this.saveProjects();
 
       this.logger.info(`Project ${name} built successfully`);
+
+      this.wsHandler?.broadcastProjectDeployStatus({
+        projectName: name,
+        status: "completed",
+        timestamp: new Date().toISOString(),
+      });
     } catch (error) {
       project.status = "error";
       project.lastUpdated = new Date().toISOString();
@@ -1495,6 +1521,13 @@ export class ProjectService {
       this.saveProjects();
 
       this.logger.error(`Error building project ${name}:`, error);
+
+      this.wsHandler?.broadcastProjectDeployStatus({
+        projectName: name,
+        status: "failed",
+        timestamp: new Date().toISOString(),
+        error: error.message,
+      });
       throw error;
     }
   }

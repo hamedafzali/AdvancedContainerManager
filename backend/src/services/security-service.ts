@@ -531,26 +531,12 @@ export class SecurityService {
     imageName: string,
     scan?: SecurityScan
   ): Promise<SecurityAlert | null> {
-    // Mock rule evaluation - in real implementation, this would evaluate actual conditions
-    if (Math.random() > 0.8) { // 20% chance of rule violation
-      return {
-        id: `alert-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        type: 'policy',
-        severity: rule.severity,
-        title: `Security policy violation: ${rule.condition}`,
-        description: `Container ${containerId} violated security rule: ${rule.condition}`,
-        containerId,
-        imageName,
-        timestamp: new Date().toISOString(),
-        status: 'open',
-        metadata: {
-          ruleType: rule.type,
-          condition: rule.condition,
-          action: rule.action,
-        },
-      };
-    }
-
+    // Real rule evaluation is not implemented yet. Never fabricate alerts —
+    // a fake security finding is worse than none.
+    void rule;
+    void containerId;
+    void imageName;
+    void scan;
     return null;
   }
 
