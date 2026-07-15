@@ -17,6 +17,14 @@
   html {
     @apply transition-colors duration-300;
   }
+
+  /* Form controls default to white in browsers; give them proper dark styling
+     so fields never stay light inside dark cards/modals. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    @apply dark:bg-gray-900 dark:text-gray-100 dark:border-gray-600 dark:placeholder-gray-500;
+  }
 }
 
 @layer components {

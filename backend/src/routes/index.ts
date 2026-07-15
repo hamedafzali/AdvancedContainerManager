@@ -2291,6 +2291,18 @@ export function routes(
     }),
   );
 
+  router.post(
+    "/projects/:name/environments/:env/restart",
+    asyncHandler(async (req, res) => {
+      try {
+        await projectService.restartEnvironment(req.params.name, req.params.env);
+        res.json({ success: true });
+      } catch (e: any) {
+        res.status(400).json({ success: false, message: e.message });
+      }
+    }),
+  );
+
   router.get(
     "/projects/:name/environments/:env/env",
     asyncHandler(async (req, res) => {

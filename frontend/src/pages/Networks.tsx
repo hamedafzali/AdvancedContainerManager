@@ -82,7 +82,7 @@ export default function Networks() {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
             <Shield className="w-8 h-8 text-red-600" />
           </div>
           <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">

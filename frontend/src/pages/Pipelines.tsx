@@ -227,7 +227,7 @@ export default function Pipelines() {
                 <div className="flex items-center gap-2">
                   <CircleDot className={`w-3.5 h-3.5 ${DOT[o.running ? "running" : o.lastRun?.status || ""] || "text-gray-300"}`} />
                   <span className="font-medium text-sm text-gray-800 dark:text-gray-100 truncate">{o.name}</span>
-                  {o.hasDefinition && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">.acm</span>}
+                  {o.hasDefinition && <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">.acm</span>}
                 </div>
                 <div className="text-[11px] text-gray-400 mt-1 truncate">
                   {o.stages.length} stage{o.stages.length === 1 ? "" : "s"}

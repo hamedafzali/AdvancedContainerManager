@@ -2263,6 +2263,26 @@ export class ProjectService {
     );
     if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Stop failed");
     if (env === "prod") { project.status = "stopped"; project.lastUpdated = new Date().toISOString(); this.saveProjects(); }
+    this.wsHandler?.broadcastProjectStatus({ name, status: env === "prod" ? "stopped" : project.status });
+  }
+
+  /** Restart an environment's containers in place (no rebuild, no config reload). */
+  public async restartEnvironment(name: string, env: string): Promise<void> {
+    const project = this.projects.get(name);
+    if (!project) throw new Error(`Project ${name} not found`);
+    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
+    const composeFile = this.resolveComposeFile(project);
+    if (!composeFile) throw new Error("docker-compose file not found in project");
+
+    const cp = this.composeProjectFor(name, env);
+    const merged = this.mergedEnvFor(project, env);
+    const result = await this.runCommand(
+      "docker",
+      ["compose", "-p", cp, "-f", composeFile, "restart"],
+      project.path, merged,
+    );
+    if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Restart failed");
+    this.wsHandler?.broadcastProjectStatus({ name, status: env === "prod" ? "running" : project.status });
   }
 }
 

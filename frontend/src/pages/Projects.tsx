@@ -681,7 +681,7 @@ export default function Projects() {
       setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
       return;
     }
-    setPending(projectName, "deploy");
+    setPending(projectName, "deploying");
     const taskId = beginStreamingTask(projectName, `Sync & Deploy ${projectName}`);
     appendTaskLog(taskId, `Syncing repository…\n`);
     try {
@@ -707,7 +707,7 @@ export default function Projects() {
 
   // Build project — logs stream live over the deploy channel
   const handleBuildProject = async (projectName: string) => {
-    setPending(projectName, "build");
+    setPending(projectName, "building");
     const taskId = beginStreamingTask(projectName, `Build ${projectName}`);
     appendTaskLog(taskId, `Starting build…\n`);
     try {
@@ -729,7 +729,7 @@ export default function Projects() {
 
   const handleSyncProject = async (projectName: string) => {
     const requestedAt = new Date().toLocaleString();
-    setPending(projectName, "sync");
+    setPending(projectName, "syncing");
     const taskId = startTask(`Sync repo ${projectName}`, "git pull");
     openTask(taskId);
     try {
@@ -771,7 +771,7 @@ export default function Projects() {
       setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
       return;
     }
-    setPending(projectName, "deploy");
+    setPending(projectName, "deploying");
     const taskId = beginStreamingTask(projectName, `Deploy ${projectName}`);
     try {
       const result = await apiPost(
@@ -795,15 +795,68 @@ export default function Projects() {
     }
   };
 
-  // Stop project
+  // Stop project (production)
   const handleStopProject = async (projectName: string) => {
-    setPending(projectName, "stop");
+    setPending(projectName, "stopping prod");
     try {
       await apiPost(`/api/projects/${encodeURIComponent(projectName)}/stop`);
       await fetchProjects();
     } catch (err) {
       setActionError(
         err instanceof Error ? err.message : "Failed to stop project",
+      );
+    } finally {
+      setPending(projectName, null);
+    }
+  };
+
+  // Dev environment controls — the everyday workflow lives on the card.
+  const handleStartDev = async (projectName: string) => {
+    setPending(projectName, "starting dev");
+    const taskId = beginStreamingTask(projectName, `Start dev ${projectName}`);
+    try {
+      await apiPost(
+        `/api/projects/${encodeURIComponent(projectName)}/environments/dev/deploy`,
+      );
+      appendTaskLog(taskId, `\n✔ dev environment started\n`);
+      finishTask(taskId, "success");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to start dev environment";
+      appendTaskLog(taskId, `\n${message}\n`);
+      finishTask(taskId, "failed", message);
+      setActionError(message);
+    } finally {
+      endStreamingTask(projectName);
+      setPending(projectName, null);
+    }
+  };
+
+  const handleStopDev = async (projectName: string) => {
+    setPending(projectName, "stopping dev");
+    try {
+      await apiPost(
+        `/api/projects/${encodeURIComponent(projectName)}/environments/dev/stop`,
+      );
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to stop dev environment",
+      );
+    } finally {
+      setPending(projectName, null);
+    }
+  };
+
+  const handleRestartEnv = async (projectName: string, env: "dev" | "prod") => {
+    setPending(projectName, `restarting ${env}`);
+    try {
+      await apiPost(
+        `/api/projects/${encodeURIComponent(projectName)}/environments/${env}/restart`,
+      );
+      await fetchProjects();
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : `Failed to restart ${env}`,
       );
     } finally {
       setPending(projectName, null);
@@ -1027,12 +1080,12 @@ export default function Projects() {
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      project.status === "running" ? "bg-green-100 text-green-700 dark:text-green-300" :
-                      project.status === "error" ? "bg-red-100 text-red-700 dark:text-red-300" :
-                      project.status === "building" ? "bg-yellow-100 text-yellow-700 dark:text-yellow-300" :
-                      project.status === "built" ? "bg-indigo-100 text-indigo-700" :
+                      project.status === "running" ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" :
+                      project.status === "error" ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" :
+                      project.status === "building" ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300" :
+                      project.status === "built" ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300" :
                       project.status === "stopped" ? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300" :
-                      "bg-blue-100 text-blue-700 dark:text-blue-300"
+                      "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
                     }`}>
                       {project.status}
                     </span>
@@ -1082,7 +1135,7 @@ export default function Projects() {
                               title={hasConflict ? portConflicts[project.name].find((c) => c.includes(`port ${port.hostPort}`)) : undefined}
                               className={`font-mono text-xs px-1.5 py-0.5 rounded ${
                                 hasConflict
-                                  ? "bg-red-100 text-red-700 dark:text-red-300 ring-1 ring-red-300"
+                                  ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 ring-1 ring-red-300"
                                   : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
                               }`}
                             >
@@ -1119,7 +1172,7 @@ export default function Projects() {
                           <a href={`https://${(project as any).tunnelDomain}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-xs truncate font-medium">
                             {(project as any).tunnelDomain}
                           </a>
-                          <span className="text-xs bg-blue-100 text-blue-600 px-1 rounded">CF</span>
+                          <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 px-1 rounded">CF</span>
                           <button onClick={() => navigator.clipboard.writeText(`https://${(project as any).tunnelDomain}`)} className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0" title="Copy domain">
                             <Copy className="w-3 h-3" />
                           </button>
@@ -1141,61 +1194,92 @@ export default function Projects() {
                   </div>
                 </div>
 
-                {/* Action toolbar — one primary CTA, the rest in an overflow menu */}
+                {/* Action toolbar — dev workflow first, prod deploy last */}
                 <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <Button
-                      variant="primary"
-                      className="!px-3 !py-1.5 !text-xs"
-                      icon={<Zap className="w-3.5 h-3.5" />}
-                      loading={pendingProjects[project.name] === "deploy"}
-                      disabled={Boolean(pendingProjects[project.name])}
-                      onClick={() => handleSyncDeploy(project.name)}
-                      title="Sync repository, then deploy"
-                    >
-                      Deploy
-                    </Button>
-                    {pendingProjects[project.name] &&
-                      pendingProjects[project.name] !== "deploy" && (
-                        <span className="text-xs text-gray-400 italic">
-                          {pendingProjects[project.name]}ing…
-                        </span>
-                      )}
-                  </div>
-
                   <div className="flex items-center gap-0.5">
-                    {project.status === "running" && (
-                      <IconButton
-                        label="Stop project"
-                        loading={pendingProjects[project.name] === "stop"}
-                        disabled={Boolean(pendingProjects[project.name])}
-                        onClick={() => handleStopProject(project.name)}
-                      >
-                        <Square className="w-4 h-4" />
-                      </IconButton>
-                    )}
+                    <IconButton
+                      label="Start dev environment"
+                      tone="success"
+                      loading={pendingProjects[project.name] === "starting dev"}
+                      disabled={Boolean(pendingProjects[project.name])}
+                      onClick={() => handleStartDev(project.name)}
+                    >
+                      <Play className="w-4 h-4" />
+                    </IconButton>
+                    <IconButton
+                      label="Stop dev environment"
+                      loading={pendingProjects[project.name] === "stopping dev"}
+                      disabled={Boolean(pendingProjects[project.name])}
+                      onClick={() => handleStopDev(project.name)}
+                    >
+                      <Square className="w-4 h-4" />
+                    </IconButton>
+                    <IconButton
+                      label="Restart dev environment"
+                      tone="info"
+                      loading={
+                        pendingProjects[project.name] === "restarting dev"
+                      }
+                      disabled={Boolean(pendingProjects[project.name])}
+                      onClick={() => handleRestartEnv(project.name, "dev")}
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </IconButton>
                     <IconButton
                       label="Container logs"
                       onClick={() => handleViewLogs(project)}
                     >
                       <Terminal className="w-4 h-4" />
                     </IconButton>
+                    {pendingProjects[project.name] && (
+                      <span className="inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        {pendingProjects[project.name]}…
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="secondary"
+                      className="!px-2.5 !py-1 !text-xs"
+                      icon={<Zap className="w-3.5 h-3.5" />}
+                      loading={pendingProjects[project.name] === "deploying"}
+                      disabled={Boolean(pendingProjects[project.name])}
+                      onClick={() => handleSyncDeploy(project.name)}
+                      title="Sync repository, then deploy to production"
+                    >
+                      Deploy
+                    </Button>
                     <DropdownMenu
                       items={[
                         {
-                          label: "Deploy only (no sync)",
-                          icon: <Play className="w-4 h-4" />,
+                          label: "Deploy prod (no sync)",
+                          icon: <Zap className="w-4 h-4" />,
                           disabled: Boolean(pendingProjects[project.name]),
                           onClick: () => handleDeployProject(project.name),
                         },
                         {
-                          label: "Sync repo only",
+                          label: "Restart production",
                           icon: <RefreshCw className="w-4 h-4" />,
                           disabled: Boolean(pendingProjects[project.name]),
+                          onClick: () => handleRestartEnv(project.name, "prod"),
+                        },
+                        {
+                          label: "Stop production",
+                          icon: <Square className="w-4 h-4" />,
+                          disabled: Boolean(pendingProjects[project.name]),
+                          onClick: () => handleStopProject(project.name),
+                        },
+                        {
+                          label: "Sync repo (git pull)",
+                          icon: <GitBranch className="w-4 h-4" />,
+                          disabled: Boolean(pendingProjects[project.name]),
+                          dividerAbove: true,
                           onClick: () => handleSyncProject(project.name),
                         },
                         {
-                          label: "Build",
+                          label: "Build images",
                           icon: <Code2 className="w-4 h-4" />,
                           disabled: Boolean(pendingProjects[project.name]),
                           onClick: () => handleBuildProject(project.name),

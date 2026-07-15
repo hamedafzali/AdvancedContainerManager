@@ -46,7 +46,7 @@ export default defineConfig({
         manualChunks: {
           vendor: ["react", "react-dom"],
           charts: ["chart.js", "react-chartjs-2"],
-          utils: ["axios", "socket.io-client"],
+          utils: ["socket.io-client"],
         },
       },
     },
