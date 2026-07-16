@@ -154,6 +154,15 @@ export default function Projects() {
   const [cfDomainLoading, setCfDomainLoading] = useState(false);
   const [webhookSecret, setWebhookSecret] = useState<string | null>(null);
   const [webhookLoading, setWebhookLoading] = useState(false);
+  // Per-environment variable overrides (settings modal tabs)
+  const [envTab, setEnvTab] = useState<"common" | "dev" | "test" | "prod">(
+    "common",
+  );
+  const [overrideEditor, setOverrideEditor] = useState<
+    Array<{ key: string; value: string }>
+  >([]);
+  const [overridesLoading, setOverridesLoading] = useState(false);
+  const [overridesSaving, setOverridesSaving] = useState(false);
   const [portConflicts, setPortConflicts] = useState<Record<string, string[]>>({});
   const [conflictChecking, setConflictChecking] = useState<string | null>(null);
 
@@ -502,6 +511,8 @@ export default function Projects() {
   const openEnvModal = (project: Project) => {
     setEnvProject(project);
     setWebhookSecret(null);
+    setEnvTab("common");
+    setOverrideEditor([]);
     const entries = Object.entries(project.environmentVars || {}).map(
       ([key, value]) => ({ key, value }),
     );
@@ -521,6 +532,55 @@ export default function Projects() {
       })),
     );
     setShowEnvModal(true);
+  };
+
+  const switchEnvTab = async (
+    tab: "common" | "dev" | "test" | "prod",
+    projectName: string,
+  ) => {
+    setEnvTab(tab);
+    if (tab === "common") return;
+    setOverridesLoading(true);
+    try {
+      const result = await apiFetch(
+        `/api/projects/${encodeURIComponent(projectName)}/environments/${tab}/env`,
+      ).then((r) => r.json());
+      const vars = (result?.data || {}) as Record<string, string>;
+      const rows = Object.entries(vars).map(([key, value]) => ({ key, value }));
+      setOverrideEditor(rows.length > 0 ? rows : []);
+    } catch {
+      setOverrideEditor([]);
+    } finally {
+      setOverridesLoading(false);
+    }
+  };
+
+  const saveOverrides = async (projectName: string, env: string) => {
+    setOverridesSaving(true);
+    try {
+      const vars: Record<string, string> = {};
+      overrideEditor.forEach((row) => {
+        if (row.key) vars[row.key] = row.value ?? "";
+      });
+      const response = await apiFetch(
+        `/api/projects/${encodeURIComponent(projectName)}/environments/${env}/env`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vars }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result?.message || "Failed to save overrides");
+      }
+    } catch (err) {
+      setActionError(
+        err instanceof Error ? err.message : "Failed to save overrides",
+      );
+    } finally {
+      setOverridesSaving(false);
+    }
   };
 
   const addEnvEditorRow = () => {
@@ -795,17 +855,24 @@ export default function Projects() {
     }
   };
 
-  // Stop project (production)
+  // Stop project (production) — streams compose output into the task viewer
   const handleStopProject = async (projectName: string) => {
     setPending(projectName, "stopping prod");
+    const taskId = beginStreamingTask(projectName, `Stop production ${projectName}`);
+    appendTaskLog(taskId, "Stopping containers…\n");
     try {
       await apiPost(`/api/projects/${encodeURIComponent(projectName)}/stop`);
+      appendTaskLog(taskId, "\n✔ Production stopped\n");
+      finishTask(taskId, "success");
       await fetchProjects();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to stop project",
-      );
+      const message =
+        err instanceof Error ? err.message : "Failed to stop project";
+      appendTaskLog(taskId, `\n${message}\n`);
+      finishTask(taskId, "failed", message);
+      setActionError(message);
     } finally {
+      endStreamingTask(projectName);
       setPending(projectName, null);
     }
   };
@@ -834,31 +901,45 @@ export default function Projects() {
 
   const handleStopDev = async (projectName: string) => {
     setPending(projectName, "stopping dev");
+    const taskId = beginStreamingTask(projectName, `Stop dev ${projectName}`);
+    appendTaskLog(taskId, "Stopping dev containers…\n");
     try {
       await apiPost(
         `/api/projects/${encodeURIComponent(projectName)}/environments/dev/stop`,
       );
+      appendTaskLog(taskId, "\n✔ dev environment stopped\n");
+      finishTask(taskId, "success");
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to stop dev environment",
-      );
+      const message =
+        err instanceof Error ? err.message : "Failed to stop dev environment";
+      appendTaskLog(taskId, `\n${message}\n`);
+      finishTask(taskId, "failed", message);
+      setActionError(message);
     } finally {
+      endStreamingTask(projectName);
       setPending(projectName, null);
     }
   };
 
   const handleRestartEnv = async (projectName: string, env: "dev" | "prod") => {
     setPending(projectName, `restarting ${env}`);
+    const taskId = beginStreamingTask(projectName, `Restart ${env} ${projectName}`);
+    appendTaskLog(taskId, `Restarting ${env} containers…\n`);
     try {
       await apiPost(
         `/api/projects/${encodeURIComponent(projectName)}/environments/${env}/restart`,
       );
+      appendTaskLog(taskId, `\n✔ ${env} restarted\n`);
+      finishTask(taskId, "success");
       await fetchProjects();
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : `Failed to restart ${env}`,
-      );
+      const message =
+        err instanceof Error ? err.message : `Failed to restart ${env}`;
+      appendTaskLog(taskId, `\n${message}\n`);
+      finishTask(taskId, "failed", message);
+      setActionError(message);
     } finally {
+      endStreamingTask(projectName);
       setPending(projectName, null);
     }
   };
@@ -1129,19 +1210,37 @@ export default function Projects() {
                           const hasConflict = (portConflicts[project.name] || []).some((c) =>
                             c.includes(`port ${port.hostPort}`)
                           );
-                          return (
-                            <span
-                              key={pi}
-                              title={hasConflict ? portConflicts[project.name].find((c) => c.includes(`port ${port.hostPort}`)) : undefined}
-                              className={`font-mono text-xs px-1.5 py-0.5 rounded ${
-                                hasConflict
-                                  ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 ring-1 ring-red-300"
-                                  : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                              }`}
-                            >
+                          const chipClasses = `font-mono text-xs px-1.5 py-0.5 rounded ${
+                            hasConflict
+                              ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 ring-1 ring-red-300"
+                              : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                          }`;
+                          const chipBody = (
+                            <>
                               {port.hostPort ? `${port.hostPort}→` : ""}{port.containerPort}
                               <span className={`ml-1 ${hasConflict ? "text-red-400" : "text-blue-400"}`}>{port.service}</span>
                               {hasConflict && <span className="ml-1">⚠</span>}
+                            </>
+                          );
+                          // Exposed host ports are clickable — open the app in a new tab
+                          return port.hostPort ? (
+                            <a
+                              key={pi}
+                              href={`http://${window.location.hostname}:${port.hostPort}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={
+                                hasConflict
+                                  ? portConflicts[project.name].find((c) => c.includes(`port ${port.hostPort}`))
+                                  : `Open http://${window.location.hostname}:${port.hostPort}`
+                              }
+                              className={`${chipClasses} hover:underline hover:ring-1 hover:ring-blue-400 cursor-pointer`}
+                            >
+                              {chipBody}
+                            </a>
+                          ) : (
+                            <span key={pi} className={chipClasses}>
+                              {chipBody}
                             </span>
                           );
                         })}
@@ -1846,43 +1945,174 @@ export default function Projects() {
                 <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Environment Variables
                 </div>
-                {envEditor.map((env, index) => (
-                  <div key={index} className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      placeholder="KEY"
-                      value={env.key}
-                      onChange={(e) =>
-                        updateEnvEditorRow(index, "key", e.target.value)
-                      }
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <input
-                      type="text"
-                      placeholder="VALUE"
-                      value={env.value}
-                      onChange={(e) =>
-                        updateEnvEditorRow(index, "value", e.target.value)
-                      }
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                {/* Env tabs: Common is shared; dev/test/prod override Common per environment */}
+                <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-fit">
+                  {(["common", "dev", "test", "prod"] as const).map((tab) => (
                     <button
-                      onClick={() => removeEnvEditorRow(index)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                      title="Remove"
+                      key={tab}
+                      onClick={() => switchEnvTab(tab, envProject.name)}
+                      className={`px-3 py-1 text-xs rounded-md capitalize transition-colors ${
+                        envTab === tab
+                          ? "bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-gray-100 font-medium"
+                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                      }`}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {tab}
                     </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {envTab === "common"
+                    ? "Shared by every environment. Per-environment tabs override these values."
+                    : `Overrides for ${envTab} — keys set here replace the Common value; keys left out inherit Common. Use this for ports, URLs and secrets that differ per environment.`}
+                </p>
+
+                {envTab === "common" ? (
+                  <>
+                    {envEditor.map((env, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          placeholder="KEY"
+                          value={env.key}
+                          onChange={(e) =>
+                            updateEnvEditorRow(index, "key", e.target.value)
+                          }
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="VALUE"
+                          value={env.value}
+                          onChange={(e) =>
+                            updateEnvEditorRow(index, "value", e.target.value)
+                          }
+                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          onClick={() => removeEnvEditorRow(index)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                          title="Remove"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={addEnvEditorRow}
+                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                    >
+                      Add Variable
+                    </button>
+                    <p className="text-xs text-gray-400">
+                      Common variables are saved with “Save Settings” below.
+                    </p>
+                  </>
+                ) : overridesLoading ? (
+                  <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                    Loading {envTab} overrides…
                   </div>
-                ))}
-              </div>
-              <div className="mt-4">
-                <button
-                  onClick={addEnvEditorRow}
-                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                >
-                  Add Variable
-                </button>
+                ) : (
+                  <>
+                    {/* Inherited common keys not overridden yet */}
+                    {envEditor
+                      .filter(
+                        (row) =>
+                          row.key &&
+                          !overrideEditor.some((o) => o.key === row.key),
+                      )
+                      .map((row) => (
+                        <div
+                          key={`inherited-${row.key}`}
+                          className="flex items-center space-x-2 opacity-60"
+                        >
+                          <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono truncate">
+                            {row.key}
+                          </div>
+                          <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono truncate">
+                            {row.value}
+                          </div>
+                          <button
+                            onClick={() =>
+                              setOverrideEditor((prev) => [
+                                ...prev,
+                                { key: row.key, value: row.value },
+                              ])
+                            }
+                            className="px-2 py-2 text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0"
+                            title={`Override ${row.key} for ${envTab}`}
+                          >
+                            override
+                          </button>
+                        </div>
+                      ))}
+                    {overrideEditor.map((row, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <input
+                          type="text"
+                          placeholder="KEY"
+                          value={row.key}
+                          onChange={(e) =>
+                            setOverrideEditor((prev) =>
+                              prev.map((r, i) =>
+                                i === index ? { ...r, key: e.target.value } : r,
+                              ),
+                            )
+                          }
+                          className="flex-1 px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <input
+                          type="text"
+                          placeholder="VALUE"
+                          value={row.value}
+                          onChange={(e) =>
+                            setOverrideEditor((prev) =>
+                              prev.map((r, i) =>
+                                i === index
+                                  ? { ...r, value: e.target.value }
+                                  : r,
+                              ),
+                            )
+                          }
+                          className="flex-1 px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <button
+                          onClick={() =>
+                            setOverrideEditor((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            )
+                          }
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                          title="Remove override (inherits Common again)"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() =>
+                          setOverrideEditor((prev) => [
+                            ...prev,
+                            { key: "", value: "" },
+                          ])
+                        }
+                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                      >
+                        Add Override
+                      </button>
+                      <button
+                        onClick={() => saveOverrides(envProject.name, envTab)}
+                        disabled={overridesSaving}
+                        className="px-3 py-2 text-sm bg-gray-900 hover:bg-gray-700 text-white rounded-lg disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white"
+                      >
+                        {overridesSaving
+                          ? "Saving…"
+                          : `Save ${envTab} overrides`}
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">

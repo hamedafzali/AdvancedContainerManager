@@ -553,6 +553,19 @@ export class ProjectService {
     }
   }
 
+  /** Broadcast a command's output over the project deploy-log channel so the
+   *  UI can stream it live (used by stop/restart/build as well as deploys). */
+  private deployLogStreamer(name: string, stream: "stdout" | "stderr") {
+    return (chunk: string) => {
+      this.wsHandler?.broadcastProjectDeployLog({
+        projectName: name,
+        stream,
+        chunk,
+        timestamp: new Date().toISOString(),
+      });
+    };
+  }
+
   private runCommand(
     command: string,
     args: string[],
@@ -1723,12 +1736,12 @@ export class ProjectService {
         `Stopping project: ${name} using ${path.basename(composeFile)}`,
       );
 
-      const downResult = await this.runCompose(project, [
-        "compose",
-        "-f",
-        composeFile,
-        "down",
-      ]);
+      const downResult = await this.runCompose(
+        project,
+        ["compose", "-f", composeFile, "down"],
+        this.deployLogStreamer(name, "stdout"),
+        this.deployLogStreamer(name, "stderr"),
+      );
 
       if (downResult.code !== 0) {
         this.logger.error(
@@ -2260,6 +2273,8 @@ export class ProjectService {
       "docker",
       ["compose", "-p", cp, "-f", composeFile, "down"],
       project.path, merged,
+      this.deployLogStreamer(name, "stdout"),
+      this.deployLogStreamer(name, "stderr"),
     );
     if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Stop failed");
     if (env === "prod") { project.status = "stopped"; project.lastUpdated = new Date().toISOString(); this.saveProjects(); }
@@ -2280,6 +2295,8 @@ export class ProjectService {
       "docker",
       ["compose", "-p", cp, "-f", composeFile, "restart"],
       project.path, merged,
+      this.deployLogStreamer(name, "stdout"),
+      this.deployLogStreamer(name, "stderr"),
     );
     if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Restart failed");
     this.wsHandler?.broadcastProjectStatus({ name, status: env === "prod" ? "running" : project.status });

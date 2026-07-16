@@ -35,17 +35,41 @@ import {
   ToggleChip,
 } from "@/components/ui";
 
+interface ContainerPort {
+  label: string;
+  publicPort?: number;
+}
+
 interface Container {
   id: string;
   name: string;
   image: string;
   status: "running" | "stopped" | "paused" | "restarting";
-  ports: string[];
+  ports: ContainerPort[];
   cpu: number | null;
   memory: number | null;
   uptime: string;
   created: string;
   projectName?: string;
+}
+
+function transformPorts(raw: any): ContainerPort[] {
+  // Docker returns Ports as [{IP, PrivatePort, PublicPort, Type}]
+  const entries: ContainerPort[] = Array.isArray(raw)
+    ? raw.map((p: any) => ({
+        label: p.PublicPort
+          ? `${p.PublicPort}→${p.PrivatePort}/${p.Type}`
+          : `${p.PrivatePort}/${p.Type}`,
+        publicPort: p.PublicPort,
+      }))
+    : Object.keys(raw || {}).map((key) => ({ label: key }));
+  // Docker duplicates entries per bound IP (IPv4 + IPv6) — dedupe by label
+  const seen = new Set<string>();
+  return entries.filter((p) => {
+    if (seen.has(p.label)) return false;
+    seen.add(p.label);
+    return true;
+  });
 }
 
 type ContainerAction = "start" | "stop" | "restart" | "delete";
@@ -128,8 +152,31 @@ function ContainerRow({
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900 dark:text-gray-100 font-mono">
-          {container.ports.join(", ") || "—"}
+        <div className="flex flex-wrap gap-1 text-sm font-mono max-w-[220px]">
+          {container.ports.length === 0 && (
+            <span className="text-gray-400">—</span>
+          )}
+          {container.ports.map((port) =>
+            port.publicPort ? (
+              <a
+                key={port.label}
+                href={`http://${window.location.hostname}:${port.publicPort}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Open http://${window.location.hostname}:${port.publicPort}`}
+                className="text-xs px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:underline hover:ring-1 hover:ring-blue-400"
+              >
+                {port.label}
+              </a>
+            ) : (
+              <span
+                key={port.label}
+                className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
+              >
+                {port.label}
+              </span>
+            ),
+          )}
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
@@ -277,7 +324,7 @@ export default function Containers() {
             name: container.name,
             image: container.image,
             status: container.status.toLowerCase(),
-            ports: Object.keys(container.ports || {}),
+            ports: transformPorts(container.ports),
             cpu: null,
             memory: null,
             uptime:

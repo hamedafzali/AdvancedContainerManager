@@ -25,6 +25,7 @@ import { PipelineService } from "./services/pipeline-service";
 import { initEncryption } from "./utils/encryption";
 import { errorHandler } from "./middleware/error-handler";
 import { routes } from "./routes";
+import { createMcpHandler, mcpMethodNotAllowed } from "./services/mcp-server";
 
 // Load environment variables
 dotenv.config();
@@ -199,6 +200,23 @@ class AdvancedContainerManager {
     // Body parsing
     this.app.use(express.json({ limit: "10mb" }));
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+    // MCP endpoint — lets AI assistants (Claude Code, claude.ai connectors,
+    // any MCP client) manage projects/containers without SSH access.
+    this.app.post(
+      "/mcp",
+      createMcpHandler({
+        dockerService: this.dockerService,
+        projectService: this.projectService,
+        metricsCollector: this.metricsCollector,
+        pipelineService: this.pipelineService,
+        settingsService: this.settingsService,
+        authService: this.authService,
+        logger: this.logger,
+      }),
+    );
+    this.app.get("/mcp", mcpMethodNotAllowed);
+    this.app.delete("/mcp", mcpMethodNotAllowed);
 
     // API routes
     this.app.use(

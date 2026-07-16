@@ -74,7 +74,7 @@ export interface PipelineStageResult {
 export interface PipelineRun {
   id: string;
   projectName: string;
-  trigger: "manual" | "webhook" | "schedule";
+  trigger: "manual" | "webhook" | "schedule" | "mcp";
   status: RunStatus;
   branch?: string;
   stages: PipelineStageResult[];

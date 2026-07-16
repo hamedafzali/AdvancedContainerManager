@@ -3101,3 +3101,25 @@ fatal: Remote branch main not found in upstream origin
 2026-02-07T17:45:08.459Z [INFO]: 127.0.0.1 - - [07/Feb/2026:17:45:08 +0000] "GET /health HTTP/1.1" 200 142 "-" "curl/8.7.1"
 2026-02-07T17:45:10.659Z [INFO]: 127.0.0.1 - - [07/Feb/2026:17:45:10 +0000] "GET /api/system/metrics HTTP/1.1" 200 309 "-" "curl/8.7.1"
 2026-02-07T17:53:55.274Z [INFO]: Shutting down gracefully...
+2026-07-16T11:17:01.882Z [INFO]: Docker service initialized successfully
+2026-07-16T11:17:02.061Z [INFO]: Configured git safe.directory='*' for managed repos
+2026-07-16T11:17:02.062Z [INFO]: Loaded 1 projects from database
+2026-07-16T11:17:02.062Z [INFO]: Loaded 0 tunnels from database
+2026-07-16T11:17:02.062Z [INFO]: Loaded 0 git accounts from database
+2026-07-16T11:17:02.063Z [INFO]: Starting metrics collection
+2026-07-16T11:17:02.064Z [INFO]: Terminal service started
+2026-07-16T11:17:02.064Z [INFO]: Auto-prune scheduled every 24h
+2026-07-16T11:17:02.079Z [WARN]: Redis not available, using in-memory storage:\nAggregateError: 
+    at internalConnectMultiple (node:net:1134:18)
+    at afterConnectMultiple (node:net:1715:7)
+2026-07-16T11:17:02.084Z [INFO]: Docker connection test successful
+2026-07-16T11:17:02.084Z [INFO]: Docker connection established
+2026-07-16T11:17:02.085Z [INFO]: Advanced Container Manager started on 0.0.0.0:5003
+2026-07-16T11:17:02.085Z [INFO]: Environment: production
+2026-07-16T11:17:02.085Z [INFO]: Docker: Connected
+2026-07-16T11:17:02.085Z [INFO]: Redis: Connected
+2026-07-16T11:17:31.867Z [INFO]: 127.0.0.1 - - [16/Jul/2026:11:17:31 +0000] "POST /mcp HTTP/1.1" 200 181 "-" "curl/8.7.1"
+2026-07-16T11:17:31.879Z [INFO]: 127.0.0.1 - - [16/Jul/2026:11:17:31 +0000] "POST /mcp HTTP/1.1" 200 7295 "-" "curl/8.7.1"
+2026-07-16T11:17:54.136Z [INFO]: 127.0.0.1 - - [16/Jul/2026:11:17:54 +0000] "POST /mcp HTTP/1.1" 200 1932 "-" "curl/8.7.1"
+2026-07-16T11:17:54.180Z [INFO]: 127.0.0.1 - - [16/Jul/2026:11:17:54 +0000] "POST /mcp HTTP/1.1" 200 8359 "-" "curl/8.7.1"
+2026-07-16T11:18:16.495Z [INFO]: Shutting down gracefully...

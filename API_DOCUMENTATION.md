@@ -4,6 +4,40 @@
 
 The Advanced Container Manager provides a comprehensive REST API for managing Docker containers, images, networks, volumes, projects, and system metrics. This API is designed to be used by frontend applications, monitoring tools, and automation scripts.
 
+## MCP Server (AI access)
+
+Besides the REST API, the backend exposes a **Model Context Protocol (MCP)** endpoint at `POST /mcp` (Streamable HTTP, stateless). Any MCP-capable AI assistant can discover and execute the platform's actions through it — no SSH access to the server required. The AI learns the available actions automatically via MCP's `tools/list`.
+
+### Connect from Claude Code
+
+```bash
+claude mcp add --transport http acm http://<server>:5003/mcp
+# e.g. claude mcp add --transport http acm http://192.168.178.34:5003/mcp
+```
+
+Then ask things like *"deploy the dev environment of project X and show me its logs"* — Claude will call the MCP tools directly.
+
+### Connect from claude.ai / other clients
+
+Add a **custom connector** pointing at `http://<server>:5003/mcp` (claude.ai remote connectors require the endpoint to be reachable from the internet — expose it through a Cloudflare tunnel first). Any other MCP client using the Streamable HTTP transport works the same way.
+
+### Authentication
+
+The MCP endpoint honors the same rule as the REST API: when **Settings → Security → requireAuth** is enabled, requests must carry `Authorization: Bearer <session token>` (obtain one via `POST /api/auth/login`). With auth disabled it is open on the network — keep it LAN-only or behind a tunnel with access control.
+
+### Available tools
+
+| Area | Tools |
+|---|---|
+| Projects | `list_projects`, `get_project`, `list_environments`, `sync_project`, `deploy_project` (sync + prod deploy), `build_project`, `deploy_environment`, `stop_environment`, `restart_environment`, `get_project_logs`, `get_project_health`, `trigger_pipeline` |
+| Containers | `list_containers`, `container_action` (start/stop/restart/remove), `get_container_logs`, `get_container_stats` |
+| Images & storage | `list_images`, `pull_image`, `list_volumes`, `list_networks` |
+| System | `get_system_metrics`, `get_system_status` |
+
+Notes:
+- Environment variable **values are never returned** over MCP — project details expose key names only.
+- `deploy_project`, `build_project`, `deploy_environment` and `pull_image` are long-running calls; clients should use generous timeouts.
+
 ## Base URL
 
 ```

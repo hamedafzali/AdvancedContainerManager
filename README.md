@@ -34,6 +34,7 @@ advanced-container-manager/
 - **Settings Management** - Professional configuration with import/export
 - **Metrics & Monitoring** - Real-time system and container metrics
 - **WebSocket Integration** - Live updates and event streaming
+- **MCP Server for AI** - `POST /mcp` endpoint (Model Context Protocol) lets AI assistants like Claude manage projects, containers and images without SSH — `claude mcp add --transport http acm http://<server>:5003/mcp` (see API_DOCUMENTATION.md)
 
 ### ✅ **Enhanced Features (NEW)**
 
