@@ -348,8 +348,14 @@ export class CloudflareService {
         name: hostname,
       });
 
+      // Only clear records a CNAME actually conflicts with. Deleting every
+      // record on the name would take MX/TXT with it, breaking mail and domain
+      // verification when the hostname is a zone apex.
+      const conflicting = new Set(["A", "AAAA", "CNAME"]);
       for (const record of existing.result ?? []) {
-        await this.deleteDNSRecord(zoneId, record.id);
+        if (conflicting.has(record.type)) {
+          await this.deleteDNSRecord(zoneId, record.id);
+        }
       }
 
       const record = await (this.client.dns.records as any).create({
