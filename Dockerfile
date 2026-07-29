@@ -49,6 +49,20 @@ RUN apk add --no-cache \
     && rm -rf /var/cache/apk/* \
     && ln -sf python3 /usr/bin/python
 
+# Install cloudflared — required to serve custom domains via named tunnels
+RUN set -eux; \
+    ARCH="$(apk --print-arch)"; \
+    case "$ARCH" in \
+      x86_64) CF_ARCH="amd64" ;; \
+      aarch64) CF_ARCH="arm64" ;; \
+      *) echo "Unsupported architecture for cloudflared: $ARCH" && exit 1 ;; \
+    esac; \
+    curl -fL --retry 5 --retry-delay 2 --retry-all-errors \
+      -o /usr/local/bin/cloudflared \
+      "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${CF_ARCH}"; \
+    chmod 0755 /usr/local/bin/cloudflared; \
+    cloudflared --version
+
 # Install Trivy (best-effort; build should not fail if upstream is unavailable)
 ARG TRIVY_VERSION=""
 RUN set -eux; \

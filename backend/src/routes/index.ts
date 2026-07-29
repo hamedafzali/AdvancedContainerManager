@@ -34,6 +34,7 @@ export function routes(
   settingsService: SettingsService,
   pruneService: PruneService,
   pipelineService: PipelineService,
+  cloudflareService: CloudflareService,
 ): Router {
   const router = Router();
   const logger = new Logger(LogLevel.INFO);
@@ -42,7 +43,6 @@ export function routes(
   const healthService = new HealthService(logger);
   const securityService = new SecurityService(logger);
   const analyticsService = new AnalyticsService(logger, metricsCollector);
-  const cloudflareService = new CloudflareService(logger);
 
   router.use(apiRateLimit);
 
@@ -1206,7 +1206,11 @@ export function routes(
         }
 
         const tunnelName = `project-${req.params.name.replace(/[^a-zA-Z0-9-_]/g, "-")}`;
-        const tunnelUrl = await tunnelService.createTunnel(tunnelName, selectedPort.hostPort!);
+        const tunnelUrl = await tunnelService.createTunnel(
+          tunnelName,
+          selectedPort.hostPort!,
+          req.body?.domain,
+        );
         const updated = projectService.linkTunnel(
           req.params.name,
           tunnelName,
@@ -1230,12 +1234,8 @@ export function routes(
         if (!project) {
           return res.status(404).json({ success: false, message: "Project not found" });
         }
-        // Clean up Cloudflare DNS record if one was attached
-        if (project.cfDnsRecordId && project.cfZoneId && cloudflareService.isAuthenticated()) {
-          await cloudflareService.deleteDNSRecord(project.cfZoneId, project.cfDnsRecordId).catch((e) =>
-            logger.warn(`Failed to delete Cloudflare DNS record: ${e}`)
-          );
-        }
+        // stopTunnel tears down the Cloudflare tunnel and its DNS record for
+        // named tunnels, so no separate DNS cleanup is needed here.
         if (project.tunnelId) {
           await tunnelService.stopTunnel(project.tunnelId);
         }
@@ -1260,19 +1260,47 @@ export function routes(
           return res.status(401).json({ success: false, message: "Cloudflare not authenticated — go to Settings → Cloudflare" });
         }
 
-        const { zoneId, subdomain, proxied = true } = req.body;
+        const { zoneId, subdomain } = req.body;
         if (!zoneId || !subdomain) {
           return res.status(400).json({ success: false, message: "zoneId and subdomain are required" });
         }
 
-        // Remove existing DNS record for this project first
-        if (project.cfDnsRecordId && project.cfZoneId) {
-          await cloudflareService.deleteDNSRecord(project.cfZoneId, project.cfDnsRecordId).catch(() => {});
+        const zones = await cloudflareService.getZones();
+        const zone = zones.find((z) => z.id === zoneId);
+        if (!zone) {
+          return res.status(400).json({ success: false, message: "Zone not found in this Cloudflare account" });
         }
 
-        const record = await cloudflareService.createCNAMERecord(zoneId, subdomain, project.tunnelUrl, proxied);
-        const updated = projectService.linkDomain(req.params.name, record.name, record.id, zoneId);
-        res.json({ success: true, data: { project: updated, dnsRecord: record } });
+        // Accept "app", "app.example.com", or "@" for the apex.
+        const entered = String(subdomain).trim().toLowerCase().replace(/\.$/, "");
+        const hostname =
+          entered === "" || entered === "@"
+            ? zone.name
+            : entered === zone.name || entered.endsWith(`.${zone.name}`)
+              ? entered
+              : `${entered}.${zone.name}`;
+
+        // A quick tunnel's hostname is issued by the provider and cannot carry a
+        // custom domain, so swap it for a named Cloudflare tunnel bound to this
+        // hostname. Reuses the port the project tunnel was already exposing.
+        const port = project.tunnelPort;
+        if (!port) {
+          return res.status(400).json({ success: false, message: "Project tunnel has no recorded port — recreate the tunnel" });
+        }
+
+        const tunnelName = project.tunnelId ?? `project-${req.params.name.replace(/[^a-zA-Z0-9-_]/g, "-")}`;
+        await tunnelService.stopTunnel(tunnelName).catch(() => {});
+        const tunnelUrl = await tunnelService.createTunnel(tunnelName, port, hostname);
+
+        const tunnel = tunnelService.getTunnel(tunnelName);
+        projectService.linkTunnel(req.params.name, tunnelName, tunnelUrl, port, project.tunnelService);
+        const updated = projectService.linkDomain(
+          req.params.name,
+          hostname,
+          tunnel?.cfDnsRecordId ?? "",
+          zoneId,
+        );
+        res.json({ success: true, data: { project: updated, hostname } });
       } catch (error) {
         logger.error(`Error attaching domain to project ${req.params.name}:`, error);
         res.status(500).json({ success: false, message: error.message });
@@ -1286,11 +1314,28 @@ export function routes(
       try {
         const project = projectService.getProject(req.params.name);
         if (!project) return res.status(404).json({ success: false, message: "Project not found" });
-        if (project.cfDnsRecordId && project.cfZoneId && cloudflareService.isAuthenticated()) {
-          await cloudflareService.deleteDNSRecord(project.cfZoneId, project.cfDnsRecordId).catch((e) =>
-            logger.warn(`Failed to delete Cloudflare DNS record: ${e}`)
+
+        // Drop the named tunnel (removing its DNS record and Cloudflare tunnel)
+        // and fall back to a quick tunnel so the project stays reachable.
+        if (project.tunnelId) {
+          await tunnelService.stopTunnel(project.tunnelId).catch((e) =>
+            logger.warn(`Failed to stop named tunnel: ${e}`)
           );
         }
+
+        if (project.tunnelId && project.tunnelPort) {
+          const tunnelUrl = await tunnelService.createTunnel(project.tunnelId, project.tunnelPort);
+          projectService.linkTunnel(
+            req.params.name,
+            project.tunnelId,
+            tunnelUrl,
+            project.tunnelPort,
+            project.tunnelService,
+          );
+        } else {
+          projectService.unlinkTunnel(req.params.name);
+        }
+
         const updated = projectService.unlinkDomain(req.params.name);
         res.json({ success: true, data: updated });
       } catch (error) {

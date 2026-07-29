@@ -14,6 +14,7 @@ import { MetricsCollector } from "./services/metrics-collector";
 import DockerService from "./services/docker-service";
 import ProjectService from "./services/project-service";
 import { TunnelService } from "./services/tunnel-service";
+import { CloudflareService } from "./services/cloudflare-service";
 import TerminalService from "./services/terminal-service";
 import { WebSocketHandler } from "./services/websocket-handler";
 import { HealthService } from "./services/health-service";
@@ -40,6 +41,7 @@ class AdvancedContainerManager {
   private dockerService: DockerService;
   private projectService: ProjectService;
   private tunnelService: TunnelService;
+  private cloudflareService: CloudflareService;
   private terminalService: TerminalService;
   private wsHandler: WebSocketHandler;
   private healthService: HealthService;
@@ -127,7 +129,10 @@ class AdvancedContainerManager {
       this.dockerService,
     );
     this.projectService = new ProjectService(this.config, this.logger);
-    this.tunnelService = new TunnelService(this.logger);
+    // Shared with the routes layer so credentials entered in Settings are the
+    // same ones the tunnel service uses to create named tunnels.
+    this.cloudflareService = new CloudflareService(this.logger);
+    this.tunnelService = new TunnelService(this.logger, this.cloudflareService);
     this.terminalService = new TerminalService(this.config, this.logger);
     this.healthService = new HealthService(this.logger);
     this.gitAccountService = new GitAccountService(this.logger, this.config.databasePath);
@@ -232,6 +237,7 @@ class AdvancedContainerManager {
         this.settingsService,
         this.pruneService,
         this.pipelineService,
+        this.cloudflareService,
       ),
     );
 

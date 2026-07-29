@@ -36,6 +36,7 @@ interface Tunnel {
 
 interface TunnelStatus {
   cloudflaredInstalled: boolean;
+  cloudflareAuthenticated: boolean;
   activeTunnels: number;
 }
 
@@ -139,15 +140,12 @@ function TunnelsTab() {
           </span>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-          {status?.cloudflaredInstalled
-            ? "You can create quick tunnels directly from this page."
-            : "Install cloudflared on the server running Container Manager, then refresh this page."}
+          {!status?.cloudflaredInstalled
+            ? "cloudflared is missing from the Container Manager image — rebuild it to serve custom domains. Tunnels without a domain still work."
+            : status?.cloudflareAuthenticated
+              ? "Ready. Leave the domain blank for a temporary URL, or enter a hostname on one of your Cloudflare zones."
+              : "Ready for temporary URLs. Add a Cloudflare API token in the Cloudflare tab to use your own domain."}
         </p>
-        {!status?.cloudflaredInstalled && (
-          <pre className="bg-gray-900 text-gray-100 rounded p-2 text-xs overflow-auto">
-            brew install cloudflared
-          </pre>
-        )}
       </Card>
 
       {!showCreateForm && (
@@ -210,10 +208,11 @@ function TunnelsTab() {
                   setNewTunnel((prev) => ({ ...prev, domain: e.target.value }))
                 }
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="yourdomain.com"
+                placeholder="app.yourdomain.com"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                Leave empty for a quick temporary URL (trycloudflare.com).
+                Full hostname on a zone in your Cloudflare account. Leave empty
+                for a temporary URL.
               </p>
             </div>
             <div className="flex gap-3">
@@ -576,12 +575,18 @@ function CloudflareTab() {
               How to use custom domains
             </h3>
             <ol className="list-decimal list-inside space-y-2 text-blue-800 dark:text-blue-300 text-sm">
-              <li>Add your domain to Cloudflare (if not already added)</li>
-              <li>Authenticate here with your Cloudflare API token</li>
-              <li>Create a tunnel with your custom domain in the Tunnels tab</li>
+              <li>Add your domain to Cloudflare and point your registrar's nameservers at it</li>
               <li>
-                The tunnel will use your custom domain instead of
-                trycloudflare.com
+                Authenticate here with a Cloudflare API token that has
+                Account:Cloudflare Tunnel:Edit, Zone:DNS:Edit and Zone:Zone:Read
+              </li>
+              <li>
+                In the Tunnels tab, enter the full hostname to serve (for example
+                app.example.com) in the Domain field
+              </li>
+              <li>
+                A named Cloudflare tunnel is created and the hostname is pointed
+                at it — leave Domain blank to get a temporary URL instead
               </li>
             </ol>
           </div>

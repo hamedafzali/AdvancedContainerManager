@@ -44,6 +44,10 @@ services:
       - MAX_TERMINAL_SESSIONS=100
       - METRICS_INTERVAL=5000
       - METRICS_RETENTION=24
+      # Cloudflare named tunnels — can also be set at runtime in Settings
+      - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
+      - CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-}
+      - TUNNEL_ORIGIN_HOST=${TUNNEL_ORIGIN_HOST:-host.docker.internal}
     volumes:
       - ./data/projects:/data/projects
       - ./data/db:/data/db
@@ -51,7 +55,6 @@ services:
       - /tmp/advanced_manager_config.json:/tmp/advanced_manager_config.json
       - ./logs:/app/logs
       - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/local/bin/cloudflared:/usr/local/bin/cloudflared:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5003/health"]
       interval: 30s

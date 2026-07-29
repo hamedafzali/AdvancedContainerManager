@@ -17,6 +17,12 @@ export interface CloudflareTunnel {
   createdAt: string;
 }
 
+export interface CloudflareDNSRecord {
+  id: string;
+  name: string;
+  content: string;
+}
+
 export interface CloudflareConfig {
   apiToken: string;
   accountId?: string;
@@ -25,6 +31,7 @@ export interface CloudflareConfig {
 export class CloudflareService {
   private client: Cloudflare | null = null;
   private config: CloudflareConfig | null = null;
+  private resolvedAccountId: string | null = null;
   private logger: Logger;
 
   constructor(logger?: Logger) {
@@ -46,11 +53,33 @@ export class CloudflareService {
   setConfig(config: CloudflareConfig): void {
     this.config = config;
     this.client = new Cloudflare({ apiToken: config.apiToken });
+    this.resolvedAccountId = config.accountId ?? null;
   }
 
   clearConfig(): void {
     this.config = null;
     this.client = null;
+    this.resolvedAccountId = null;
+  }
+
+  /**
+   * Tunnel and DNS calls are account-scoped. The account ID is optional in the
+   * UI, so fall back to the first account the token can see and cache it.
+   */
+  async resolveAccountId(accountId?: string): Promise<string> {
+    if (accountId) return accountId;
+    if (this.resolvedAccountId) return this.resolvedAccountId;
+    if (!this.client) throw new Error("Cloudflare client not initialized");
+
+    const accounts = await this.client.accounts.list({ per_page: 5 });
+    const first = accounts.result?.[0];
+    if (!first?.id) {
+      throw new Error(
+        "No Cloudflare account is visible to this API token — the token needs Account:Cloudflare Tunnel:Edit",
+      );
+    }
+    this.resolvedAccountId = first.id;
+    return first.id;
   }
 
   isAuthenticated(): boolean {
@@ -123,6 +152,11 @@ export class CloudflareService {
     }
   }
 
+  /**
+   * Create a remotely-managed ("cloudflare" config_src) named tunnel. Ingress
+   * rules then live in Cloudflare rather than a local YAML file, so cloudflared
+   * only ever needs the connector token to run.
+   */
   async createTunnel(
     name: string,
     accountId?: string,
@@ -131,20 +165,26 @@ export class CloudflareService {
       throw new Error("Cloudflare client not initialized");
     }
 
-    const targetAccountId = accountId || this.config?.accountId;
-    if (!targetAccountId) {
-      throw new Error("Cloudflare account ID is required");
-    }
+    const targetAccountId = await this.resolveAccountId(
+      accountId || this.config?.accountId,
+    );
 
     try {
-      // Use cloudflared CLI for tunnel creation since API is complex
-      // This is a placeholder - actual implementation would use cloudflared
-      throw new Error(
-        "Tunnel creation via cloudflared CLI - not yet implemented",
-      );
+      const tunnel = await this.client.zeroTrust.tunnels.cloudflared.create({
+        account_id: targetAccountId,
+        name,
+        config_src: "cloudflare",
+      });
+
+      return {
+        id: tunnel.id!,
+        name: tunnel.name ?? name,
+        accountId: targetAccountId,
+        createdAt: tunnel.created_at ?? new Date().toISOString(),
+      };
     } catch (error) {
       this.logger.error("Failed to create Cloudflare tunnel:", error);
-      throw new Error("Failed to create tunnel in Cloudflare");
+      throw new Error(`Failed to create tunnel in Cloudflare: ${error}`);
     }
   }
 
@@ -153,17 +193,179 @@ export class CloudflareService {
       throw new Error("Cloudflare client not initialized");
     }
 
-    const targetAccountId = accountId || this.config?.accountId;
-    if (!targetAccountId) {
-      throw new Error("Cloudflare account ID is required");
-    }
+    const targetAccountId = await this.resolveAccountId(
+      accountId || this.config?.accountId,
+    );
 
     try {
-      // Placeholder - would use cloudflared CLI to list tunnels
-      return [];
+      const tunnels: CloudflareTunnel[] = [];
+      const page = await this.client.zeroTrust.tunnels.cloudflared.list({
+        account_id: targetAccountId,
+        is_deleted: false,
+      });
+      for await (const tunnel of page) {
+        tunnels.push({
+          id: tunnel.id!,
+          name: tunnel.name ?? "",
+          accountId: targetAccountId,
+          createdAt: tunnel.created_at ?? "",
+        });
+      }
+      return tunnels;
     } catch (error) {
       this.logger.error("Failed to fetch Cloudflare tunnels:", error);
-      throw new Error("Failed to fetch tunnels from Cloudflare");
+      throw new Error(`Failed to fetch tunnels from Cloudflare: ${error}`);
+    }
+  }
+
+  async findTunnelByName(
+    name: string,
+    accountId?: string,
+  ): Promise<CloudflareTunnel | undefined> {
+    if (!this.client) {
+      throw new Error("Cloudflare client not initialized");
+    }
+
+    const targetAccountId = await this.resolveAccountId(
+      accountId || this.config?.accountId,
+    );
+
+    const page = await this.client.zeroTrust.tunnels.cloudflared.list({
+      account_id: targetAccountId,
+      name,
+      is_deleted: false,
+    });
+
+    for await (const tunnel of page) {
+      if (tunnel.name === name) {
+        return {
+          id: tunnel.id!,
+          name: tunnel.name,
+          accountId: targetAccountId,
+          createdAt: tunnel.created_at ?? "",
+        };
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * The connector token cloudflared needs to run this tunnel. Safe to fetch
+   * repeatedly — it is stable for the lifetime of the tunnel.
+   */
+  async getTunnelToken(tunnelId: string, accountId?: string): Promise<string> {
+    if (!this.client) {
+      throw new Error("Cloudflare client not initialized");
+    }
+
+    const targetAccountId = await this.resolveAccountId(
+      accountId || this.config?.accountId,
+    );
+
+    try {
+      return await this.client.zeroTrust.tunnels.cloudflared.token.get(
+        tunnelId,
+        { account_id: targetAccountId },
+      );
+    } catch (error) {
+      this.logger.error("Failed to fetch tunnel token:", error);
+      throw new Error(`Failed to fetch tunnel token from Cloudflare: ${error}`);
+    }
+  }
+
+  /**
+   * Point a hostname at a local service. The trailing catch-all rule is
+   * mandatory — Cloudflare rejects an ingress list without one.
+   */
+  async setTunnelIngress(
+    tunnelId: string,
+    hostname: string,
+    service: string,
+    accountId?: string,
+  ): Promise<void> {
+    if (!this.client) {
+      throw new Error("Cloudflare client not initialized");
+    }
+
+    const targetAccountId = await this.resolveAccountId(
+      accountId || this.config?.accountId,
+    );
+
+    try {
+      await this.client.zeroTrust.tunnels.cloudflared.configurations.update(
+        tunnelId,
+        {
+          account_id: targetAccountId,
+          config: {
+            // The catch-all rule carries no hostname, which the SDK's Ingress
+            // type does not model.
+            ingress: [
+              { hostname, service },
+              { service: "http_status:404" } as any,
+            ],
+          },
+        },
+      );
+    } catch (error) {
+      this.logger.error("Failed to set tunnel ingress:", error);
+      throw new Error(`Failed to configure tunnel ingress: ${error}`);
+    }
+  }
+
+  /**
+   * Find the zone that owns a hostname. Picks the longest match so that a
+   * delegated subdomain zone wins over its parent.
+   */
+  async findZoneForHostname(
+    hostname: string,
+  ): Promise<CloudflareZone | undefined> {
+    const zones = await this.getZones();
+    return zones
+      .filter(
+        (zone) => hostname === zone.name || hostname.endsWith(`.${zone.name}`),
+      )
+      .sort((a, b) => b.name.length - a.name.length)[0];
+  }
+
+  /**
+   * Upsert the CNAME that routes a hostname into the tunnel. Replaces any
+   * existing record on that name so re-creating a tunnel is not blocked by a
+   * stale record left behind by an earlier run.
+   */
+  async upsertTunnelDNSRecord(
+    zoneId: string,
+    hostname: string,
+    tunnelId: string,
+    proxied = true,
+  ): Promise<CloudflareDNSRecord> {
+    if (!this.client) throw new Error("Cloudflare client not initialized");
+
+    const content = `${tunnelId}.cfargotunnel.com`;
+
+    try {
+      const existing = await (this.client.dns.records as any).list({
+        zone_id: zoneId,
+        name: hostname,
+      });
+
+      for (const record of existing.result ?? []) {
+        await this.deleteDNSRecord(zoneId, record.id);
+      }
+
+      const record = await (this.client.dns.records as any).create({
+        zone_id: zoneId,
+        type: "CNAME",
+        name: hostname,
+        content,
+        proxied,
+        ttl: 1,
+        comment: "Created by AdvancedContainerManager tunnel",
+      });
+
+      return { id: record.id, name: record.name, content: record.content };
+    } catch (error) {
+      this.logger.error("Failed to upsert tunnel DNS record:", error);
+      throw new Error(`Failed to create tunnel CNAME in Cloudflare: ${error}`);
     }
   }
 
@@ -175,7 +377,8 @@ export class CloudflareService {
   ): Promise<{ id: string; name: string; content: string }> {
     if (!this.client) throw new Error("Cloudflare client not initialized");
     try {
-      const record = await (this.client.dns.records as any).create(zoneId, {
+      const record = await (this.client.dns.records as any).create({
+        zone_id: zoneId,
         type: "CNAME",
         name: subdomain,
         content: target,
@@ -199,49 +402,22 @@ export class CloudflareService {
     }
   }
 
-  async createDNSRecord(
-    zoneId: string,
-    name: string,
-    tunnelId: string,
-  ): Promise<void> {
-    if (!this.client) {
-      throw new Error("Cloudflare client not initialized");
-    }
-
-    try {
-      // Use the correct API method signature
-      await (this.client.dns.records as any).create(zoneId, {
-        type: "CNAME",
-        name: name,
-        content: `${tunnelId}.cfargotunnel.com`,
-        proxied: true,
-        ttl: 1,
-        comment: "Created by AdvancedContainerManager",
-      });
-    } catch (error) {
-      this.logger.error("Failed to create DNS record:", error);
-      throw new Error("Failed to create DNS record in Cloudflare");
-    }
-  }
-
   async deleteTunnel(tunnelId: string, accountId?: string): Promise<void> {
     if (!this.client) {
       throw new Error("Cloudflare client not initialized");
     }
 
-    const targetAccountId = accountId || this.config?.accountId;
-    if (!targetAccountId) {
-      throw new Error("Cloudflare account ID is required");
-    }
+    const targetAccountId = await this.resolveAccountId(
+      accountId || this.config?.accountId,
+    );
 
     try {
-      // Placeholder - would use cloudflared CLI to delete tunnel
-      throw new Error(
-        "Tunnel deletion via cloudflared CLI - not yet implemented",
-      );
+      await this.client.zeroTrust.tunnels.cloudflared.delete(tunnelId, {
+        account_id: targetAccountId,
+      });
     } catch (error) {
       this.logger.error("Failed to delete Cloudflare tunnel:", error);
-      throw new Error("Failed to delete tunnel from Cloudflare");
+      throw new Error(`Failed to delete tunnel from Cloudflare: ${error}`);
     }
   }
 }
