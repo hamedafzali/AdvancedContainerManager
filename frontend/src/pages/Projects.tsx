@@ -736,12 +736,13 @@ export default function Projects() {
   };
 
   const handleSyncDeploy = async (projectName: string) => {
+    setPending(projectName, "deploying");
     const conflicts = await checkPortConflicts(projectName);
     if (conflicts.length > 0) {
       setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
+      setPending(projectName, null);
       return;
     }
-    setPending(projectName, "deploying");
     const taskId = beginStreamingTask(projectName, `Sync & Deploy ${projectName}`);
     appendTaskLog(taskId, `Syncing repository…\n`);
     try {
@@ -826,12 +827,13 @@ export default function Projects() {
 
   // Deploy without syncing the repo first
   const handleDeployProject = async (projectName: string) => {
+    setPending(projectName, "deploying");
     const conflicts = await checkPortConflicts(projectName);
     if (conflicts.length > 0) {
       setActionError(`Port conflicts: ${conflicts.join(" · ")}`);
+      setPending(projectName, null);
       return;
     }
-    setPending(projectName, "deploying");
     const taskId = beginStreamingTask(projectName, `Deploy ${projectName}`);
     try {
       const result = await apiPost(

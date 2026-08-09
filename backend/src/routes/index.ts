@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
 import { DockerService } from "../services/docker-service";
-import { ProjectService } from "../services/project-service";
+import { ProjectService, DeployInProgressError } from "../services/project-service";
 import { TunnelService } from "../services/tunnel-service";
 import { TerminalService } from "../services/terminal-service";
 import { MetricsCollector } from "../services/metrics-collector";
@@ -1054,6 +1054,13 @@ export function routes(
           data: result,
         });
       } catch (error) {
+        if (error instanceof DeployInProgressError) {
+          return res.status(409).json({
+            success: false,
+            message: error.message,
+            data: { projectName: error.projectName, startedAt: error.startedAt },
+          });
+        }
         logger.error(`Error deploying project ${req.params.name}:`, error);
         res.status(500).json({
           success: false,
@@ -1076,6 +1083,13 @@ export function routes(
           data: { sync: syncResult, deploy: deployResult },
         });
       } catch (error) {
+        if (error instanceof DeployInProgressError) {
+          return res.status(409).json({
+            success: false,
+            message: error.message,
+            data: { projectName: error.projectName, startedAt: error.startedAt },
+          });
+        }
         logger.error(`Error in sync-deploy for ${req.params.name}:`, error);
         res.status(500).json({ success: false, message: error.message });
       }

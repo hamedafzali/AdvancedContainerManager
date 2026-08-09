@@ -85,11 +85,20 @@ function App() {
 
   useEffect(() => {
     apiFetch("/api/settings")
-      .then((r) => r.json())
-      .then((result) => {
-        setRequireAuth(result.data?.security?.requireAuth === true);
+      .then((r) => {
+        // A non-2xx here (most commonly 401, once requireAuth is on) means we
+        // can't read the real value — assume auth is required rather than
+        // rendering the dashboard unauthenticated. Fail closed, not open.
+        if (!r.ok) {
+          setRequireAuth(true);
+          return null;
+        }
+        return r.json();
       })
-      .catch(() => {})
+      .then((result) => {
+        if (result) setRequireAuth(result.data?.security?.requireAuth === true);
+      })
+      .catch(() => setRequireAuth(true))
       .finally(() => setAuthChecked(true));
   }, []);
 

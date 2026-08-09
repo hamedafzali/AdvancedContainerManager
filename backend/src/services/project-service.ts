@@ -13,6 +13,20 @@ const Database = require("better-sqlite3");
 
 export const PROJECT_ENVIRONMENTS = ["dev", "test", "prod"] as const;
 
+/** Thrown by deployProject() when a deploy for the same project is already
+ *  in flight. In-memory only (see ProjectService.inFlightDeploys) — deliberately
+ *  NOT backed by the persisted `project.status` field, which never self-heals
+ *  a stale "building" value after a crash/restart (see loadProjects). */
+export class DeployInProgressError extends Error {
+  constructor(
+    public readonly projectName: string,
+    public readonly startedAt: string,
+  ) {
+    super(`Deploy already in progress for ${projectName} (started ${startedAt})`);
+    this.name = "DeployInProgressError";
+  }
+}
+
 export class ProjectService {
   private config: AppConfig;
   private logger: Logger;
@@ -23,6 +37,10 @@ export class ProjectService {
   private legacyConfigPath: string;
   private database: any;
   private projects: Map<string, ProjectInfo> = new Map();
+  /** Deploys currently running, keyed by project name. In-memory by design —
+   *  see DeployInProgressError. Cleared in deployProject()'s finally block,
+   *  and naturally empty again on process restart. */
+  private inFlightDeploys: Map<string, { startedAt: string }> = new Map();
   private wsHandler?: WebSocketHandler;
   /** Resolves an authenticated clone URL for a stored git account (wired in index.ts). */
   private authenticatedUrlResolver?: (
@@ -1553,6 +1571,15 @@ export class ProjectService {
       throw new Error(`Project ${name} not found`);
     }
 
+    // Check-then-set with no `await` in between — Node's single-threaded
+    // event loop makes this atomic against a second call arriving in the
+    // same tick (e.g. a double-click or an overlapping webhook/MCP call).
+    const existingDeploy = this.inFlightDeploys.get(name);
+    if (existingDeploy) {
+      throw new DeployInProgressError(name, existingDeploy.startedAt);
+    }
+    this.inFlightDeploys.set(name, { startedAt: new Date().toISOString() });
+
     try {
       this.wsHandler?.broadcastProjectDeployStatus({
         projectName: name,
@@ -1713,6 +1740,8 @@ export class ProjectService {
         error: error.message,
       });
       throw error;
+    } finally {
+      this.inFlightDeploys.delete(name);
     }
   }
 
