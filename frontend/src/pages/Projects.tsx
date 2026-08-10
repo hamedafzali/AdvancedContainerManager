@@ -12,6 +12,7 @@ import {
   Terminal,
   CheckCircle,
   XCircle,
+  AlertTriangle,
   Clock,
   GitBranch,
   Code2,
@@ -48,7 +49,7 @@ interface Project {
   composeFile: string;
   environmentVars: Record<string, string>;
   containers: string[];
-  status: "configured" | "building" | "built" | "running" | "stopped" | "error";
+  status: "configured" | "building" | "built" | "running" | "degraded" | "stopped" | "error";
   createdAt: string;
   lastUpdated: string;
   ports: Array<{
@@ -1023,10 +1024,14 @@ export default function Projects() {
       setProjects((prev) =>
         prev.map((p) => {
           if (p.name !== projectName) return p;
-          if (health.overall === "unhealthy") return { ...p, status: "error" };
-          // Recovered — clear a previously-set error rather than leaving the
-          // card stuck red until a manual page reload.
-          if (p.status === "error") return { ...p, status: "running" };
+          if (health.overall === "unhealthy" || health.overall === "error") {
+            // Some containers still up — degraded, not fully down.
+            const anyRunning = (health.containers || []).some((c: any) => c.status === "running");
+            return { ...p, status: anyRunning ? "degraded" : "error" };
+          }
+          // Recovered — clear a previously-set error/degraded rather than
+          // leaving the card stuck until a manual page reload.
+          if (p.status === "error" || p.status === "degraded") return { ...p, status: "running" };
           return p;
         }),
       );
@@ -1063,6 +1068,8 @@ export default function Projects() {
         return <CheckCircle className="w-4 h-4 text-indigo-600" />;
       case "running":
         return <CheckCircle className="w-4 h-4 text-green-600" />;
+      case "degraded":
+        return <AlertTriangle className="w-4 h-4 text-orange-600" />;
       case "stopped":
         return <Square className="w-4 h-4 text-gray-600 dark:text-gray-300" />;
       case "error":
@@ -1082,6 +1089,8 @@ export default function Projects() {
         return "text-indigo-600";
       case "running":
         return "text-green-600";
+      case "degraded":
+        return "text-orange-600";
       case "stopped":
         return "text-gray-600 dark:text-gray-300";
       case "error":
@@ -1151,6 +1160,7 @@ export default function Projects() {
               <div className={`h-1 rounded-t-2xl ${
                 project.status === "running" ? "bg-green-400" :
                 project.status === "error" ? "bg-red-400" :
+                project.status === "degraded" ? "bg-orange-400" :
                 project.status === "building" ? "bg-yellow-400" :
                 project.status === "built" ? "bg-indigo-400" :
                 project.status === "stopped" ? "bg-gray-300" :
@@ -1170,6 +1180,7 @@ export default function Projects() {
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                       project.status === "running" ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" :
                       project.status === "error" ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" :
+                      project.status === "degraded" ? "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" :
                       project.status === "building" ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300" :
                       project.status === "built" ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300" :
                       project.status === "stopped" ? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300" :

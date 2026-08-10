@@ -265,6 +265,12 @@ export class ProjectService {
         rows.map((row) => {
           const p = JSON.parse(row.payload) as ProjectInfo;
           p.environmentVars = decryptEnvVars(p.environmentVars || {});
+          // A persisted "building" status can only mean the process died
+          // mid-deploy — inFlightDeploys is in-memory and always empty right
+          // after a restart, so no deploy can genuinely still be running.
+          // Reset to "error" so reconcileStatus (which deliberately skips
+          // "building" projects) is free to correct it on the startup tick.
+          if (p.status === "building") p.status = "error";
           return [row.name, p];
         }),
       );
@@ -2108,7 +2114,8 @@ export class ProjectService {
 
   /** Reconcile a project's stored status with its actual containers, so the
    *  card reflects reality even when something else (e.g. the pipeline's raw
-   *  `docker compose up`) started/stopped it. Only flips steady states —
+   *  `docker compose up`) started/stopped it. "degraded" means some but not
+   *  all of the project's containers are running. Only flips steady states —
    *  never clobbers an in-progress action (building). Returns true if changed. */
   private async reconcileStatus(name: string): Promise<boolean> {
     const project = this.projects.get(name);
@@ -2120,11 +2127,14 @@ export class ProjectService {
       // project.status represents prod specifically (dev/test have their own
       // toggle buttons) — pin -p explicitly rather than relying on Compose's
       // directory-name guess, which can drift from composeProjectFor's naming.
-      const res = await this.runCompose(project, [
-        "compose", "-p", this.composeProjectFor(name, "prod"), "-f", composeFile, "ps", "--status", "running", "-q",
+      const composeProject = this.composeProjectFor(name, "prod");
+      const [allRes, runningRes] = await Promise.all([
+        this.runCompose(project, ["compose", "-p", composeProject, "-f", composeFile, "ps", "-q"]),
+        this.runCompose(project, ["compose", "-p", composeProject, "-f", composeFile, "ps", "--status", "running", "-q"]),
       ]);
-      const running = res.stdout.split("\n").map((s) => s.trim()).filter(Boolean).length > 0;
-      const newStatus = running ? "running" : "stopped";
+      const total = allRes.stdout.split("\n").map((s) => s.trim()).filter(Boolean).length;
+      const running = runningRes.stdout.split("\n").map((s) => s.trim()).filter(Boolean).length;
+      const newStatus = total === 0 ? "stopped" : running === total ? "running" : "degraded";
       if (project.status !== newStatus) {
         project.status = newStatus;
         project.lastUpdated = new Date().toISOString();
@@ -2159,7 +2169,7 @@ export class ProjectService {
       await this.reconcileAllStatuses();
       // 2) push health for the ones actually running
       for (const [name, project] of this.projects.entries()) {
-        if (project.status !== "running") continue;
+        if (project.status !== "running" && project.status !== "degraded") continue;
         try {
           const health = await this.getProjectHealth(name, "prod");
           wsHandler.broadcastProjectHealth({ projectName: name, health });

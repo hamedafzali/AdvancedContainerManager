@@ -107,7 +107,7 @@ export interface ProjectInfo {
    *  authenticated URL instead of failing on private repos. */
   accountId?: string;
   containers: string[];
-  status: "configured" | "building" | "built" | "running" | "stopped" | "error";
+  status: "configured" | "building" | "built" | "running" | "degraded" | "stopped" | "error";
   createdAt: string;
   lastUpdated: string;
   ports: Array<{
