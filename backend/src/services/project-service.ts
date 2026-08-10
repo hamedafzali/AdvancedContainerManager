@@ -1800,10 +1800,14 @@ export class ProjectService {
   public async getProjectLogs(
     name: string,
     tail: number = 200,
+    env: string = "prod",
   ): Promise<Array<{ containerId: string; logs: string }>> {
     const project = this.projects.get(name);
     if (!project) {
       throw new Error(`Project ${name} not found`);
+    }
+    if (!PROJECT_ENVIRONMENTS.includes(env as any)) {
+      throw new Error(`Unknown environment: ${env}`);
     }
 
     const composeFile = this.resolveComposeFile(project);
@@ -1811,8 +1815,13 @@ export class ProjectService {
       throw new Error("docker-compose file not found in project");
     }
 
+    // Without -p, Compose falls back to guessing the project name from the
+    // directory, which only coincidentally matches prod and never matches
+    // dev/test — so a dev-only project would silently show no containers.
     const psResult = await this.runCompose(project, [
       "compose",
+      "-p",
+      this.composeProjectFor(name, env),
       "-f",
       composeFile,
       "ps",
@@ -1847,7 +1856,7 @@ export class ProjectService {
     return logs;
   }
 
-  public async getProjectHealth(name: string): Promise<ProjectHealth> {
+  public async getProjectHealth(name: string, env: string = "prod"): Promise<ProjectHealth> {
     const project = this.projects.get(name);
     if (!project) {
       throw new Error(`Project ${name} not found`);
@@ -1868,8 +1877,13 @@ export class ProjectService {
         return health;
       }
 
+      // Explicit -p: without it Compose guesses the project name from the
+      // directory, which is unrelated to composeProjectFor's dev/test/prod
+      // naming and can silently target the wrong environment.
       const psResult = await this.runCompose(project, [
         "compose",
+        "-p",
+        this.composeProjectFor(name, env),
         "-f",
         composeFile,
         "ps",
@@ -2103,8 +2117,11 @@ export class ProjectService {
     const composeFile = this.resolveComposeFile(project);
     if (!composeFile) return false;
     try {
+      // project.status represents prod specifically (dev/test have their own
+      // toggle buttons) — pin -p explicitly rather than relying on Compose's
+      // directory-name guess, which can drift from composeProjectFor's naming.
       const res = await this.runCompose(project, [
-        "compose", "-f", composeFile, "ps", "--status", "running", "-q",
+        "compose", "-p", this.composeProjectFor(name, "prod"), "-f", composeFile, "ps", "--status", "running", "-q",
       ]);
       const running = res.stdout.split("\n").map((s) => s.trim()).filter(Boolean).length > 0;
       const newStatus = running ? "running" : "stopped";
@@ -2144,7 +2161,7 @@ export class ProjectService {
       for (const [name, project] of this.projects.entries()) {
         if (project.status !== "running") continue;
         try {
-          const health = await this.getProjectHealth(name);
+          const health = await this.getProjectHealth(name, "prod");
           wsHandler.broadcastProjectHealth({ projectName: name, health });
         } catch {}
       }

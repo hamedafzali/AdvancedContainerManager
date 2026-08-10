@@ -94,6 +94,7 @@ export default function Projects() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLogsModal, setShowLogsModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [logsEnv, setLogsEnv] = useState<"dev" | "test" | "prod">("prod");
   const [logsLoading, setLogsLoading] = useState(false);
   const [projectLogs, setProjectLogs] = useState<
     Array<{ containerId: string; logs: string }>
@@ -946,10 +947,10 @@ export default function Projects() {
     }
   };
 
-  const fetchProjectLogs = async (projectName: string) => {
+  const fetchProjectLogs = async (projectName: string, env: "dev" | "test" | "prod") => {
     try {
       setLogsLoading(true);
-      const response = await apiFetch(`/api/projects/${projectName}/logs`);
+      const response = await apiFetch(`/api/projects/${projectName}/logs?env=${env}`);
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result?.message || "Failed to fetch project logs");
@@ -966,8 +967,9 @@ export default function Projects() {
 
   const handleViewLogs = (project: Project) => {
     setSelectedProject(project);
+    setLogsEnv("prod");
     setShowLogsModal(true);
-    fetchProjectLogs(project.name);
+    fetchProjectLogs(project.name, "prod");
   };
 
   // Delete project (invoked from the ConfirmDialog)
@@ -1019,11 +1021,14 @@ export default function Projects() {
     const onHealth = (e: Event) => {
       const { projectName, health } = (e as CustomEvent).detail as { projectName: string; health: any };
       setProjects((prev) =>
-        prev.map((p) =>
-          p.name === projectName
-            ? { ...p, status: health.overall === "unhealthy" ? "error" : p.status }
-            : p,
-        ),
+        prev.map((p) => {
+          if (p.name !== projectName) return p;
+          if (health.overall === "unhealthy") return { ...p, status: "error" };
+          // Recovered — clear a previously-set error rather than leaving the
+          // card stuck red until a manual page reload.
+          if (p.status === "error") return { ...p, status: "running" };
+          return p;
+        }),
       );
     };
     // Status reconciled from real containers (server poll) — update the card live.
@@ -1772,12 +1777,30 @@ export default function Projects() {
                 <XCircle className="w-4 h-4" />
               </button>
             </div>
+            <div className="px-6 pt-4 flex space-x-1 border-b border-gray-200 dark:border-gray-700">
+              {(["dev", "test", "prod"] as const).map((env) => (
+                <button
+                  key={env}
+                  onClick={() => {
+                    setLogsEnv(env);
+                    fetchProjectLogs(selectedProject.name, env);
+                  }}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+                    logsEnv === env
+                      ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100"
+                      : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  }`}
+                >
+                  {env}
+                </button>
+              ))}
+            </div>
             <div className="p-6 max-h-[60vh] overflow-auto">
               {logsLoading ? (
                 <div className="text-sm text-gray-500 dark:text-gray-400">Loading logs...</div>
               ) : projectLogs.length === 0 ? (
                 <div className="text-sm text-gray-500 dark:text-gray-400">
-                  No logs found for this project.
+                  No logs found for the {logsEnv} environment.
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -1796,7 +1819,7 @@ export default function Projects() {
             </div>
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
               <button
-                onClick={() => fetchProjectLogs(selectedProject.name)}
+                onClick={() => fetchProjectLogs(selectedProject.name, logsEnv)}
                 className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
               >
                 Refresh Logs

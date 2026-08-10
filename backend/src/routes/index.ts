@@ -1138,7 +1138,8 @@ export function routes(
     "/projects/:name/health",
     asyncHandler(async (req, res) => {
       try {
-        const health = await projectService.getProjectHealth(req.params.name);
+        const env = (req.query.env as string) || "prod";
+        const health = await projectService.getProjectHealth(req.params.name, env);
         res.json({
           success: true,
           data: health,
@@ -1161,7 +1162,8 @@ export function routes(
     asyncHandler(async (req, res) => {
       try {
         const tail = req.query.tail ? parseInt(req.query.tail as string) : 200;
-        const logs = await projectService.getProjectLogs(req.params.name, tail);
+        const env = (req.query.env as string) || "prod";
+        const logs = await projectService.getProjectLogs(req.params.name, tail, env);
         res.json({
           success: true,
           data: logs,
