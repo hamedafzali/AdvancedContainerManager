@@ -62,6 +62,38 @@ services:
       retries: 3
       start_period: 40s
 
+  # Cloudflare tunnel connectors — independent of ACM on purpose.
+  # ACM previously spawned these as child processes of its own container and
+  # stored the connector tokens at a path outside any bind mount, so every
+  # ACM rebuild killed all three sites with no auto-recovery (2026-08-09
+  # outage). Running them as their own compose services with
+  # restart: unless-stopped means an ACM rebuild/restart no longer touches
+  # them. extra_hosts is required on Linux for host.docker.internal to
+  # resolve inside the container (unlike Docker Desktop).
+  koodakbook-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: koodakbook-tunnel
+    restart: unless-stopped
+    command: tunnel run --token ${KOODAKBOOK_TUNNEL_TOKEN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  trainova-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: trainova-tunnel
+    restart: unless-stopped
+    command: tunnel run --token ${TRAINOVA_TUNNEL_TOKEN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  afzali-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: afzali-tunnel
+    restart: unless-stopped
+    command: tunnel run --token ${AFZALI_TUNNEL_TOKEN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   # Optional: Redis for metrics storage
   redis:
     image: redis:7-alpine
