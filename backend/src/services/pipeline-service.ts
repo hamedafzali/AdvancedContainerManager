@@ -520,6 +520,12 @@ export class PipelineService {
     } catch (error) {
       this.logger.error(`Pipeline ${run.id} crashed: ${error}`);
       this.finishRun(run, "failed", def, env);
+    } finally {
+      // Belt-and-suspenders: finishRun() already deletes this, but a future
+      // early return that skips finishRun() must not leave the project
+      // permanently locked out of new triggers (see deployProject()'s
+      // inFlightDeploys for the same pattern).
+      this.running.delete(run.projectName);
     }
   }
 
@@ -627,7 +633,16 @@ export class PipelineService {
       return "ok";
     }
 
-    // Manual approval gate.
+    // Manual approval gate. A gate whose needs already failed must not block
+    // on a human decision that will never come for a broken build — that
+    // left runs parked at "awaiting_approval" forever, holding the
+    // pipeline-run lock (this.running) until ACM itself restarted.
+    if (when === "manual" && failed) {
+      stage.status = "skipped";
+      this.appendLog(run, stage, "[skipped — a previous stage failed; manual gate not entered]\n");
+      this.saveRun(run);
+      return "ok";
+    }
     if (when === "manual") {
       const approved = await this.awaitApproval(run, stage);
       if (!approved) {
