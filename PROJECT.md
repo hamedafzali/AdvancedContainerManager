@@ -100,6 +100,30 @@ only ever saved when the stage happened to pass. Fixed: `runStageCommands` now a
 `data/db/pipeline-artifacts/<runId>/<stage>/` is populated on failure too. `captureArtifacts()`
 already tolerated missing/partial paths (logs and skips), so this required no other changes.
 
+### Stale blank env vars in ACM's store silently override a correct on-disk `.env` value
+
+ACM injects a project's stored `environmentVars` as process environment for every spawned
+`docker compose` command (`pipeline-service.ts` and `ProjectService.runCompose`/`runCommand`) —
+it never writes them to a file. Docker Compose's variable interpolation gives a variable that is
+*set* in the shell/process environment priority over the same variable in the project's `.env`
+file, and this holds even when the process-env value is an empty string: an empty string still
+counts as "set," so `${SOME_VAR:-default}` does not fall through to `.env`'s value or to the
+compose-file default — it resolves to empty. Concretely, this is what caused the
+`koodakbook-db-backup-1` crash loop on 2026-08-30/31: ACM's stored record for
+`HEARTBEAT_BACKUP_URL`/`HEARTBEAT_DRILL_URL` had gone stale at `""` from before those were
+configured, `.env` had the real values, and every ACM-triggered deploy silently re-blanked them in
+the container regardless — for ~21 hours, until the stored record was corrected directly and ACM
+restarted to reload it.
+
+This is a **general hazard, not specific to those two variables**: any key that is blank in ACM's
+store but has a real value in the project's `.env` will silently lose to the blank on every deploy,
+with no warning that the file value is being shadowed. The safe fix is at the injection site —
+`ProjectService` should skip passing through `environmentVars` entries whose value is empty/blank
+(rather than injecting `KEY=""`) so an unset-in-ACM key falls through to whatever `.env` or the
+compose file provides, instead of ACM's blank silently winning. Worth auditing whether the same
+empty-string passthrough happens anywhere `environmentVars` is spread into a command environment
+outside the deploy path (e.g. one-off `runCommand` calls), not just the main deploy stage.
+
 ## Suggested Next Enhancements
 
 1. Persist `/api/settings` to disk (same config store as projects) with schema validation
