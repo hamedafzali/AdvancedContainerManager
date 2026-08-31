@@ -74,6 +74,32 @@ Still partial or mocked:
 - `/api/settings*` persistence and restore behavior
 - Some multi-cloud and analytics paths return placeholder responses
 
+## Known Hazards
+
+### Pipeline rollback can revert production against a rewritten history
+
+A failed pipeline run's rollback stage does a real `git reset --hard $ACM_PREVIOUS_SHA` + redeploy
+against the live project (`backend/src/services/pipeline-service.ts`) — it is not a dry run or a
+staging-only action. `ACM_PREVIOUS_SHA` is captured as the SHA the project was on before the run
+started. If that commit is later removed from history by a force-push (rebase, `push --force`,
+branch rewrite), the rollback target no longer exists on the remote: the reset can silently land on
+whatever `git reset --hard` resolves to locally, which is not necessarily the commit the operator
+thinks a "failed test run" should revert to. Practically, this makes "run the pipeline to see if a
+change breaks something" and "revert production to a specific prior state" the same action with the
+same blast radius — there is no dry-run mode. Anyone testing a pipeline against a branch with
+force-pushed history should confirm `ACM_PREVIOUS_SHA` still resolves before trusting a rollback.
+
+### Artifact capture on stage failure (fixed)
+
+`captureArtifacts()` was previously only invoked from the success path of `runStageCommands`
+(after `runCommandsOnce` and any healthcheck passed) — a failing stage returned before artifacts
+were ever captured. For an `e2e` stage, that meant the Playwright HTML report and traces (exactly
+the evidence needed to diagnose *why* the stage failed) were discarded on every failing run and
+only ever saved when the stage happened to pass. Fixed: `runStageCommands` now also calls
+`captureArtifacts()` on the final failing attempt (after retries are exhausted), so
+`data/db/pipeline-artifacts/<runId>/<stage>/` is populated on failure too. `captureArtifacts()`
+already tolerated missing/partial paths (logs and skips), so this required no other changes.
+
 ## Suggested Next Enhancements
 
 1. Persist `/api/settings` to disk (same config store as projects) with schema validation

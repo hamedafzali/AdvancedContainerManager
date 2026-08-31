@@ -734,6 +734,9 @@ export class PipelineService {
         }
       }
       if (attempt === maxAttempts) {
+        // Capture artifacts on the final failing attempt too — a trace/report
+        // is most needed exactly when the stage failed, not only when it passed.
+        if (def.artifacts?.length) await this.captureArtifacts(run, stage, def.artifacts, cwd);
         stage.status = "failed";
         stage.exitCode = stage.exitCode ?? 1;
         stage.durationMs = Date.now() - started;
