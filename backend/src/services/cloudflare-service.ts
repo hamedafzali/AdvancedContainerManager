@@ -399,6 +399,48 @@ export class CloudflareService {
     }
   }
 
+  /**
+   * Best-effort read of a tunnel's ingress config, used by adoption to recover
+   * the hostname of a tunnel ACM didn't create itself. Never throws — adoption
+   * must still succeed with partial metadata if this fails or Cloudflare
+   * isn't reachable.
+   */
+  async getTunnelConfiguration(
+    tunnelId: string,
+    accountId?: string,
+  ): Promise<{ hostname?: string; service?: string } | undefined> {
+    if (!this.client) return undefined;
+    try {
+      const targetAccountId = await this.resolveAccountId(accountId || this.config?.accountId);
+      const result = await (this.client.zeroTrust.tunnels.cloudflared.configurations as any).get(
+        tunnelId,
+        { account_id: targetAccountId },
+      );
+      const ingress = result?.config?.ingress ?? [];
+      const rule = ingress.find((r: any) => r.hostname);
+      return rule ? { hostname: rule.hostname, service: rule.service } : undefined;
+    } catch (error) {
+      this.logger.warn(`Failed to read tunnel configuration for ${tunnelId}: ${error}`);
+      return undefined;
+    }
+  }
+
+  /** Best-effort DNS record lookup for adoption; never throws. */
+  async findDNSRecordForHostname(
+    zoneId: string,
+    hostname: string,
+  ): Promise<CloudflareDNSRecord | undefined> {
+    if (!this.client) return undefined;
+    try {
+      const existing = await (this.client.dns.records as any).list({ zone_id: zoneId, name: hostname });
+      const record = (existing.result ?? [])[0];
+      return record ? { id: record.id, name: record.name, content: record.content } : undefined;
+    } catch (error) {
+      this.logger.warn(`Failed to look up DNS record for ${hostname}: ${error}`);
+      return undefined;
+    }
+  }
+
   async deleteDNSRecord(zoneId: string, recordId: string): Promise<void> {
     if (!this.client) throw new Error("Cloudflare client not initialized");
     try {

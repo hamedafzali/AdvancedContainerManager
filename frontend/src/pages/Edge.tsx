@@ -48,6 +48,8 @@ function TunnelsTab() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Tunnel | null>(null);
   const [newTunnel, setNewTunnel] = useState({ name: "", port: "", domain: "" });
+  const [adopting, setAdopting] = useState(false);
+  const [adoptMessage, setAdoptMessage] = useState<string | null>(null);
 
   const fetchTunnels = useCallback(async () => {
     try {
@@ -104,6 +106,27 @@ function TunnelsTab() {
     }
   };
 
+  const adoptExistingTunnels = async () => {
+    setAdopting(true);
+    setAdoptMessage(null);
+    setError(null);
+    try {
+      const data = await apiPost("/api/tunnels/adopt", {});
+      const adopted: Tunnel[] = data.data || [];
+      setAdoptMessage(
+        adopted.length > 0
+          ? `Adopted ${adopted.length} tunnel${adopted.length === 1 ? "" : "s"}: ${adopted.map((t) => t.name).join(", ")}`
+          : "No new tunnel containers found to adopt.",
+      );
+      fetchTunnels();
+      fetchStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to adopt existing tunnels");
+    } finally {
+      setAdopting(false);
+    }
+  };
+
   const deleteTunnel = async (name: string) => {
     try {
       const response = await apiFetch(`/api/tunnels/${name}`, {
@@ -136,12 +159,12 @@ function TunnelsTab() {
                 : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300"
             }`}
           >
-            {status?.cloudflaredInstalled ? "Installed" : "Not Installed"}
+            {status?.cloudflaredInstalled ? "Ready" : "Docker unavailable"}
           </span>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
           {!status?.cloudflaredInstalled
-            ? "cloudflared is missing from the Container Manager image — rebuild it to serve custom domains. Tunnels without a domain still work."
+            ? "Container Manager can't reach Docker, so it can't run tunnel connector containers. Check the Docker socket mount."
             : status?.cloudflareAuthenticated
               ? "Ready. Leave the domain blank for a temporary URL, or enter a hostname on one of your Cloudflare zones."
               : "Ready for temporary URLs. Add a Cloudflare API token in the Cloudflare tab to use your own domain."}
@@ -149,13 +172,26 @@ function TunnelsTab() {
       </Card>
 
       {!showCreateForm && (
-        <Button
-          variant="primary"
-          icon={<Plus className="w-4 h-4" />}
-          onClick={() => setShowCreateForm(true)}
-        >
-          Create Tunnel
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="primary"
+            icon={<Plus className="w-4 h-4" />}
+            onClick={() => setShowCreateForm(true)}
+          >
+            Create Tunnel
+          </Button>
+          <Button
+            variant="secondary"
+            icon={<Cloud className="w-4 h-4" />}
+            onClick={adoptExistingTunnels}
+            disabled={adopting}
+          >
+            {adopting ? "Adopting…" : "Adopt Existing Tunnels"}
+          </Button>
+          {adoptMessage && (
+            <span className="text-xs text-gray-500 dark:text-gray-400">{adoptMessage}</span>
+          )}
+        </div>
       )}
 
       {showCreateForm && (

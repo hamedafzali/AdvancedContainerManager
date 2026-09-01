@@ -2007,6 +2007,30 @@ export function routes(
     }),
   );
 
+  // Recognizes cloudflared containers already running on the host (e.g.
+  // created by hand or via docker-compose before ACM managed tunnels) and
+  // starts tracking them — no recreation, no token churn. Runs automatically
+  // on startup too; this lets the UI trigger it again on demand (e.g. after
+  // Cloudflare auth is added, so hostname/zone metadata can be resolved).
+  router.post(
+    "/tunnels/adopt",
+    asyncHandler(async (req, res) => {
+      try {
+        const adopted = await tunnelService.adoptExistingTunnels();
+        res.json({
+          success: true,
+          data: adopted,
+        });
+      } catch (error) {
+        logger.error("Failed to adopt existing tunnels:", error);
+        res.status(500).json({
+          success: false,
+          message: error.message,
+        });
+      }
+    }),
+  );
+
   // Cloudflare API endpoints
   router.post(
     "/cloudflare/auth",
