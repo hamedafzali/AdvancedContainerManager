@@ -100,6 +100,70 @@ only ever saved when the stage happened to pass. Fixed: `runStageCommands` now a
 `data/db/pipeline-artifacts/<runId>/<stage>/` is populated on failure too. `captureArtifacts()`
 already tolerated missing/partial paths (logs and skips), so this required no other changes.
 
+### Stale blank env vars in ACM's store silently override a correct on-disk `.env` value
+
+ACM injects a project's stored `environmentVars` as process environment for every spawned
+`docker compose` command (`pipeline-service.ts` and `ProjectService.runCompose`/`runCommand`) —
+it never writes them to a file. Docker Compose's variable interpolation gives a variable that is
+*set* in the shell/process environment priority over the same variable in the project's `.env`
+file, and this holds even when the process-env value is an empty string: an empty string still
+counts as "set," so `${SOME_VAR:-default}` does not fall through to `.env`'s value or to the
+compose-file default — it resolves to empty. Concretely, this is what caused the
+`koodakbook-db-backup-1` crash loop on 2026-08-30/31: ACM's stored record for
+`HEARTBEAT_BACKUP_URL`/`HEARTBEAT_DRILL_URL` had gone stale at `""` from before those were
+configured, `.env` had the real values, and every ACM-triggered deploy silently re-blanked them in
+the container regardless — for ~21 hours, until the stored record was corrected directly and ACM
+restarted to reload it.
+
+This is a **general hazard, not specific to those two variables**: any key that is blank in ACM's
+store but has a real value in the project's `.env` will silently lose to the blank on every deploy,
+with no warning that the file value is being shadowed. The safe fix is at the injection site —
+`ProjectService` should skip passing through `environmentVars` entries whose value is empty/blank
+(rather than injecting `KEY=""`) so an unset-in-ACM key falls through to whatever `.env` or the
+compose file provides, instead of ACM's blank silently winning. Worth auditing whether the same
+empty-string passthrough happens anywhere `environmentVars` is spread into a command environment
+outside the deploy path (e.g. one-off `runCommand` calls), not just the main deploy stage.
+
+**Precedence, and how to actually check "is this variable set?":** ACM's stored record wins at
+deploy time (per above), so it is the only answer that matters operationally — checking a project's
+`.env` on disk and reporting that as the variable's state is misleading even when read correctly,
+because ACM's store can (and did, twice, for KoodakBook: `HEARTBEAT_BACKUP_URL`/`_DRILL_URL` and
+`TTS_ELEVENLABS_KEY`) silently override it. Check ACM's own record first: `projects.payload` in
+`/data/db/manager.sqlite` (`SELECT payload FROM projects WHERE name = ?`, then
+`JSON.parse(payload).environmentVars[<KEY>]`) — no `sqlite3` CLI is installed in the
+`advanced-container-manager` container, but `better-sqlite3` is already a dependency, so query it
+via `docker exec advanced-container-manager node -e "..."` (open the DB with `{ readonly: true }`).
+
+A second wrinkle found 2026-08-31: the ACM **dashboard UI** showing a variable as filled in is not
+proof it was persisted, either. A KoodakBook edit made during an ISP outage looked "set" in the
+project-settings form, but the sqlite record's `environmentVars.TTS_ELEVENLABS_KEY` was still `""`
+— the save request most likely never completed before the connection dropped, and the form's local
+state didn't reflect that. So there are three places a value can look different: the UI form
+(can hold an unsaved edit), ACM's persisted record (the one that's actually injected), and `.env`
+(shadowed by the persisted record, even when blank). Treat the sqlite record as the single source
+of truth for "will this actually be used" — confirm a UI edit stuck by re-reading the record after
+saving, don't take the form's display at face value.
+
+A third, distinct case surfaced during the same 2026-08-31 incident: deploying **outside** ACM's
+service layer altogether. `ProjectService.deployProject()` is the only code path that reads a
+project's decrypted `environmentVars` out of the in-memory `this.projects` map and spreads them
+into the spawned `docker compose` process's environment (`runCompose`/`runCommand`, both in
+`backend/src/services/project-service.ts`). A manual `docker exec advanced-container-manager sh -c
+"cd <project> && docker compose up -d --build"` — run directly against the ACM container's shell
+instead of through its API/dashboard — never touches that code at all: it's a bare shell invoking
+`docker compose` with whatever environment that shell process happens to have, which does not
+include any project's `environmentVars`. The result isn't a stale or blank value shadowing a good
+one (cases above); it's every ACM-only secret coming up completely unset in the new container, with
+no error anywhere — compose silently falls through to `${VAR:-default}` (usually empty) exactly as
+if the key had never been configured. This is what left `TTS_ELEVENLABS_KEY` empty inside
+`koodakbook-backend-1` after one such manual deploy, even though the correct value was sitting,
+correctly saved, in ACM's own store the entire time. There is no way to tell from inside the
+resulting container that this is what happened — it looks identical to "the value was never set."
+The fix is procedural, not code: any deploy of a project with ACM-managed secrets must go through
+ACM's own Deploy/Sync & Deploy action (dashboard or API), never a raw `docker compose`/`docker exec`
+invocation against the project directory, even when that directory is reachable and the compose
+file is otherwise correct.
+
 ## Suggested Next Enhancements
 
 1. Persist `/api/settings` to disk (same config store as projects) with schema validation
