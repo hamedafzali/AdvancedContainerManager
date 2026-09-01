@@ -144,6 +144,26 @@ state didn't reflect that. So there are three places a value can look different:
 of truth for "will this actually be used" — confirm a UI edit stuck by re-reading the record after
 saving, don't take the form's display at face value.
 
+A third, distinct case surfaced during the same 2026-08-31 incident: deploying **outside** ACM's
+service layer altogether. `ProjectService.deployProject()` is the only code path that reads a
+project's decrypted `environmentVars` out of the in-memory `this.projects` map and spreads them
+into the spawned `docker compose` process's environment (`runCompose`/`runCommand`, both in
+`backend/src/services/project-service.ts`). A manual `docker exec advanced-container-manager sh -c
+"cd <project> && docker compose up -d --build"` — run directly against the ACM container's shell
+instead of through its API/dashboard — never touches that code at all: it's a bare shell invoking
+`docker compose` with whatever environment that shell process happens to have, which does not
+include any project's `environmentVars`. The result isn't a stale or blank value shadowing a good
+one (cases above); it's every ACM-only secret coming up completely unset in the new container, with
+no error anywhere — compose silently falls through to `${VAR:-default}` (usually empty) exactly as
+if the key had never been configured. This is what left `TTS_ELEVENLABS_KEY` empty inside
+`koodakbook-backend-1` after one such manual deploy, even though the correct value was sitting,
+correctly saved, in ACM's own store the entire time. There is no way to tell from inside the
+resulting container that this is what happened — it looks identical to "the value was never set."
+The fix is procedural, not code: any deploy of a project with ACM-managed secrets must go through
+ACM's own Deploy/Sync & Deploy action (dashboard or API), never a raw `docker compose`/`docker exec`
+invocation against the project directory, even when that directory is reachable and the compose
+file is otherwise correct.
+
 ## Suggested Next Enhancements
 
 1. Persist `/api/settings` to disk (same config store as projects) with schema validation
