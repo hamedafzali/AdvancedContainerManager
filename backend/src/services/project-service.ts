@@ -1115,6 +1115,43 @@ export class ProjectService {
     return usedPorts;
   }
 
+  // Same source as getUsedHostPortsFromDocker, but also records which
+  // container(s) own each published host port so checkPortConflicts can tell
+  // "this port is held by MY OWN about-to-be-replaced container" apart from
+  // "this port is held by someone else's container". `--no-trunc` is required
+  // here: `docker compose ps -q` (used below to get a project's own live
+  // container IDs) returns full 64-char IDs, and a short-vs-full mismatch
+  // would silently defeat the comparison the same way the old bug did.
+  private async getUsedHostPortOwners(): Promise<Map<number, Set<string>>> {
+    const ownersByPort = new Map<number, Set<string>>();
+    try {
+      const result = await this.runCommand(
+        "docker",
+        ["ps", "--no-trunc", "--format", "{{.ID}}\t{{.Ports}}"],
+        process.cwd(),
+      );
+      if (result.code !== 0) {
+        return ownersByPort;
+      }
+
+      const lines = (result.stdout || "").split("\n").filter(Boolean);
+      for (const line of lines) {
+        const [id, portsStr] = line.split("\t");
+        if (!id || !portsStr) continue;
+        const matches = portsStr.matchAll(/:(\d+)->/g);
+        for (const match of matches) {
+          const port = parseInt(match[1], 10);
+          if (isNaN(port)) continue;
+          if (!ownersByPort.has(port)) ownersByPort.set(port, new Set());
+          ownersByPort.get(port)!.add(id);
+        }
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to inspect Docker port owners: ${error}`);
+    }
+    return ownersByPort;
+  }
+
   private formatPortMapping(
     hostPort: number,
     containerPort: number,
@@ -2048,19 +2085,67 @@ export class ProjectService {
       }
     }
 
-    // Conflict with containers NOT owned by this project
-    const dockerPorts = await this.getUsedHostPortsFromDocker();
-    const myContainerIds = new Set((this.projects.get(projectName)?.containers || []));
+    // Conflict with containers NOT owned by this project.
+    //
+    // A redeploy replaces this project's own containers in place — Docker
+    // Compose stops the old container and starts the new one on the same
+    // host port, so a port already held by a container that's ABOUT TO BE
+    // REPLACED is not a conflict. It only becomes a conflict when some other,
+    // unrelated container is holding the port.
+    //
+    // The previous version of this check compared a Set of container-ID
+    // strings (this.projects.get(projectName)?.containers) against a port
+    // NUMBER (`!myContainerIds.has(String(myPort.hostPort!))`) — a type
+    // mismatch that could never match anything, so self-exclusion was a
+    // permanent no-op. Every port this project itself already had bound —
+    // including the ones its own redeploy was about to reuse — got flagged
+    // as "in use by a running container", forcing a full stop of the project
+    // before Deploy would proceed.
+    const portOwners = await this.getUsedHostPortOwners();
+
+    // this.projects.get(projectName)?.containers can be stale (e.g. it's
+    // last refreshed by a previous deploy/status poll), so ask Docker
+    // Compose directly for this project's current live container IDs rather
+    // than trusting the cache. Same call shape used post-deploy elsewhere in
+    // this file (see the "ps", "-q" call after `up -d --build`).
+    let myContainerIds = new Set(this.projects.get(projectName)?.containers || []);
+    const project = this.projects.get(projectName);
+    if (project) {
+      try {
+        const psResult = await this.runCompose(project, [
+          "compose",
+          "-f",
+          composeFile,
+          "ps",
+          "-q",
+        ]);
+        const liveIds = (psResult.stdout || "")
+          .split("\n")
+          .map((id) => id.trim())
+          .filter(Boolean);
+        if (liveIds.length > 0) {
+          myContainerIds = new Set(liveIds);
+        }
+      } catch (error) {
+        this.logger.warn(
+          `Failed to get live containers for ${projectName} during port-conflict check: ${error}`,
+        );
+      }
+    }
 
     for (const myPort of neededHostPorts) {
-      if (dockerPorts.has(myPort.hostPort!) && !myContainerIds.has(String(myPort.hostPort!))) {
-        // Only flag if not already caught by project conflict above
-        const alreadyFlagged = conflicts.some((c) => c.includes(`Host port ${myPort.hostPort}`));
-        if (!alreadyFlagged) {
-          conflicts.push(
-            `Host port ${myPort.hostPort} (${myPort.service}) is in use by a running container`,
-          );
-        }
+      const owners = portOwners.get(myPort.hostPort!);
+      if (!owners || owners.size === 0) continue;
+
+      const ownedEntirelyByMe = Array.from(owners).every((id) => myContainerIds.has(id));
+      if (ownedEntirelyByMe) continue;
+
+      // Only flag if not already caught by project conflict above
+      const alreadyFlagged = conflicts.some((c) => c.includes(`Host port ${myPort.hostPort}`));
+      if (!alreadyFlagged) {
+        conflicts.push(
+          `Host port ${myPort.hostPort} (${myPort.service}) is in use by a running container`,
+        );
       }
     }
 
