@@ -959,6 +959,12 @@ export function routes(
         res.json({
           success: true,
           data: project,
+          // Keys the project has saved that the resolved compose file doesn't
+          // reference anywhere (environment/env_file/build.args) — editing
+          // these in the UI cannot take effect on the next deploy. Lets the
+          // env editor warn on a variable before someone spends a save cycle
+          // wondering why it didn't do anything.
+          unmanagedEnvVars: projectService.getUnmanagedEnvVarKeys(req.params.name),
         });
       } catch (error) {
         logger.error(`Error getting project ${req.params.name}:`, error);
@@ -1003,6 +1009,7 @@ export function routes(
         res.json({
           success: true,
           data: project,
+          unmanagedEnvVars: projectService.getUnmanagedEnvVarKeys(req.params.name),
         });
       } catch (error) {
         logger.error(`Error updating project ${req.params.name}:`, error);

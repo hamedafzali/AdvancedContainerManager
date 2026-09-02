@@ -414,6 +414,27 @@ export class ProjectService {
     }
   }
 
+  // The inverse of getMissingEnvVars: keys the project HAS saved that this
+  // compose file doesn't reference anywhere (environment, env_file, or
+  // build.args) — i.e. editing them in ACM's UI cannot possibly take effect
+  // on the next deploy. This happens in practice when a var only made sense
+  // under a different compose file (a dev/prod override never adopted by the
+  // live one) or was hand-typed once based on a stale .env.example and never
+  // pruned. `extractRequiredEnvVars` is intentionally NOT consulted here —
+  // it's a raw regex match, not YAML-structure-aware, so it can't enumerate
+  // "every var this compose file could reference" the way extractDefinedEnvVars
+  // does; it only classifies required-vs-defaulted for vars already found.
+  public getUnmanagedEnvVarKeys(projectName: string): string[] {
+    const project = this.projects.get(projectName);
+    if (!project) return [];
+    const composeFile = this.resolveComposeFile(project);
+    if (!composeFile) return [];
+    const declared = this.extractDefinedEnvVars(composeFile);
+    return Object.keys(project.environmentVars || {}).filter(
+      (key) => !(key in declared),
+    );
+  }
+
   private getMissingEnvVars(
     composeFile: string,
     envVars: Record<string, string>,

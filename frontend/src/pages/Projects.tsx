@@ -124,6 +124,11 @@ export default function Projects() {
   const [envEditor, setEnvEditor] = useState<
     Array<{ key: string; value: string }>
   >([]);
+  // Keys the backend says aren't referenced anywhere in this project's
+  // resolved compose file — editing them here cannot take effect on the next
+  // deploy (see getUnmanagedEnvVarKeys). Populated when the env modal opens
+  // and refreshed after each save so a stale warning never lingers.
+  const [unmanagedEnvVars, setUnmanagedEnvVars] = useState<string[]>([]);
   const [repoUrlEditor, setRepoUrlEditor] = useState("");
   const [branchEditor, setBranchEditor] = useState("");
   const [composeFileEditor, setComposeFileEditor] = useState("");
@@ -515,6 +520,7 @@ export default function Projects() {
     setWebhookSecret(null);
     setEnvTab("common");
     setOverrideEditor([]);
+    setUnmanagedEnvVars([]);
     const entries = Object.entries(project.environmentVars || {}).map(
       ([key, value]) => ({ key, value }),
     );
@@ -534,6 +540,10 @@ export default function Projects() {
       })),
     );
     setShowEnvModal(true);
+    apiFetch(`/api/projects/${encodeURIComponent(project.name)}`)
+      .then((r) => r.json())
+      .then((result) => setUnmanagedEnvVars(result?.unmanagedEnvVars || []))
+      .catch(() => setUnmanagedEnvVars([]));
   };
 
   const switchEnvTab = async (
@@ -652,6 +662,7 @@ export default function Projects() {
       }
 
       await fetchProjects();
+      setUnmanagedEnvVars(result?.unmanagedEnvVars || []);
       setShowEnvModal(false);
       setEnvProject(null);
       setEnvEditor([]);
@@ -2005,35 +2016,54 @@ export default function Projects() {
 
                 {envTab === "common" ? (
                   <>
-                    {envEditor.map((env, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input
-                          type="text"
-                          placeholder="KEY"
-                          value={env.key}
-                          onChange={(e) =>
-                            updateEnvEditorRow(index, "key", e.target.value)
-                          }
-                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <input
-                          type="text"
-                          placeholder="VALUE"
-                          value={env.value}
-                          onChange={(e) =>
-                            updateEnvEditorRow(index, "value", e.target.value)
-                          }
-                          className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                        <button
-                          onClick={() => removeEnvEditorRow(index)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                          title="Remove"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
+                    {envEditor.map((env, index) => {
+                      const isUnmanaged =
+                        env.key && unmanagedEnvVars.includes(env.key);
+                      return (
+                        <div key={index}>
+                          <div className="flex items-center space-x-2">
+                            <input
+                              type="text"
+                              placeholder="KEY"
+                              value={env.key}
+                              onChange={(e) =>
+                                updateEnvEditorRow(index, "key", e.target.value)
+                              }
+                              className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                isUnmanaged
+                                  ? "border-amber-400 dark:border-amber-600"
+                                  : "border-gray-300 dark:border-gray-600"
+                              }`}
+                            />
+                            <input
+                              type="text"
+                              placeholder="VALUE"
+                              value={env.value}
+                              onChange={(e) =>
+                                updateEnvEditorRow(index, "value", e.target.value)
+                              }
+                              className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                isUnmanaged
+                                  ? "border-amber-400 dark:border-amber-600"
+                                  : "border-gray-300 dark:border-gray-600"
+                              }`}
+                            />
+                            <button
+                              onClick={() => removeEnvEditorRow(index)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                              title="Remove"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          {isUnmanaged && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                              Not read anywhere in {composeFileEditor || "the compose file"} — saving this has no effect until it's wired into a service's environment or build args.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
                     <button
                       onClick={addEnvEditorRow}
                       className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
