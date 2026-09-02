@@ -24,13 +24,30 @@ export const authHeaders = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export const apiFetch = (path: string, init?: RequestInit): Promise<Response> => {
+// A 401 from ANY endpoint mid-session means the token is no longer valid
+// (expired or revoked) — same fail-open risk as the /api/settings bootstrap
+// bug, but for expiry instead of initial load: a page that just swallows a
+// 401 and keeps rendering stale data reads as "stuck", not "logged out".
+// Handled once here rather than per-call-site so no page can forget it.
+// App.tsx owns the actual redirect: it holds the token/requireAuth state
+// that decides whether <Login> renders, so this only clears storage and
+// signals — it never navigates directly. Login.tsx's own credential check
+// uses a plain fetch(), not apiFetch, so a rejected login never loops back
+// through this handler.
+const handleUnauthorized = (): void => {
+  localStorage.removeItem("acm_token");
+  window.dispatchEvent(new CustomEvent("acm:unauthorized"));
+};
+
+export const apiFetch = async (path: string, init?: RequestInit): Promise<Response> => {
   const url = apiUrl(path);
   const headers: Record<string, string> = {
     ...authHeaders(),
     ...(init?.headers as Record<string, string> | undefined),
   };
-  return fetch(url, { ...init, headers });
+  const response = await fetch(url, { ...init, headers });
+  if (response.status === 401) handleUnauthorized();
+  return response;
 };
 
 // JSON convenience wrapper: parses the body, throws Error with the backend

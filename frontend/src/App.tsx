@@ -109,6 +109,17 @@ function App() {
       .catch(() => {});
   }, [token, requireAuth]);
 
+  // Centralized mid-session expiry: apiFetch (utils/api.ts) clears the stored
+  // token and fires this on a 401 from ANY endpoint, not just the /auth/me
+  // check above — so a token that expires while the user is on, say,
+  // Pipelines or Terminal still drops back to <Login> instead of leaving
+  // that page stuck rendering against a dead session.
+  useEffect(() => {
+    const onUnauthorized = () => setToken(null);
+    window.addEventListener("acm:unauthorized", onUnauthorized);
+    return () => window.removeEventListener("acm:unauthorized", onUnauthorized);
+  }, []);
+
   if (!authChecked) return null;
 
   if (requireAuth && !token) {
