@@ -370,6 +370,13 @@ export class ProjectService {
     return results;
   }
 
+  // Unlike extractDefinedEnvVars, this one is NOT YAML-structure-aware — it
+  // regex-scans the raw file text for `${VAR...}` patterns wherever they
+  // appear, so a var referenced only inside a service's build.args (e.g.
+  // NEXT_PUBLIC_SITE_URL) is already matched here with no change needed. What
+  // decides "required" vs. not is purely the presence of a default/optional
+  // modifier (:-, -, :+, +) or a required-value modifier (:?, ?) — which is
+  // orthogonal to which YAML section the reference lives in.
   private extractRequiredEnvVars(composeFile: string): string[] {
     try {
       const content = fs.readFileSync(composeFile, "utf8");
@@ -514,6 +521,34 @@ export class ProjectService {
           typeof service.environment === "object"
         ) {
           for (const [key, value] of Object.entries(service.environment)) {
+            assign(key, value);
+          }
+        }
+
+        // build.args is a distinct variable category from environment/env_file:
+        // NEXT_PUBLIC_* (and any other) vars declared only here are inlined at
+        // image-build time, not passed to the running container's env — but a
+        // project can still only configure them through this same
+        // environmentVars store, so discovery has to see them too or they're
+        // invisible to both pre-population and getMissingEnvVars.
+        const buildArgs = service.build?.args;
+        if (Array.isArray(buildArgs)) {
+          for (const entry of buildArgs) {
+            if (typeof entry !== "string") {
+              continue;
+            }
+            const separatorIndex = entry.indexOf("=");
+            if (separatorIndex === -1) {
+              assign(entry.trim(), "");
+            } else {
+              assign(
+                entry.slice(0, separatorIndex).trim(),
+                entry.slice(separatorIndex + 1).trim(),
+              );
+            }
+          }
+        } else if (buildArgs && typeof buildArgs === "object") {
+          for (const [key, value] of Object.entries(buildArgs)) {
             assign(key, value);
           }
         }

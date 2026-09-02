@@ -981,6 +981,15 @@ export function routes(
           composeFile,
           portUpdates = [],
         } = req.body;
+        // Diagnostic: logs only the KEY NAMES received in this request, never
+        // values (some are secrets). Added to pin down a reported case where a
+        // newly-added common env var (NEXT_PUBLIC_SITE_URL) 200'd and produced
+        // a fresh lastUpdated write, yet never appeared in the persisted
+        // environmentVars — this settles whether the key ever reached the
+        // backend at all vs. was dropped somewhere in updateProjectSettings.
+        logger.info(
+          `PUT /projects/${req.params.name}: environmentVars keys in request = [${Object.keys(environmentVars).join(", ")}]`,
+        );
         const project = await projectService.updateProjectSettings(
           req.params.name,
           {
