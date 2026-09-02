@@ -1289,7 +1289,14 @@ export function routes(
         if (!project) return res.status(404).json({ success: false, message: "Project not found" });
         if (!project.tunnelUrl) return res.status(400).json({ success: false, message: "Project has no active tunnel" });
         if (!cloudflareService.isAuthenticated()) {
-          return res.status(401).json({ success: false, message: "Cloudflare not authenticated — go to Settings → Cloudflare" });
+          // 403, not 401: this is "Cloudflare has no API token configured",
+          // not "you aren't logged into ACM". apiFetch (frontend/src/utils/api.ts)
+          // treats ANY 401 from ANY endpoint as an expired ACM session and force
+          // logs the user out — so a 401 here meant simply opening this tab
+          // before configuring Cloudflare would immediately bounce a fully
+          // logged-in user back to <Login>, and logging back in re-triggered
+          // the same fetch and looped. See the sibling checks below.
+          return res.status(403).json({ success: false, message: "Cloudflare not authenticated — go to Settings → Cloudflare" });
         }
 
         const { zoneId, subdomain } = req.body;
@@ -2066,7 +2073,12 @@ export function routes(
 
         if (!isValid) {
           cloudflareService.clearConfig();
-          return res.status(401).json({
+          // 403, not 401 — see the comment on the /projects/:name/tunnel/domain
+          // check above. This is the submitted Cloudflare token being rejected,
+          // not the caller's own ACM session; a 401 here made the global
+          // unauthorized handler log the ACM user out of the very form they
+          // were using to fix this.
+          return res.status(403).json({
             success: false,
             message: "Invalid Cloudflare API token",
           });
@@ -2092,7 +2104,12 @@ export function routes(
     asyncHandler(async (req, res) => {
       try {
         if (!cloudflareService.isAuthenticated()) {
-          return res.status(401).json({
+          // 403, not 401 — same reasoning as the other Cloudflare checks in
+          // this file: this endpoint is polled from the Edge → Cloudflare
+          // tab as soon as it mounts, so a 401 here logged a fully
+          // authenticated ACM user straight out on first render, and logging
+          // back in just re-triggered the same poll and looped.
+          return res.status(403).json({
             success: false,
             message: "Cloudflare not authenticated",
           });
@@ -2118,7 +2135,8 @@ export function routes(
     asyncHandler(async (req, res) => {
       try {
         if (!cloudflareService.isAuthenticated()) {
-          return res.status(401).json({
+          // 403, not 401 — see the GET handler for this same route above.
+          return res.status(403).json({
             success: false,
             message: "Cloudflare not authenticated",
           });
