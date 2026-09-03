@@ -100,6 +100,56 @@ only ever saved when the stage happened to pass. Fixed: `runStageCommands` now a
 `data/db/pipeline-artifacts/<runId>/<stage>/` is populated on failure too. `captureArtifacts()`
 already tolerated missing/partial paths (logs and skips), so this required no other changes.
 
+### OPEN, UNEXPLAINED: a saved env var sometimes never reaches the deployed container
+
+Observed twice, same signature both times: an operator adds/changes a project env var in the
+settings UI, the `PUT /projects/:name` request 200s, `lastUpdated` bumps, and the operator confirms
+in the UI (including after a page reload) that the new value is saved — yet the value that actually
+shows up in the deployed container's env (`docker exec <container> printenv <VAR>`) is the *old*
+value, sometimes several save-and-redeploy cycles later.
+
+Affected so far: `NEXT_PUBLIC_SITE_URL` (KoodakBook, reported first — see the pre-existing diagnostic
+comment/log in `backend/src/routes/index.ts`'s `PUT /projects/:name` handler, added specifically to
+chase this) and `ADMIN_TELEGRAM_CHAT_ID` (KoodakBook, 2026-09-03 — took four save+redeploy rounds
+before the container showed the correct value).
+
+**Investigated, not found.** For the `ADMIN_TELEGRAM_CHAT_ID` case, code review of the whole path —
+`updateProjectSettings`'s env-var merge order, `saveProjects`/`loadProjects` (sqlite persistence),
+`encryptEnvVars`/`decryptEnvVars` (AES-256-GCM, fresh IV per call), `deployProject`/`runCompose`
+(env passed in-memory to the child process, no file I/O), `pullLatestProject`'s own separate merge —
+found nothing that explains a submitted value being silently dropped or overwritten. In particular:
+- `project.environmentVars = { ...discoveredEnvVars, ...(environmentVars || {}) }` spreads the
+  submitted/stored value *last*, so it should always win over a compose-file-derived default.
+- Confirmed directly: `${ADMIN_TELEGRAM_CHAT_ID:-}`'s empty default resolves to a real `""` entry in
+  `discoveredEnvVars` (via `resolveComposeValue`), but since it's spread first, this alone cannot be
+  the mechanism.
+- `GET /projects/:name` and `deployProject` both read `this.projects.get(name)` — the same in-memory
+  object, same single Node process (confirmed one process, one `ProjectService` instantiation) — so
+  a naive "UI reads stale state" theory doesn't hold either.
+- No periodic/background reload of `this.projects` exists; `loadProjects()` runs once at startup.
+
+On the fourth attempt at the `ADMIN_TELEGRAM_CHAT_ID` case, the value *did* land correctly — but this
+was not attributed to any specific fix. It's possible some earlier "still wrong" observations were
+timing artifacts (checking the container before a redeploy had finished swapping it in — this
+happened at least once during the investigation itself, caught only because the container's own
+`StartedAt` was cross-checked against the deploy log timestamp). It's equally possible this is a real
+intermittent bug that happened not to reproduce once tooling was in place to catch it. Neither has
+been confirmed.
+
+**If this recurs**: don't start from scratch. A branch named `debug/admin-telegram-chat-id-env-trace`
+(may be deleted by the time you read this — recreate from this diff if so) adds four presence+length-
+only log points (never the actual value) tracing one env var end to end:
+1. `routes/index.ts`'s `PUT /projects/:name` handler — the request body as parsed.
+2. `updateProjectSettings` — the payload as received, pre-merge (also logs the compose file's
+   discovered default for the same key, to rule the empty-default theory in or out on the spot).
+3. `updateProjectSettings` — `project.environmentVars` right after the merge + `saveProjects()`.
+4. `deployProject` — `project.environmentVars` right before the `docker compose up` call.
+Comparing lengths across these four points on one clean save-and-redeploy cycle splits "frontend
+never sent the right value" / "merge or save silently dropped it" / "correct in storage but the
+deploy step is reading something else" into three distinct, checkable outcomes — decisively, without
+needing to decrypt the sqlite-stored value (which needs the encryption key file and should not be
+done casually). Generalize past the one hardcoded var name if tracing a different key next time.
+
 ### Resource-limits editor silently deletes/overwrites any project's own `docker-compose.override.yml`
 
 `ProjectService.applyResourceLimits` (`backend/src/services/project-service.ts:2222`) treats
