@@ -100,55 +100,46 @@ only ever saved when the stage happened to pass. Fixed: `runStageCommands` now a
 `data/db/pipeline-artifacts/<runId>/<stage>/` is populated on failure too. `captureArtifacts()`
 already tolerated missing/partial paths (logs and skips), so this required no other changes.
 
-### OPEN, UNEXPLAINED: a saved env var sometimes never reaches the deployed container
+### RESOLVED: a saved env var sometimes never reaches the deployed container
 
-Observed twice, same signature both times: an operator adds/changes a project env var in the
-settings UI, the `PUT /projects/:name` request 200s, `lastUpdated` bumps, and the operator confirms
-in the UI (including after a page reload) that the new value is saved — yet the value that actually
-shows up in the deployed container's env (`docker exec <container> printenv <VAR>`) is the *old*
-value, sometimes several save-and-redeploy cycles later.
+Was tracked here as open and unexplained; has a mundane cause, confirmed 2026-09-03. **A project's
+env vars only reach the container when the deploy that recreates it runs through ACM's own
+`deployProject` path.** That path passes `project.environmentVars` (settings-store value, merged
+over compose-discovered defaults) in-memory straight to the `docker compose up` child process.
+Any deploy that instead runs `docker compose up`/`--build` directly (SSH into the host, or into
+this container, bypassing the API) invokes compose with none of that in-memory env — compose falls
+back to its own `${VAR:-default}` substitution against the project directory's checked-out `.env`
+file, silently: a var that lives only in ACM's settings store (never written to `.env`) resolves to
+its default (typically empty), and a var that *is* in `.env` — because someone, at some point,
+wrote to that file directly instead of through ACM — silently wins over whatever ACM's UI shows as
+saved. No error, no log, nothing to page-reload-and-recheck: the request that "saved" the value was
+never wrong, the *next* deploy just didn't use it.
 
-Affected so far: `NEXT_PUBLIC_SITE_URL` (KoodakBook, reported first — see the pre-existing diagnostic
-comment/log in `backend/src/routes/index.ts`'s `PUT /projects/:name` handler, added specifically to
-chase this) and `ADMIN_TELEGRAM_CHAT_ID` (KoodakBook, 2026-09-03 — took four save+redeploy rounds
-before the container showed the correct value).
+Confirmed directly on KoodakBook, same day: `TELEGRAM_BOT_TOKEN` was set in ACM's project settings,
+but a `docker compose up -d --build backend` run by hand over SSH left it at length 0 in the running
+container — while `ADMIN_PASSWORD`, previously written directly into `.env` outside ACM (a process
+mistake, now corrected), came through as *that* stale file value instead of ACM's current one. A
+subsequent deploy through ACM's own UI fixed both in one pass: `TELEGRAM_BOT_TOKEN` landed non-empty
+and `ADMIN_PASSWORD` switched to ACM's stored value. Same signature as the `NEXT_PUBLIC_SITE_URL`
+and `ADMIN_TELEGRAM_CHAT_ID` incidents below the fold in this project's history — treat those as
+almost certainly the same mechanism (an out-of-band `docker compose` run, or a stale `.env`
+override, at some point in that project's deploy history), though it wasn't confirmed live at the
+time.
 
-**Investigated, not found.** For the `ADMIN_TELEGRAM_CHAT_ID` case, code review of the whole path —
-`updateProjectSettings`'s env-var merge order, `saveProjects`/`loadProjects` (sqlite persistence),
-`encryptEnvVars`/`decryptEnvVars` (AES-256-GCM, fresh IV per call), `deployProject`/`runCompose`
-(env passed in-memory to the child process, no file I/O), `pullLatestProject`'s own separate merge —
-found nothing that explains a submitted value being silently dropped or overwritten. In particular:
-- `project.environmentVars = { ...discoveredEnvVars, ...(environmentVars || {}) }` spreads the
-  submitted/stored value *last*, so it should always win over a compose-file-derived default.
-- Confirmed directly: `${ADMIN_TELEGRAM_CHAT_ID:-}`'s empty default resolves to a real `""` entry in
-  `discoveredEnvVars` (via `resolveComposeValue`), but since it's spread first, this alone cannot be
-  the mechanism.
-- `GET /projects/:name` and `deployProject` both read `this.projects.get(name)` — the same in-memory
-  object, same single Node process (confirmed one process, one `ProjectService` instantiation) — so
-  a naive "UI reads stale state" theory doesn't hold either.
-- No periodic/background reload of `this.projects` exists; `loadProjects()` runs once at startup.
+**Standing rule: never deploy a project with a raw `docker compose` command over SSH — always
+deploy through ACM's own UI/API.** A manual `docker compose up`/`--build` silently drops every
+ACM-only env var back to its compose-file default the moment it recreates the container, and lets
+any stale `.env`-file value silently outrank ACM's current setting. If a deploy has to happen
+outside ACM for some reason, treat every ACM-only var as suspect afterward and redeploy through ACM
+before trusting the result.
 
-On the fourth attempt at the `ADMIN_TELEGRAM_CHAT_ID` case, the value *did* land correctly — but this
-was not attributed to any specific fix. It's possible some earlier "still wrong" observations were
-timing artifacts (checking the container before a redeploy had finished swapping it in — this
-happened at least once during the investigation itself, caught only because the container's own
-`StartedAt` was cross-checked against the deploy log timestamp). It's equally possible this is a real
-intermittent bug that happened not to reproduce once tooling was in place to catch it. Neither has
-been confirmed.
-
-**If this recurs**: don't start from scratch. A branch named `debug/admin-telegram-chat-id-env-trace`
-(may be deleted by the time you read this — recreate from this diff if so) adds four presence+length-
-only log points (never the actual value) tracing one env var end to end:
-1. `routes/index.ts`'s `PUT /projects/:name` handler — the request body as parsed.
-2. `updateProjectSettings` — the payload as received, pre-merge (also logs the compose file's
-   discovered default for the same key, to rule the empty-default theory in or out on the spot).
-3. `updateProjectSettings` — `project.environmentVars` right after the merge + `saveProjects()`.
-4. `deployProject` — `project.environmentVars` right before the `docker compose up` call.
-Comparing lengths across these four points on one clean save-and-redeploy cycle splits "frontend
-never sent the right value" / "merge or save silently dropped it" / "correct in storage but the
-deploy step is reading something else" into three distinct, checkable outcomes — decisively, without
-needing to decrypt the sqlite-stored value (which needs the encryption key file and should not be
-done casually). Generalize past the one hardcoded var name if tracing a different key next time.
+The original investigation (env-var merge order, sqlite persistence, encryption, in-memory
+`this.projects` reads) genuinely found nothing wrong in `deployProject`'s own code — because there
+wasn't anything wrong there; the deploys that failed to pick up the new value weren't going through
+that code path at all. No fix was needed in ACM itself. The `debug/admin-telegram-chat-id-env-trace`
+branch's four presence+length-only log points are no longer needed and have been removed; if a
+value still doesn't land after a deploy confirmed to have gone through ACM's own UI/API, that would
+be a genuinely new symptom worth re-instrumenting for, not a recurrence of this one.
 
 ### Resource-limits editor silently deletes/overwrites any project's own `docker-compose.override.yml`
 
