@@ -100,6 +100,33 @@ only ever saved when the stage happened to pass. Fixed: `runStageCommands` now a
 `data/db/pipeline-artifacts/<runId>/<stage>/` is populated on failure too. `captureArtifacts()`
 already tolerated missing/partial paths (logs and skips), so this required no other changes.
 
+### Resource-limits editor silently deletes/overwrites any project's own `docker-compose.override.yml`
+
+`ProjectService.applyResourceLimits` (`backend/src/services/project-service.ts:2222`) treats
+`docker-compose.override.yml` as ACM's own private scratch file for per-project CPU/memory limits.
+When limits are unset or at default, it unconditionally `fs.unlinkSync`s that path; when limits are
+set, it overwrites the whole file with a fresh `{ services: { <name>: { deploy: { resources: ... } } } }`
+document. Either way, anything else that was in that file is destroyed with no warning, no diff, no
+backup.
+
+`docker-compose.override.yml` is not an ACM-private name — it's the standard Docker Compose
+convention for local/environment-specific overrides (auto-merged by `docker compose up` with no
+extra flag), so any managed project has an entirely legitimate, ACM-unrelated reason to have one.
+Confirmed live: KoodakBook committed one to restrict two ports to loopback-only (a security fix,
+unrelated to resource limits); a resource-limits save on that project in ACM (including one that
+lands back at defaults) deleted it, and the ports it was meant to protect were live-exposed on
+`0.0.0.0` as a result. Any other managed project using this filename for its own purposes is
+equally at risk, silently, the next time its resource limits are touched in ACM.
+
+Two ways to close this, from least to most invasive: (a) `applyResourceLimits` should merge into
+an existing override file's `services.<name>.deploy.resources` keys rather than clobbering the
+whole document, and delete only its own keys (not the file) when limits reset to default; (b)
+simpler and more robust — stop using the standard filename at all and write ACM's own limits to a
+distinctly-named file (e.g. `docker-compose.acm-resources.yml`) that Compose won't auto-merge
+unless explicitly listed with `-f`, requiring ACM to pass `-f docker-compose.yml -f
+docker-compose.acm-resources.yml` explicitly wherever it invokes compose for a project with limits
+set. (b) fully removes the collision; (a) only reduces its blast radius.
+
 ## Suggested Next Enhancements
 
 1. Persist `/api/settings` to disk (same config store as projects) with schema validation
