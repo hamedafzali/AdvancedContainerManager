@@ -925,8 +925,35 @@ export class ProjectService {
 
     try {
       const recovery = await this.ensureProjectRepo(project);
+
+      // Check first, stop only if needed — a plain sync check (nothing new
+      // to pull) used to unconditionally `compose down` the live project
+      // right here, before we even knew whether anything would change. On a
+      // no-op sync that took the project offline for no reason, and if the
+      // subsequent deployProject() call then failed or got rejected as a
+      // DeployInProgressError (e.g. an overlapping sync-deploy call), the
+      // containers were left stopped with nothing bringing them back up.
+      // Now the `down` only runs once we know a reset/checkout is about to
+      // happen, right before it, so a no-op sync never touches the running
+      // containers at all.
+      const git = simpleGit();
+      const repo = git.cwd(project.path);
+      let status = await repo.status();
+      const before = status.current || project.branch || "main";
+
+      const hasTrackedChanges =
+        status.modified.length > 0 ||
+        status.created.length > 0 ||
+        status.deleted.length > 0 ||
+        status.renamed.length > 0;
+
+      await repo.fetch("origin", before);
+      const localHead = (await repo.revparse(["HEAD"])).trim();
+      const remoteHead = (await repo.revparse([`origin/${before}`])).trim();
+      const updated = localHead !== remoteHead;
+
       const composeFile = this.resolveComposeFile(project);
-      if (composeFile) {
+      if (composeFile && (hasTrackedChanges || updated)) {
         this.logger.info(
           `Stopping project ${name} before sync using ${path.basename(composeFile)}`,
         );
@@ -947,17 +974,6 @@ export class ProjectService {
         }
       }
 
-      const git = simpleGit();
-      const repo = git.cwd(project.path);
-      let status = await repo.status();
-      const before = status.current || project.branch || "main";
-
-      const hasTrackedChanges =
-        status.modified.length > 0 ||
-        status.created.length > 0 ||
-        status.deleted.length > 0 ||
-        status.renamed.length > 0;
-
       let discardedChanges = false;
       if (hasTrackedChanges) {
         this.logger.warn(
@@ -967,11 +983,6 @@ export class ProjectService {
         discardedChanges = true;
         status = await repo.status();
       }
-
-      await repo.fetch("origin", before);
-      const localHead = (await repo.revparse(["HEAD"])).trim();
-      const remoteHead = (await repo.revparse([`origin/${before}`])).trim();
-      const updated = localHead !== remoteHead;
 
       if (updated) {
         await repo.reset(["--hard", `origin/${before}`]);
