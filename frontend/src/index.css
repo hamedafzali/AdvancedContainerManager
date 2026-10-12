@@ -18,6 +18,32 @@
     @apply transition-colors duration-300;
   }
 
+  /* One visible focus ring for keyboard users everywhere; mouse clicks don't
+     show it. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
+  }
+
+  [tabindex="-1"]:focus-visible {
+    @apply ring-0 ring-offset-0;
+  }
+
+  .app-shell {
+    height: 100vh;
+    height: 100dvh;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
   /* Form controls default to white in browsers; give them proper dark styling
      so fields never stay light inside dark cards/modals. */
   input:not([type="checkbox"]):not([type="radio"]),

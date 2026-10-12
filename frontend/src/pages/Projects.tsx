@@ -1265,7 +1265,7 @@ export default function Projects() {
                             <>
                               {port.hostPort ? `${port.hostPort}→` : ""}{port.containerPort}
                               <span className={`ml-1 ${hasConflict ? "text-red-400" : "text-blue-400"}`}>{port.service}</span>
-                              {hasConflict && <span className="ml-1">⚠</span>}
+                              {hasConflict && <AlertTriangle className="w-3 h-3 ml-1 inline" aria-label="Port conflict" />}
                             </>
                           );
                           // Exposed host ports are clickable — open the app in a new tab
@@ -1621,8 +1621,8 @@ export default function Projects() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name</label>
-                  <input
+                  <label htmlFor="projects-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name</label>
+                  <input id="projects-field-1"
                     type="text"
                     value={newProject.name}
                     onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
@@ -1631,8 +1631,8 @@ export default function Projects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository URL</label>
-                  <input
+                  <label htmlFor="projects-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository URL</label>
+                  <input id="projects-field-2"
                     type="text"
                     value={newProject.repository}
                     onChange={(e) => setNewProject({ ...newProject, repository: e.target.value })}
@@ -1771,8 +1771,8 @@ export default function Projects() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token</label>
-                <input
+                <label htmlFor="projects-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token</label>
+                <input id="projects-field-3"
                   type="password"
                   value={gitToken}
                   onChange={(e) => setGitToken(e.target.value)}
@@ -1910,10 +1910,10 @@ export default function Projects() {
             <div className="p-6 max-h-[60vh] overflow-auto">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="projects-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Repository URL
                   </label>
-                  <input
+                  <input id="projects-field-4"
                     type="text"
                     value={repoUrlEditor}
                     onChange={(e) => setRepoUrlEditor(e.target.value)}
@@ -1922,10 +1922,10 @@ export default function Projects() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label htmlFor="projects-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Branch
                   </label>
-                  <input
+                  <input id="projects-field-5"
                     type="text"
                     value={branchEditor}
                     onChange={(e) => setBranchEditor(e.target.value)}
@@ -1936,10 +1936,10 @@ export default function Projects() {
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label htmlFor="projects-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Compose File
                 </label>
-                <input
+                <input id="projects-field-6"
                   type="text"
                   value={composeFileEditor}
                   onChange={(e) => setComposeFileEditor(e.target.value)}

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
 import { usePolling } from "@/hooks/usePolling";
+import { Button, ToggleChip } from "@/components/ui";
 
 interface PredictiveMetric {
   timestamp: string;
@@ -94,12 +95,30 @@ export default function Analytics() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMetric, setSelectedMetric] = useState<string>("cpu");
-  const [timeRange, setTimeRange] = useState<string>("7d");
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true);
+
+  const exportAnalytics = () => {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      predictiveMetrics,
+      anomalies,
+      trends,
+      capacityPlans,
+      costForecasts,
+      insights,
+    };
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `analytics-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const fetchAnalyticsData = async () => {
     try {
-      setLoading(true);
 
       // Fetch all analytics data in parallel
       const [
@@ -245,32 +264,20 @@ export default function Analytics() {
                   AI-powered insights and predictive analytics
                 </p>
               </div>
-              <div className="flex items-center space-x-4">
-                <select
-                  value={timeRange}
-                  onChange={(e) => setTimeRange(e.target.value)}
-                  className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
+              <div className="flex items-center gap-3">
+                <ToggleChip
+                  label="Auto-refresh"
+                  icon={<RefreshCw className="w-4 h-4" aria-hidden="true" />}
+                  checked={autoRefresh}
+                  onChange={setAutoRefresh}
+                />
+                <Button
+                  variant="primary"
+                  icon={<Download className="w-4 h-4" />}
+                  onClick={exportAnalytics}
                 >
-                  <option value="1d">Last 24 Hours</option>
-                  <option value="7d">Last 7 Days</option>
-                  <option value="30d">Last 30 Days</option>
-                  <option value="90d">Last 90 Days</option>
-                </select>
-                <button
-                  onClick={() => setAutoRefresh(!autoRefresh)}
-                  className={`px-4 py-2 rounded-lg transition-colors duration-200 ${
-                    autoRefresh
-                      ? "bg-green-600 hover:bg-green-700 text-white"
-                      : "bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 text-gray-700 dark:text-gray-300"
-                  }`}
-                >
-                  <RefreshCw
-                    className={`w-4 h-4 ${autoRefresh ? "animate-spin" : ""}`}
-                  />
-                </button>
-                <button className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200">
-                  <Download className="w-4 h-4" />
-                </button>
+                  Export
+                </Button>
               </div>
             </div>
           </div>

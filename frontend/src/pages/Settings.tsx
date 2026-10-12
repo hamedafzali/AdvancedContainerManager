@@ -393,10 +393,10 @@ export default function Settings() {
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Theme
                       </label>
-                      <select
+                      <select id="settings-field-1"
                         value={settings.general.theme}
                         onChange={(e) => updateSetting("general", "theme", e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -408,10 +408,10 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Language
                       </label>
-                      <select
+                      <select id="settings-field-2"
                         value={settings.general.language}
                         onChange={(e) => updateSetting("general", "language", e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -436,10 +436,10 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Refresh Interval (ms)
                       </label>
-                      <input
+                      <input id="settings-field-3"
                         type="number"
                         value={settings.general.refreshInterval}
                         onChange={(e) => updateSetting("general", "refreshInterval", parseInt(e.target.value))}
@@ -534,10 +534,10 @@ export default function Settings() {
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Default Registry
                       </label>
-                      <input
+                      <input id="settings-field-4"
                         type="text"
                         value={settings.docker.defaultRegistry}
                         onChange={(e) => updateSetting("docker", "defaultRegistry", e.target.value)}
@@ -556,10 +556,10 @@ export default function Settings() {
                     </label>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Prune Interval (ms)
                       </label>
-                      <input
+                      <input id="settings-field-5"
                         type="number"
                         value={settings.docker.pruneInterval}
                         onChange={(e) => updateSetting("docker", "pruneInterval", parseInt(e.target.value))}
@@ -568,10 +568,10 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Max Containers
                       </label>
-                      <input
+                      <input id="settings-field-6"
                         type="number"
                         value={settings.docker.maxContainers}
                         onChange={(e) => updateSetting("docker", "maxContainers", parseInt(e.target.value))}
@@ -613,10 +613,10 @@ export default function Settings() {
                     </label>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-7" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Session Timeout (ms)
                       </label>
-                      <input
+                      <input id="settings-field-7"
                         type="number"
                         value={settings.security.sessionTimeout}
                         onChange={(e) => updateSetting("security", "sessionTimeout", parseInt(e.target.value))}
@@ -625,10 +625,10 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-8" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Max Login Attempts
                       </label>
-                      <input
+                      <input id="settings-field-8"
                         type="number"
                         value={settings.security.maxLoginAttempts}
                         onChange={(e) => updateSetting("security", "maxLoginAttempts", parseInt(e.target.value))}
@@ -675,10 +675,10 @@ export default function Settings() {
                     </label>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-9" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Max Requests
                       </label>
-                      <input
+                      <input id="settings-field-9"
                         type="number"
                         value={settings.api.maxRequests}
                         onChange={(e) => updateSetting("api", "maxRequests", parseInt(e.target.value))}
@@ -687,10 +687,10 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      <label htmlFor="settings-field-10" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Window (ms)
                       </label>
-                      <input
+                      <input id="settings-field-10"
                         type="number"
                         value={settings.api.windowMs}
                         onChange={(e) => updateSetting("api", "windowMs", parseInt(e.target.value))}
@@ -715,8 +715,8 @@ export default function Settings() {
                       ))}
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token</label>
-                      <input
+                      <label htmlFor="settings-field-11" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token</label>
+                      <input id="settings-field-11"
                         type="password"
                         value={gitToken}
                         onChange={(e) => setGitToken(e.target.value)}

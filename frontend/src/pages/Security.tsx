@@ -106,7 +106,6 @@ export default function Security() {
 
   const fetchSecurityData = async () => {
     try {
-      setLoading(true);
 
       const [scansResponse, alertsResponse, policiesResponse, metricsResponse] =
         await Promise.all([

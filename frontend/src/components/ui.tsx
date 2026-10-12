@@ -1,10 +1,15 @@
 import {
   ReactNode,
   ButtonHTMLAttributes,
+  KeyboardEvent as ReactKeyboardEvent,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 import { Loader2, X, AlertCircle, MoreVertical } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -163,14 +168,47 @@ export function Modal({
   footer?: ReactNode;
   wide?: boolean;
 }) {
+  const titleId = useId();
+  const panel = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+
+  // Focus moves into the dialog on open, Tab cycles inside it, and focus goes
+  // back to whatever opened it on close.
   useEffect(() => {
     if (!open) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const el = panel.current;
+    if (el && !el.contains(document.activeElement)) {
+      const first = el.querySelector("[data-modal-body]")?.querySelector<HTMLElement>(FOCUSABLE);
+      (first ?? el).focus();
+    }
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      // Only the innermost dialog holding focus reacts.
+      if ((document.activeElement as HTMLElement | null)?.closest('[role="dialog"]') !== el) return;
+      if (e.key === "Escape") {
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !el) return;
+      const items = Array.from(el.querySelectorAll<HTMLElement>(FOCUSABLE));
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      opener?.focus?.();
+    };
+  }, [open]);
 
   if (!open) return null;
 
@@ -182,17 +220,24 @@ export function Modal({
       }}
     >
       <div
-        className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full ${wide ? "max-w-4xl" : "max-w-lg"} max-h-[85vh] flex flex-col`}
+        ref={panel}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full outline-none ${wide ? "max-w-4xl" : "max-w-lg"} max-h-[85vh] flex flex-col`}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+          <h3 id={titleId} className="text-lg font-medium text-gray-900 dark:text-gray-100">
             {title}
           </h3>
           <IconButton label="Close" onClick={onClose}>
             <X className="w-4 h-4" />
           </IconButton>
         </div>
-        <div className="px-6 py-4 overflow-y-auto flex-1">{children}</div>
+        <div data-modal-body className="px-6 py-4 overflow-y-auto flex-1">
+          {children}
+        </div>
         {footer && (
           <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
             {footer}
@@ -260,11 +305,11 @@ export function ConfirmDialog({
         <div>{message}</div>
         {requireText && (
           <div>
-            <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+            <label htmlFor="ui-field-1" className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
               Type <span className="font-mono font-semibold">{requireText}</span>{" "}
               to confirm
             </label>
-            <input
+            <input id="ui-field-1"
               autoFocus
               value={typed}
               onChange={(e) => setTyped(e.target.value)}
@@ -334,7 +379,7 @@ export function ErrorBanner({
 }) {
   if (!message) return null;
   return (
-    <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
+    <div role="alert" className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl px-4 py-3">
       <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
       <span className="text-sm text-red-800 dark:text-red-300 flex-1 break-words">
         {message}
@@ -468,6 +513,31 @@ export function DropdownMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
+
+  const menuItems = () =>
+    Array.from(
+      ref.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not([disabled])') ?? [],
+    );
+
+  useEffect(() => {
+    if (open) menuItems()[0]?.focus();
+  }, [open]);
+
+  const onMenuKey = (e: ReactKeyboardEvent) => {
+    const list = menuItems();
+    const i = list.indexOf(document.activeElement as HTMLButtonElement);
+    const move = (n: number) => {
+      e.preventDefault();
+      list[(n + list.length) % list.length]?.focus();
+    };
+    if (e.key === "ArrowDown") move(i + 1);
+    else if (e.key === "ArrowUp") move(i - 1);
+    else if (e.key === "Home") move(0);
+    else if (e.key === "End") move(list.length - 1);
+    else if (e.key === "Tab") setOpen(false);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -477,7 +547,10 @@ export function DropdownMenu({
       }
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -490,28 +563,44 @@ export function DropdownMenu({
   return (
     <div className="relative inline-block" ref={ref}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" && !open) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
         aria-label={triggerLabel}
+        aria-haspopup="menu"
         aria-expanded={open}
+        aria-controls={open ? menuId : undefined}
         className="p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 transition-colors duration-200"
       >
         {trigger ?? <MoreVertical className="w-4 h-4" />}
       </button>
       {open && (
         <div
+          id={menuId}
+          role="menu"
+          aria-label={triggerLabel}
+          onKeyDown={onMenuKey}
           className={`absolute z-30 mt-1 min-w-[180px] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-1 ${align === "right" ? "right-0" : "left-0"}`}
         >
           {items.map((item, i) => (
             <div key={i}>
               {item.dividerAbove && (
-                <div className="my-1 border-t border-gray-100 dark:border-gray-700" />
+                <div role="separator" className="my-1 border-t border-gray-100 dark:border-gray-700" />
               )}
               <button
                 type="button"
+                role="menuitem"
+                tabIndex={-1}
                 disabled={item.disabled}
                 onClick={() => {
                   setOpen(false);
+                  triggerRef.current?.focus();
                   item.onClick();
                 }}
                 className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors duration-150 disabled:opacity-40 disabled:cursor-not-allowed ${

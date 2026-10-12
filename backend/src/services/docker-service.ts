@@ -682,8 +682,22 @@ export class DockerService {
   // Network Management
   async getAllNetworks(): Promise<NetworkInfo[]> {
     try {
-      const networks = await this.docker.listNetworks();
-      return networks.map((network) => this.formatNetworkInfo(network));
+      // The list endpoint leaves Containers empty; count attachments from one
+      // container listing instead of inspecting every network.
+      const [networks, containers] = await Promise.all([
+        this.docker.listNetworks(),
+        this.docker.listContainers({ all: true }),
+      ]);
+      const attached = new Map<string, number>();
+      for (const c of containers) {
+        for (const net of Object.values<any>(c.NetworkSettings?.Networks || {})) {
+          if (net?.NetworkID) attached.set(net.NetworkID, (attached.get(net.NetworkID) || 0) + 1);
+        }
+      }
+      return networks.map((network) => ({
+        ...this.formatNetworkInfo(network),
+        containers: attached.get(network.Id) || 0,
+      }));
     } catch (error) {
       this.logger.error("Error fetching networks:", error);
       throw error;

@@ -270,10 +270,10 @@ export default function Volumes() {
         }
       >
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+          <label htmlFor="volumes-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Volume Name
           </label>
-          <input
+          <input id="volumes-field-1"
             autoFocus
             type="text"
             value={newVolumeName}

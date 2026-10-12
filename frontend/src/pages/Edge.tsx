@@ -200,10 +200,10 @@ function TunnelsTab() {
           </h2>
           <form onSubmit={createTunnel} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="edge-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Tunnel Name
               </label>
-              <input
+              <input id="edge-field-1"
                 type="text"
                 value={newTunnel.name}
                 onChange={(e) =>
@@ -215,10 +215,10 @@ function TunnelsTab() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="edge-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Running App Port
               </label>
-              <input
+              <input id="edge-field-2"
                 type="number"
                 value={newTunnel.port}
                 onChange={(e) =>
@@ -233,10 +233,10 @@ function TunnelsTab() {
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="edge-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Custom Domain (optional)
               </label>
-              <input
+              <input id="edge-field-3"
                 type="text"
                 value={newTunnel.domain}
                 onChange={(e) =>
@@ -478,10 +478,10 @@ function CloudflareTab() {
           </h2>
           <form onSubmit={handleAuth} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="edge-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 API Token
               </label>
-              <input
+              <input id="edge-field-4"
                 type="password"
                 value={apiToken}
                 onChange={(e) => setApiToken(e.target.value)}
@@ -495,10 +495,10 @@ function CloudflareTab() {
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label htmlFor="edge-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Account ID (Optional)
               </label>
-              <input
+              <input id="edge-field-5"
                 type="text"
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
@@ -545,10 +545,10 @@ function CloudflareTab() {
                 </h3>
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label htmlFor="edge-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Domain Name
                     </label>
-                    <input
+                    <input id="edge-field-6"
                       type="text"
                       value={newDomain}
                       onChange={(e) => setNewDomain(e.target.value)}

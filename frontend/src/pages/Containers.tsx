@@ -881,10 +881,10 @@ export default function Containers() {
         <div className="space-y-4">
           {createError && <ErrorBanner message={createError} />}
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="containers-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Image
             </label>
-            <select
+            <select id="containers-field-1"
               value={createForm.image}
               onChange={(e) =>
                 setCreateForm((prev) => ({ ...prev, image: e.target.value }))
@@ -909,10 +909,10 @@ export default function Containers() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="containers-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Container Port
               </label>
-              <input
+              <input id="containers-field-2"
                 type="number"
                 value={createForm.containerPort}
                 onChange={(e) =>
@@ -926,10 +926,10 @@ export default function Containers() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="containers-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Host Port (optional)
               </label>
-              <input
+              <input id="containers-field-3"
                 type="number"
                 value={createForm.hostPort}
                 onChange={(e) =>
@@ -944,10 +944,10 @@ export default function Containers() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="containers-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Packages (optional)
             </label>
-            <input
+            <input id="containers-field-4"
               type="text"
               value={createForm.packagesText}
               onChange={(e) =>
@@ -965,10 +965,10 @@ export default function Containers() {
             </p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="containers-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Environment Variables (optional)
             </label>
-            <textarea
+            <textarea id="containers-field-5"
               value={createForm.envText}
               onChange={(e) =>
                 setCreateForm((prev) => ({ ...prev, envText: e.target.value }))
@@ -978,10 +978,10 @@ export default function Containers() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="containers-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Command (optional)
             </label>
-            <input
+            <input id="containers-field-6"
               type="text"
               value={createForm.command}
               onChange={(e) =>

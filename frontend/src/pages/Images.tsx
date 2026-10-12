@@ -384,10 +384,10 @@ export default function Images() {
             tray in the header.
           </p>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="images-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Image Name
             </label>
-            <input
+            <input id="images-field-1"
               type="text"
               value={pullImage.name}
               onChange={(e) =>
@@ -398,10 +398,10 @@ export default function Images() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label htmlFor="images-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Tag
             </label>
-            <input
+            <input id="images-field-2"
               type="text"
               value={pullImage.tag}
               onChange={(e) =>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -17,6 +17,8 @@ import {
   Workflow,
   Download,
   Package,
+  Menu,
+  X,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdvancedSearch } from "@/components/AdvancedSearch";
@@ -114,12 +116,61 @@ export default function Layout() {
   const activeItem = allNavItems.find((item) =>
     location.pathname.startsWith(item.href),
   );
+  const [navOpen, setNavOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const firstRender = useRef(true);
+
+  // After a route change: close the mobile drawer and move focus to the page
+  // so keyboard and screen reader users start at the new content.
+  useEffect(() => {
+    setNavOpen(false);
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    mainRef.current?.focus({ preventScroll: true });
+    mainRef.current?.scrollTo({ top: 0 });
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (activeItem) document.title = `${activeItem.name} · Container Manager`;
+  }, [activeItem]);
+
+  useEffect(() => {
+    if (!navOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setNavOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [navOpen]);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
-      <nav className="w-64 bg-white dark:bg-gray-800 shadow-lg flex flex-col border-r border-gray-200 dark:border-gray-700">
-        <div className="flex items-center p-6 border-b border-gray-200 dark:border-gray-700">
+    <div className="app-shell flex bg-gray-50 dark:bg-gray-900">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-gray-900 focus:text-white"
+      >
+        Skip to content
+      </a>
+
+      {navOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
+          aria-hidden="true"
+          onClick={() => setNavOpen(false)}
+        />
+      )}
+
+      {/* Sidebar: static from lg up, a drawer below */}
+      <nav
+        id="primary-nav"
+        aria-label="Primary"
+        className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-200 lg:static lg:translate-x-0 ${
+          navOpen ? "translate-x-0" : "-translate-x-full"
+        } bg-white dark:bg-gray-800 shadow-lg flex flex-col border-r border-gray-200 dark:border-gray-700`}
+      >
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
             <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center">
               <Layers className="w-6 h-6 text-white" />
@@ -133,6 +184,14 @@ export default function Layout() {
               </p>
             </div>
           </div>
+          <button
+            type="button"
+            onClick={() => setNavOpen(false)}
+            aria-label="Close navigation"
+            className="lg:hidden p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         <div className="flex-1 p-4 space-y-4 overflow-y-auto">
@@ -150,11 +209,12 @@ export default function Layout() {
                     <Link
                       key={item.name}
                       to={item.href}
+                      aria-current={isActive ? "page" : undefined}
                       className={`sidebar-item flex items-center px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 ${
                         isActive ? "active" : ""
                       }`}
                     >
-                      <item.icon className="w-5 h-5 mr-3" />
+                      <item.icon className="w-5 h-5 mr-3" aria-hidden="true" />
                       {item.name}
                     </Link>
                   );
@@ -191,9 +251,19 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
         <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between px-6 py-4 gap-4">
-            <div className="flex items-center space-x-3 shrink-0">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4 gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <button
+                type="button"
+                onClick={() => setNavOpen(true)}
+                aria-label="Open navigation"
+                aria-controls="primary-nav"
+                aria-expanded={navOpen}
+                className="lg:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
                 {activeItem?.name || "Not found"}
               </h2>
               <span
@@ -207,7 +277,8 @@ export default function Layout() {
               </span>
             </div>
 
-            <div className="flex items-center space-x-3 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <div className="hidden md:block">
               <AdvancedSearch
                 items={[]}
                 onSearch={(query, filters) => {
@@ -221,8 +292,9 @@ export default function Layout() {
                     navigate(`/containers?search=${encodeURIComponent(query)}`);
                   }
                 }}
-                className="w-72"
+                className="w-56 xl:w-72"
               />
+              </div>
 
               <TaskTray />
               <ThemeToggle />
@@ -258,8 +330,13 @@ export default function Layout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto">
-          <div className="p-6">
+        <main
+          id="main-content"
+          ref={mainRef}
+          tabIndex={-1}
+          className="flex-1 overflow-auto outline-none"
+        >
+          <div className="p-4 sm:p-6">
             <Outlet />
           </div>
         </main>

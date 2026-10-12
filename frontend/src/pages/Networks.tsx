@@ -1,6 +1,16 @@
-import { useState, useEffect } from "react";
-import { Search, Plus, Trash2, Globe, Wifi, Shield } from "lucide-react";
-import { apiUrl, apiFetch } from "@/utils/api";
+import { useState, useCallback } from "react";
+import { Search, Plus, Trash2, Wifi, Lock } from "lucide-react";
+import { apiJson, apiPost } from "@/utils/api";
+import {
+  Button,
+  IconButton,
+  Modal,
+  ConfirmDialog,
+  ErrorBanner,
+  EmptyState,
+  LoadingState,
+  PageHeader,
+} from "@/components/ui";
 import { usePolling } from "@/hooks/usePolling";
 
 interface Network {
@@ -12,180 +22,339 @@ interface Network {
   gateway: string;
   containers: number;
   created: string;
-  status: "active" | "inactive";
   internal: boolean;
 }
 
+// Docker's own networks cannot be removed.
+const BUILT_IN = new Set(["bridge", "host", "none"]);
+
+const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
+
 export default function Networks() {
   const [networks, setNetworks] = useState<Network[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDriver, setNewDriver] = useState("bridge");
+  const [newInternal, setNewInternal] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Network | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const fetchNetworks = async () => {
+  const fetchNetworks = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await apiFetch("/api/networks");
-      if (!response.ok) {
-        throw new Error("Failed to fetch networks");
-      }
-      const result = await response.json();
-      const data = result.data;
-
-      const transformedNetworks = data.map((network: any) => ({
-        id: network.id,
-        name: network.name,
-        driver: network.driver,
-        scope: network.scope,
-        subnet: network.IPAM?.Config?.[0]?.Subnet || "N/A",
-        gateway: network.IPAM?.Config?.[0]?.Gateway || "N/A",
-        containers: network.containers,
-        created: new Date(network.created).toLocaleString(),
-        status: "active" as const,
-        internal: network.internal || false,
-      }));
-
-      setNetworks(transformedNetworks);
+      const result = await apiJson("/api/networks");
+      setNetworks(
+        (result.data || []).map((n: any) => ({
+          id: n.id,
+          name: n.name,
+          driver: n.driver,
+          scope: n.scope,
+          subnet: n.IPAM?.Config?.[0]?.Subnet || "",
+          gateway: n.IPAM?.Config?.[0]?.Gateway || "",
+          containers: n.containers || 0,
+          created: n.created ? new Date(n.created).toLocaleString() : "",
+          internal: Boolean(n.internal),
+        })),
+      );
+      setError(null);
+      setHasLoaded(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch networks");
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
   usePolling(fetchNetworks, 10000);
 
-  const filteredNetworks = networks.filter(
-    (network) =>
-      network.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      network.driver.toLowerCase().includes(searchTerm.toLowerCase()),
+  const term = searchTerm.toLowerCase();
+  const filtered = networks.filter(
+    (n) => n.name.toLowerCase().includes(term) || n.driver.toLowerCase().includes(term),
   );
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">
-            Loading Networks...
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400">Fetching Docker networks</p>
-        </div>
-      </div>
-    );
+  const openCreate = () => {
+    setNewName("");
+    setNewDriver("bridge");
+    setNewInternal(false);
+    setCreateError(null);
+    setShowCreate(true);
+  };
+
+  const nameProblem =
+    newName && !NAME_RE.test(newName)
+      ? "Use letters, digits, dots, dashes and underscores, starting with a letter or digit."
+      : newName && networks.some((n) => n.name === newName)
+        ? "A network with this name already exists."
+        : null;
+
+  const handleCreate = async () => {
+    const name = newName.trim();
+    if (!name || nameProblem) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      await apiPost("/api/networks", {
+        name,
+        options: { Driver: newDriver, Internal: newInternal },
+      });
+      setShowCreate(false);
+      await fetchNetworks();
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "Failed to create network");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await apiJson(`/api/networks/${encodeURIComponent(deleteTarget.id)}`, {
+        method: "DELETE",
+      });
+      await fetchNetworks();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete network");
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  if (!hasLoaded && !error) {
+    return <LoadingState label="Fetching Docker networks…" />;
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-red-600" />
-          </div>
-          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">
-            Error Loading Networks
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
-          <button
-            onClick={fetchNetworks}
-            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const row = (label: string, value: string | number) => (
+    <div className="flex items-center justify-between gap-3 text-sm">
+      <dt className="text-gray-500 dark:text-gray-400">{label}</dt>
+      <dd className="font-medium text-gray-900 dark:text-gray-100 truncate">{value || "–"}</dd>
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-light text-gray-900 dark:text-gray-100 tracking-tight">
-            Networks
-          </h1>
-          <div className="flex items-center space-x-4">
+    <div className="max-w-7xl mx-auto space-y-6">
+      <PageHeader
+        title="Networks"
+        subtitle={`${networks.length} networks`}
+        actions={
+          <div className="flex items-center gap-3 flex-wrap">
             <div className="relative">
-              <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <Search
+                className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"
+                aria-hidden="true"
+              />
               <input
-                type="text"
-                placeholder="Search networks..."
+                type="search"
+                aria-label="Search networks"
+                placeholder="Search networks…"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
-            <button className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200">
-              <Plus className="w-4 h-4 mr-2" />
+            <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
               Create Network
-            </button>
+            </Button>
           </div>
-        </div>
+        }
+      />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredNetworks.map((network) => (
+      <ErrorBanner message={error} onDismiss={() => setError(null)} onRetry={fetchNetworks} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {filtered.map((network) => {
+          const builtIn = BUILT_IN.has(network.name);
+          return (
             <div
               key={network.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 hover:shadow-md transition-shadow duration-200"
+              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center">
-                  <div
-                    className={`w-3 h-3 rounded-full mr-2 ${network.status === "active" ? "bg-green-500" : "bg-gray-400"}`}
-                  ></div>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${network.containers > 0 ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`}
+                    aria-hidden="true"
+                  />
+                  <h3
+                    className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate"
+                    title={network.name}
+                  >
                     {network.name}
                   </h3>
+                  {builtIn && (
+                    <span className="shrink-0 inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
+                      <Lock className="w-3 h-3" aria-hidden="true" />
+                      built-in
+                    </span>
+                  )}
+                  {network.internal && (
+                    <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
+                      internal
+                    </span>
+                  )}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                    <Trash2 className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                  </button>
-                </div>
+                {!builtIn && (
+                  <IconButton
+                    label={`Delete network ${network.name}`}
+                    tone="danger"
+                    onClick={() => setDeleteTarget(network)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </IconButton>
+                )}
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Driver:</span>
-                  <span className="font-medium">{network.driver}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Scope:</span>
-                  <span className="font-medium">{network.scope}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Subnet:</span>
-                  <span className="font-medium">{network.subnet}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Gateway:</span>
-                  <span className="font-medium">{network.gateway}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Containers:</span>
-                  <span className="font-medium">{network.containers}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500 dark:text-gray-400">Created:</span>
-                  <span className="font-medium">{network.created}</span>
-                </div>
-              </div>
+              <dl className="space-y-3">
+                {row("Driver", network.driver)}
+                {row("Scope", network.scope)}
+                {row("Subnet", network.subnet)}
+                {row("Gateway", network.gateway)}
+                {row(
+                  "Containers",
+                  network.containers === 0 ? "none attached" : `${network.containers} attached`,
+                )}
+                {row("Created", network.created)}
+              </dl>
             </div>
-          ))}
-        </div>
-
-        {filteredNetworks.length === 0 && (
-          <div className="text-center py-12">
-            <Wifi className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
-              No networks found
-            </h3>
-            <p className="text-gray-500 dark:text-gray-400">
-              Get started by creating your first Docker network
-            </p>
-          </div>
-        )}
+          );
+        })}
       </div>
+
+      {hasLoaded && filtered.length === 0 && (
+        <EmptyState
+          icon={<Wifi className="w-6 h-6" />}
+          title={networks.length === 0 ? "No networks yet" : "No networks match your search"}
+          description={
+            networks.length === 0
+              ? "Create a network so containers can reach each other by name."
+              : "Try a different search term."
+          }
+          action={
+            networks.length === 0 ? (
+              <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
+                Create Network
+              </Button>
+            ) : undefined
+          }
+        />
+      )}
+
+      <Modal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Create Network"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setShowCreate(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={creating}
+              disabled={!newName.trim() || Boolean(nameProblem)}
+              onClick={handleCreate}
+            >
+              Create
+            </Button>
+          </>
+        }
+      >
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleCreate();
+          }}
+        >
+          <ErrorBanner message={createError} onDismiss={() => setCreateError(null)} />
+          <div>
+            <label
+              htmlFor="network-name"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Name
+            </label>
+            <input
+              id="network-name"
+              autoFocus
+              type="text"
+              autoComplete="off"
+              spellCheck={false}
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              aria-invalid={Boolean(nameProblem)}
+              aria-describedby={nameProblem ? "network-name-error" : undefined}
+              placeholder="app-backend"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {nameProblem && (
+              <p id="network-name-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
+                {nameProblem}
+              </p>
+            )}
+          </div>
+          <div>
+            <label
+              htmlFor="network-driver"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
+              Driver
+            </label>
+            <select
+              id="network-driver"
+              value={newDriver}
+              onChange={(e) => setNewDriver(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="bridge">bridge (single host)</option>
+              <option value="overlay">overlay (Swarm, multi-host)</option>
+              <option value="macvlan">macvlan</option>
+            </select>
+          </div>
+          <label className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+            <input
+              type="checkbox"
+              checked={newInternal}
+              onChange={(e) => setNewInternal(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              Internal
+              <span className="block text-xs text-gray-500 dark:text-gray-400">
+                Containers on this network cannot reach the internet.
+              </span>
+            </span>
+          </label>
+          <button type="submit" hidden />
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete network"
+        message={
+          deleteTarget && deleteTarget.containers > 0 ? (
+            <>
+              <span className="font-mono font-semibold">{deleteTarget.name}</span> has{" "}
+              {deleteTarget.containers} container(s) attached. Docker refuses to remove a
+              network that is in use, so disconnect or stop them first.
+            </>
+          ) : (
+            <>
+              Delete <span className="font-mono font-semibold">{deleteTarget?.name}</span>? No
+              containers are attached to it.
+            </>
+          )
+        }
+        confirmLabel="Delete network"
+        loading={deleting}
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }
