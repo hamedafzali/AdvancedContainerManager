@@ -8,8 +8,6 @@ ARG VITE_SOCKET_URL
 ENV VITE_API_BASE=$VITE_API_BASE
 ENV VITE_SOCKET_URL=$VITE_SOCKET_URL
 COPY frontend/package*.json ./
-# pixelwizards-components is installed from a vendored tarball until it is on npm.
-COPY frontend/vendor ./vendor
 RUN npm install
 COPY frontend/ ./
 RUN npm run build
