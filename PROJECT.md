@@ -232,8 +232,18 @@ Limits: an isolated data dir starts empty (no copy of prod data). A project's ow
    - running container conflicts
    - host process conflicts (optional via `lsof`/`ss`)
 4. Add automated tests for `ProjectService.updateProjectSettings` validation paths
-5. Move the Docker image off Node 18 (EOL). Needs a rebuild check of the native modules
-   (`better-sqlite3`, `node-pty`).
+
+### Review fixes (2026-10-12)
+
+- Project name, repo URL, branch and compose file path are validated (`utils/project-input.ts`):
+  a name like `../x` used to resolve outside the projects dir, and `file://`/`ext::` URLs or
+  option-like branches went straight to git.
+- The image runs Node 22 (Node 18 is EOL); `better-sqlite3` and `node-pty` were checked in the
+  built image.
+- Pages poll through `usePolling`, which stops while the tab is hidden (each poll is a Docker API
+  call on the server) and refreshes when it is shown again.
+- The Add Project dialog shows its own errors (they used to land in the page banner behind the
+  modal), keeps variables with empty values, and disables the button while cloning.
 
 ## Code Layout Notes
 

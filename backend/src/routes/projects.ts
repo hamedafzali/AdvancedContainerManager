@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { spawn } from "child_process";
 import { DeployInProgressError } from "../services/project-service";
+import { validateBranch, validateProjectName, validateRepoUrl } from "../utils/project-input";
 import { asyncHandler } from "../middleware/error-handler";
 import type { RouteDeps } from "./deps";
 
@@ -62,6 +63,17 @@ export function registerProjectRoutes(router: Router, deps: RouteDeps): void {
           environmentVars = {},
           accountId,
         } = req.body;
+
+        try {
+          validateProjectName(name);
+          validateRepoUrl(repoUrl);
+          validateBranch(branch);
+        } catch (e: any) {
+          return res.status(400).json({ success: false, message: e.message });
+        }
+        if (projectService.getProject(name)) {
+          return res.status(409).json({ success: false, message: `A project named ${name} already exists` });
+        }
 
         const authenticatedUrl = accountId
           ? gitAccountService.getAuthenticatedUrl(accountId, repoUrl)

@@ -18,6 +18,7 @@ import {
   EmptyState,
   PageHeader,
 } from "@/components/ui";
+import { usePolling } from "@/hooks/usePolling";
 
 /* ------------------------------------------------------------------ */
 /* Tunnels tab                                                         */
@@ -71,11 +72,9 @@ function TunnelsTab() {
   }, []);
 
   useEffect(() => {
-    fetchTunnels();
     fetchStatus();
-    const interval = setInterval(fetchTunnels, 10000);
-    return () => clearInterval(interval);
-  }, [fetchTunnels, fetchStatus]);
+  }, [fetchStatus]);
+  usePolling(fetchTunnels, 10000);
 
   const createTunnel = async (e: React.FormEvent) => {
     e.preventDefault();

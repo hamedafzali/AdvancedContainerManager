@@ -26,6 +26,7 @@ import {
   StatTile,
 } from "@/components/ui";
 import { apiJson } from "@/utils/api";
+import { usePolling } from "@/hooks/usePolling";
 
 interface SystemMetrics {
   cpuPercent: number;
@@ -162,11 +163,7 @@ export default function Dashboard() {
   }, []);
 
   // Initial load + slow polling fallback; live updates come over WebSocket.
-  useEffect(() => {
-    fetchDashboardData();
-    const interval = setInterval(fetchDashboardData, 30000);
-    return () => clearInterval(interval);
-  }, [fetchDashboardData]);
+  usePolling(fetchDashboardData, 30000);
 
   // Seed the performance chart with real history from the backend.
   useEffect(() => {

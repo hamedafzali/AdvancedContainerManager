@@ -11,6 +11,7 @@ import {
   LoadingState,
   PageHeader,
 } from "@/components/ui";
+import { usePolling } from "@/hooks/usePolling";
 
 interface Volume {
   id: string;
@@ -65,11 +66,7 @@ export default function Volumes() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchVolumes();
-    const interval = setInterval(fetchVolumes, 15000);
-    return () => clearInterval(interval);
-  }, [fetchVolumes]);
+  usePolling(fetchVolumes, 15000);
 
   const filteredVolumes = volumes.filter(
     (volume) =>

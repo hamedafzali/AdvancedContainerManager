@@ -15,6 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
+import { usePolling } from "@/hooks/usePolling";
 
 interface SecurityScan {
   id: string;
@@ -150,11 +151,7 @@ export default function Security() {
     }
   };
 
-  useEffect(() => {
-    fetchSecurityData();
-    const interval = setInterval(fetchSecurityData, 30000); // Refresh every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
+  usePolling(fetchSecurityData, 30000);
 
   const handleStartScan = async (containerId: string, imageName: string) => {
     try {

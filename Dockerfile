@@ -1,7 +1,7 @@
 # Multi-stage build for frontend and backend
 
 # Stage 1: Build frontend
-FROM node:18-alpine AS frontend-builder
+FROM node:22-alpine AS frontend-builder
 WORKDIR /app/frontend
 ARG VITE_API_BASE
 ARG VITE_SOCKET_URL
@@ -13,7 +13,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Build backend
-FROM node:18-alpine AS backend-builder
+FROM node:22-alpine AS backend-builder
 WORKDIR /app/backend
 RUN apk add --no-cache \
     python3 \
@@ -29,7 +29,7 @@ COPY backend/ ./
 RUN npm run build
 
 # Stage 3: Production image
-FROM node:18-alpine AS production
+FROM node:22-alpine AS production
 
 # Install system dependencies
 RUN apk add --no-cache \

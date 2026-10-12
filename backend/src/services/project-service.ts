@@ -14,6 +14,12 @@ import {
   resolveHostPath,
 } from "../utils/host-paths";
 import {
+  validateBranch,
+  validateComposePath,
+  validateProjectName,
+  validateRepoUrl,
+} from "../utils/project-input";
+import {
   DEFAULT_PORT_OFFSETS,
   RenderResult,
   buildVariableRefs,
@@ -873,6 +879,10 @@ export class ProjectService {
     authenticatedUrl?: string,
     accountId?: string,
   ): Promise<ProjectInfo> {
+    validateProjectName(name);
+    validateRepoUrl(repoUrl);
+    validateBranch(branch);
+    if (composeFile) validateComposePath(path.join(this.projectsDir, name), composeFile);
     try {
       const projectPath = path.join(this.projectsDir, name);
       const cloneUrl = authenticatedUrl || repoUrl;
@@ -1259,17 +1269,19 @@ export class ProjectService {
 
     const requestedRepoUrl = payload.repoUrl?.trim();
     if (requestedRepoUrl !== undefined) {
+      if (requestedRepoUrl) validateRepoUrl(requestedRepoUrl);
       project.repoUrl = requestedRepoUrl;
     }
 
     const requestedBranch = payload.branch?.trim();
     if (requestedBranch !== undefined && requestedBranch.length > 0) {
-      project.branch = requestedBranch;
+      project.branch = validateBranch(requestedBranch);
     }
 
     const requestedComposeFile = payload.composeFile?.trim();
 
     if (requestedComposeFile) {
+      validateComposePath(project.path, requestedComposeFile);
       const absoluteComposePath = path.join(project.path, requestedComposeFile);
       if (!fs.existsSync(absoluteComposePath)) {
         throw new Error(`Compose file not found: ${requestedComposeFile}`);

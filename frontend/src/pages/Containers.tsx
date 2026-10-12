@@ -34,6 +34,7 @@ import {
   PageHeader,
   ToggleChip,
 } from "@/components/ui";
+import { usePolling } from "@/hooks/usePolling";
 
 interface ContainerPort {
   label: string;
@@ -392,16 +393,13 @@ export default function Containers() {
     }, 200);
   }, []);
 
-  useEffect(() => {
-    fetchContainers();
-    const interval = autoRefresh
-      ? setInterval(fetchContainers, 15000)
-      : undefined;
-    return () => {
-      if (interval) clearInterval(interval);
+  usePolling(fetchContainers, 15000, autoRefresh);
+  useEffect(
+    () => () => {
       if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
-    };
-  }, [autoRefresh, fetchContainers]);
+    },
+    [],
+  );
 
   // Refresh live when the backend reports container changes
   useEffect(() => {

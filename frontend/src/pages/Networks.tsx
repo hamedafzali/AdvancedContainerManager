@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Search, Plus, Trash2, Globe, Wifi, Shield } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
+import { usePolling } from "@/hooks/usePolling";
 
 interface Network {
   id: string;
@@ -52,11 +53,7 @@ export default function Networks() {
     }
   };
 
-  useEffect(() => {
-    fetchNetworks();
-    const interval = setInterval(fetchNetworks, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  usePolling(fetchNetworks, 10000);
 
   const filteredNetworks = networks.filter(
     (network) =>

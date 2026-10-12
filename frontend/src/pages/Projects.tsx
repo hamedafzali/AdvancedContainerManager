@@ -25,8 +25,9 @@ import {
   Github,
   BookOpen,
   Workflow,
+  Loader2,
 } from "lucide-react";
-import { apiFetch, apiPost } from "@/utils/api";
+import { apiFetch, apiJson, apiPost } from "@/utils/api";
 import ProjectEnvironments from "@/components/ProjectEnvironments";
 import { useTasks } from "@/hooks/useTasks";
 import {
@@ -182,6 +183,10 @@ export default function Projects() {
   const [gitToken, setGitToken] = useState("");
   const [gitAccountLoading, setGitAccountLoading] = useState(false);
   const [gitAccountError, setGitAccountError] = useState<string | null>(null);
+  // Errors from the Add Project modal render inside it; the page banner sits
+  // behind the modal where nobody sees it.
+  const [addError, setAddError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const [addMode, setAddMode] = useState<"manual" | "browse">("manual");
   const [selectedAccount, setSelectedAccount] = useState<GitAccount | null>(null);
   const [repos, setRepos] = useState<GitRepo[]>([]);
@@ -337,10 +342,12 @@ export default function Projects() {
     setRepoSearch("");
     setReposLoading(true);
     try {
-      const res = await apiFetch(`/api/git-accounts/${encodeURIComponent(account.id)}/repos`);
-      const result = await res.json();
-      if (result.success) setRepos(result.data);
-    } catch {}
+      const result = await apiJson(`/api/git-accounts/${encodeURIComponent(account.id)}/repos`);
+      setRepos(result.data);
+    } catch (err) {
+      setRepos([]);
+      setAddError(`Could not list ${account.username}'s repositories: ${err instanceof Error ? err.message : "request failed"}`);
+    }
     setReposLoading(false);
   };
 
@@ -355,10 +362,12 @@ export default function Projects() {
     setBranchesLoading(true);
     try {
       const [owner, repoName] = repo.fullName.split("/");
-      const res = await apiFetch(`/api/git-accounts/${encodeURIComponent(selectedAccount!.id)}/repos/${owner}/${repoName}/branches`);
-      const result = await res.json();
-      if (result.success) setBranches(result.data);
-    } catch {}
+      const result = await apiJson(`/api/git-accounts/${encodeURIComponent(selectedAccount!.id)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repoName)}/branches`);
+      setBranches(result.data);
+    } catch (err) {
+      setBranches([]);
+      setAddError(`Could not list branches, using ${repo.defaultBranch}: ${err instanceof Error ? err.message : "request failed"}`);
+    }
     setBranchesLoading(false);
   };
 
@@ -414,15 +423,22 @@ export default function Projects() {
   // Add new project
   const handleAddProject = async () => {
     if (!newProject.name || !newProject.repository) {
+      setAddError(
+        !newProject.repository ? "Enter a repository URL or pick a repository." : "Give the project a name.",
+      );
       return;
     }
+    if (adding) return;
+    setAddError(null);
+    setAdding(true);
 
     try {
       // Convert environment vars array to object
       const envVarsObject = newProject.environmentVars.reduce(
         (acc, env) => {
-          if (env.key && env.value) {
-            acc[env.key] = env.value;
+          // An empty value is a legitimate setting; only skip rows with no key.
+          if (env.key.trim()) {
+            acc[env.key.trim()] = env.value;
           }
           return acc;
         },
@@ -469,9 +485,9 @@ export default function Projects() {
       setBranches([]);
       setShowAddModal(false);
     } catch (err) {
-      setActionError(
-        err instanceof Error ? err.message : "Failed to add project",
-      );
+      setAddError(err instanceof Error ? err.message : "Failed to add project");
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -508,10 +524,11 @@ export default function Projects() {
   const handleGenerateWebhook = async (projectName: string) => {
     setWebhookLoading(true);
     try {
-      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectName)}/webhook/generate`, { method: "POST" });
-      const result = await res.json();
-      if (result.success) setWebhookSecret(result.data.secret);
-    } catch {}
+      const result = await apiPost(`/api/projects/${encodeURIComponent(projectName)}/webhook/generate`);
+      setWebhookSecret(result.data.secret);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to generate webhook secret");
+    }
     setWebhookLoading(false);
   };
 
@@ -1693,17 +1710,27 @@ export default function Projects() {
               </div>
             </div>
 
+            {addError && (
+              <div role="alert" className="mx-6 mb-2 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+                {addError}
+              </div>
+            )}
             <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
-              <button onClick={() => { setShowAddModal(false); setAddMode("manual"); setSelectedRepo(null); setBranches([]); setDetectedComposeFiles([]); }} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">Cancel</button>
+              <button onClick={() => { setShowAddModal(false); setAddError(null); setAddMode("manual"); setSelectedRepo(null); setBranches([]); setDetectedComposeFiles([]); }} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">Cancel</button>
               {detectedComposeFiles.length > 1 ? (
                 <button
                   onClick={async () => {
                     if (!newProject.composeFile) return;
-                    await apiFetch(`/api/projects/${encodeURIComponent(newProject.name)}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ composeFile: newProject.composeFile }),
-                    });
+                    try {
+                      await apiJson(`/api/projects/${encodeURIComponent(newProject.name)}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ composeFile: newProject.composeFile }),
+                      });
+                    } catch (err) {
+                      setAddError(err instanceof Error ? err.message : "Could not save the compose file choice");
+                      return;
+                    }
                     await fetchProjects();
                     setNewProject({ name: "", repository: "", branch: "main", composeFile: "", environmentVars: [] });
                     setDetectedComposeFiles([]);
@@ -1717,7 +1744,10 @@ export default function Projects() {
                   Use Selected
                 </button>
               ) : (
-                <button onClick={handleAddProject} className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg">Add Project</button>
+                <button onClick={handleAddProject} disabled={adding} className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-60">
+                  {adding && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {adding ? "Cloning…" : "Add Project"}
+                </button>
               )}
             </div>
           </div>

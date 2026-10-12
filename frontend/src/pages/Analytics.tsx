@@ -15,6 +15,7 @@ import {
   Wifi,
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
+import { usePolling } from "@/hooks/usePolling";
 
 interface PredictiveMetric {
   timestamp: string;
@@ -148,14 +149,7 @@ export default function Analytics() {
     }
   };
 
-  useEffect(() => {
-    fetchAnalyticsData();
-
-    if (autoRefresh) {
-      const interval = setInterval(fetchAnalyticsData, 30000); // Refresh every 30 seconds
-      return () => clearInterval(interval);
-    }
-  }, [autoRefresh]);
+  usePolling(fetchAnalyticsData, 30000, autoRefresh);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {

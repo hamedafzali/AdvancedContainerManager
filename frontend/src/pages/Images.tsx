@@ -25,6 +25,7 @@ import {
   LoadingState,
   PageHeader,
 } from "@/components/ui";
+import { usePolling } from "@/hooks/usePolling";
 
 interface DockerImage {
   id: string;
@@ -92,11 +93,7 @@ export default function Images() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchImages();
-    const interval = setInterval(fetchImages, 15000);
-    return () => clearInterval(interval);
-  }, [fetchImages]);
+  usePolling(fetchImages, 15000);
 
   const handlePullImage = async () => {
     if (!pullImage.name) return;
