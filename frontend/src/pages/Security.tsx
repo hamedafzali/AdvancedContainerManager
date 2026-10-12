@@ -16,6 +16,29 @@ import {
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
 import { usePolling } from "@/hooks/usePolling";
+import {
+  Badge,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
+  DescriptionList,
+  EmptyState,
+  ErrorBanner,
+  IconButton,
+  IconTile,
+  List,
+  ListItem,
+  LoadingState,
+  Modal,
+  PageHeader,
+  SearchInput,
+  StatTile,
+  StatusBadge,
+  Toolbar,
+  type DescriptionItem,
+  type Tone,
+} from "@/components/ui";
 
 interface SecurityScan {
   id: string;
@@ -193,51 +216,24 @@ export default function Security() {
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "critical":
-        return "text-red-600 bg-red-50 dark:bg-red-900/20";
-      case "high":
-        return "text-orange-600 bg-orange-50";
-      case "medium":
-        return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20";
-      case "low":
-        return "text-blue-600 bg-blue-50 dark:bg-blue-900/20";
-      case "info":
-        return "text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50";
-      default:
-        return "text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50";
-    }
-  };
+  const severityTone = (severity: string): Tone =>
+    severity === "critical" || severity === "high"
+      ? "danger"
+      : severity === "medium"
+        ? "warning"
+        : severity === "low"
+          ? "info"
+          : "neutral";
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "completed":
-      case "pass":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "failed":
-      case "fail":
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      case "running":
-        return <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />;
-      case "pending":
-        return <Clock className="w-4 h-4 text-yellow-600" />;
-      case "warning":
-        return <AlertTriangle className="w-4 h-4 text-orange-600" />;
-      default:
-        return <Activity className="w-4 h-4 text-gray-600 dark:text-gray-300" />;
-    }
-  };
+  const scanTone = (status: SecurityScan["status"]): Tone =>
+    status === "completed" ? "success" : status === "failed" ? "danger" : status === "running" ? "info" : "warning";
 
-  const getRiskLevel = (score: number) => {
-    if (score >= 80)
-      return { level: "Critical", color: "text-red-600 bg-red-50 dark:bg-red-900/20" };
-    if (score >= 60)
-      return { level: "High", color: "text-orange-600 bg-orange-50" };
-    if (score >= 40)
-      return { level: "Medium", color: "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/20" };
-    if (score >= 20) return { level: "Low", color: "text-blue-600 bg-blue-50 dark:bg-blue-900/20" };
-    return { level: "Minimal", color: "text-green-600 bg-green-50 dark:bg-green-900/20" };
+  const riskOf = (score: number): { label: string; tone: Tone } => {
+    if (score >= 80) return { label: "Critical", tone: "danger" };
+    if (score >= 60) return { label: "High", tone: "danger" };
+    if (score >= 40) return { label: "Medium", tone: "warning" };
+    if (score >= 20) return { label: "Low", tone: "info" };
+    return { label: "Minimal", tone: "success" };
   };
 
   const filteredAlerts = alerts.filter((alert) => {
@@ -251,346 +247,307 @@ export default function Security() {
     return matchesSeverity && matchesStatus && matchesSearch;
   });
 
-  const criticalVulnerabilities = scans.reduce(
-    (sum, scan) => sum + scan.summary.critical,
-    0,
-  );
-  const highVulnerabilities = scans.reduce(
-    (sum, scan) => sum + scan.summary.high,
-    0,
-  );
+  const criticalVulnerabilities = scans.reduce((sum, scan) => sum + (scan.summary?.critical || 0), 0);
+  const highVulnerabilities = scans.reduce((sum, scan) => sum + (scan.summary?.high || 0), 0);
   const openAlerts = alerts.filter((alert) => alert.status === "open").length;
   const criticalAlerts = alerts.filter(
     (alert) => alert.severity === "critical" && alert.status === "open",
   ).length;
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
-        <div className="text-center">
-          <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">
-            Loading Security Data...
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400">
-            Fetching security scans and vulnerability data
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Loading security data…" />;
 
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">
-            Error Loading Security Data
-          </h2>
-          <p className="text-gray-500 dark:text-gray-400 mb-4">{error}</p>
-          <button
-            onClick={fetchSecurityData}
-            className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const posture: DescriptionItem[] = metrics
+    ? [
+        { label: "Compliance rate", value: <span className="tabular">{metrics.complianceRate?.toFixed(1) ?? "–"}%</span> },
+        { label: "Average risk score", value: <span className="tabular">{metrics.averageRiskScore?.toFixed(1) ?? "–"}</span> },
+        { label: "Total scans", value: <span className="tabular">{metrics.totalScans ?? scans.length}</span> },
+        { label: "Active scans", value: <span className="tabular">{metrics.activeScans ?? 0}</span> },
+      ]
+    : [];
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
-      <div className="max-w-7xl mx-auto px-6 py-8 space-y-8">
-        {/* Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="p-8">
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <h1 className="text-3xl font-light text-gray-900 dark:text-gray-100 tracking-tight">
-                  Security Center
-                </h1>
-                <p className="text-gray-500 dark:text-gray-400 text-sm tracking-wide">
-                  Container vulnerability scanning and compliance monitoring
-                </p>
-              </div>
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={() => setShowPolicyModal(true)}
-                  className="flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 text-gray-700 dark:text-gray-300 rounded-lg transition-colors duration-200"
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Policies
-                </button>
-                <button
-                  onClick={() => setShowScanModal(true)}
-                  className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Scan
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="max-w-screen-2xl mx-auto space-y-6">
+      <PageHeader
+        title="Security"
+        subtitle="Image vulnerability scans, compliance checks and alerts"
+        actions={
+          <>
+            <IconButton label="Refresh" onClick={fetchSecurityData}>
+              <RefreshCw className="w-4 h-4" />
+            </IconButton>
+            <Button icon={<Settings className="w-4 h-4" />} onClick={() => setShowPolicyModal(true)}>
+              Policies
+            </Button>
+          </>
+        }
+      />
 
-        {/* Security Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
-                  {criticalVulnerabilities}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  Critical Vulnerabilities
-                </div>
-              </div>
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
-                  {highVulnerabilities}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  High Vulnerabilities
-                </div>
-              </div>
-              <div className="p-3 bg-orange-50 rounded-lg">
-                <AlertCircle className="w-5 h-5 text-orange-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
-                  {openAlerts}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Open Alerts</div>
-              </div>
-              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                <Shield className="w-5 h-5 text-yellow-600" />
-              </div>
-            </div>
-          </div>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
-                  {criticalAlerts}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Critical Alerts</div>
-              </div>
-              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                <Zap className="w-5 h-5 text-red-600" />
-              </div>
-            </div>
-          </div>
-        </div>
+      <ErrorBanner message={error} onDismiss={() => setError(null)} onRetry={fetchSecurityData} />
 
-        {/* Security Metrics */}
-        {metrics && (
-          <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-white">
-            <div className="flex items-center space-x-3 mb-6">
-              <Shield className="w-8 h-8" />
-              <h2 className="text-2xl font-light">Security Posture</h2>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div>
-                <h3 className="text-lg font-medium mb-2">Compliance Rate</h3>
-                <div className="text-3xl font-light">
-                  {metrics.complianceRate?.toFixed(1)}%
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium mb-2">Average Risk Score</h3>
-                <div className="text-3xl font-light">
-                  {metrics.averageRiskScore?.toFixed(1)}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium mb-2">Total Scans</h3>
-                <div className="text-3xl font-light">{metrics.totalScans}</div>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium mb-2">Active Scans</h3>
-                <div className="text-3xl font-light">{metrics.activeScans}</div>
-              </div>
-            </div>
-          </div>
-        )}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <StatTile
+          label="Critical vulnerabilities"
+          value={<span className="tabular">{criticalVulnerabilities}</span>}
+          icon={<AlertTriangle />}
+          tone={criticalVulnerabilities > 0 ? "danger" : "neutral"}
+        />
+        <StatTile
+          label="High vulnerabilities"
+          value={<span className="tabular">{highVulnerabilities}</span>}
+          icon={<AlertCircle />}
+          tone={highVulnerabilities > 0 ? "warning" : "neutral"}
+        />
+        <StatTile
+          label="Open alerts"
+          value={<span className="tabular">{openAlerts}</span>}
+          icon={<Shield />}
+          tone={openAlerts > 0 ? "warning" : "success"}
+        />
+        <StatTile
+          label="Critical open alerts"
+          value={<span className="tabular">{criticalAlerts}</span>}
+          icon={<Zap />}
+          tone={criticalAlerts > 0 ? "danger" : "neutral"}
+        />
+      </div>
 
-        {/* Recent Security Scans */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-light text-gray-900 dark:text-gray-100">
-                Recent Security Scans
-              </h2>
-              <button className="text-blue-600 hover:text-blue-700 text-sm">
-                View All
-              </button>
-            </div>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              {scans.slice(0, 5).map((scan) => {
-                const risk = getRiskLevel(scan.riskScore);
-                return (
-                  <div
-                    key={scan.id}
-                    className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                        <Shield className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                      </div>
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-gray-100">
-                          {scan.imageName}
-                        </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          Container: {scan.containerId} •{" "}
-                          {new Date(scan.timestamp).toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityColor(scan.status)}`}
-                      >
-                        {getStatusIcon(scan.status)}
-                        <span className="ml-1">{scan.status}</span>
-                      </div>
-                      <div
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${risk.color}`}
-                      >
-                        {risk.level} ({scan.riskScore})
-                      </div>
-                      <button
-                        onClick={() => setSelectedScan(scan)}
-                        className="p-1.5 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
+      {metrics && (
+        <Card>
+          <CardHeader
+            leading={<IconTile tone="accent"><Shield /></IconTile>}
+            title="Security posture"
+            subtitle="Across all completed scans"
+          />
+          <CardBody>
+            <DescriptionList items={posture} layout="stacked" columns={2} />
+          </CardBody>
+        </Card>
+      )}
 
-        {/* Security Alerts */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-light text-gray-900 dark:text-gray-100">
-                Security Alerts
-              </h2>
-            </div>
-          </div>
-
-          {/* Filters */}
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-4">
-              <div className="flex-1 relative">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                <input
-                  type="text"
-                  placeholder="Search alerts..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
+      <section aria-labelledby="scans-heading" className="space-y-3">
+        <h2 id="scans-heading" className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          Recent scans
+        </h2>
+        {scans.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={<Shield />}
+              title="No scans yet"
+              description="Scans run when images are built or pulled."
+            />
+          </Card>
+        ) : (
+          <List>
+            {scans.slice(0, 8).map((scan) => {
+              const risk = riskOf(scan.riskScore);
+              return (
+                <ListItem
+                  key={scan.id}
+                  leading={<IconTile tone={risk.tone}><Shield /></IconTile>}
+                  title={<span className="font-mono text-[13px] break-all">{scan.imageName}</span>}
+                  subtitle={new Date(scan.timestamp).toLocaleString()}
+                  meta={
+                    <>
+                      <StatusBadge tone={scanTone(scan.status)} label={scan.status} busy={scan.status === "running"} />
+                      <Badge tone={risk.tone} title="Risk score">
+                        {risk.label} · {scan.riskScore}
+                      </Badge>
+                    </>
+                  }
+                  actions={
+                    <IconButton label={`View scan of ${scan.imageName}`} onClick={() => setSelectedScan(scan)}>
+                      <Eye className="w-4 h-4" />
+                    </IconButton>
+                  }
                 />
-              </div>
-              <select
-                value={filterSeverity}
-                onChange={(e) => setFilterSeverity(e.target.value)}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
-              >
-                <option value="all">All Severities</option>
-                <option value="critical">Critical</option>
-                <option value="high">High</option>
-                <option value="medium">Medium</option>
-                <option value="low">Low</option>
-              </select>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-transparent"
-              >
-                <option value="all">All Status</option>
-                <option value="open">Open</option>
-                <option value="acknowledged">Acknowledged</option>
-                <option value="resolved">Resolved</option>
-                <option value="false_positive">False Positive</option>
-              </select>
-            </div>
-          </div>
+              );
+            })}
+          </List>
+        )}
+      </section>
 
-          <div className="p-6">
-            <div className="space-y-4">
-              {filteredAlerts.slice(0, 10).map((alert) => (
-                <div
-                  key={alert.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div
-                      className={`p-2 rounded-lg ${getSeverityColor(alert.severity)}`}
-                    >
-                      <AlertTriangle className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <div className="font-medium text-gray-900 dark:text-gray-100">
-                        {alert.title}
-                      </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {alert.description}
-                      </div>
-                      <div className="text-xs text-gray-400 mt-1">
-                        {alert.containerId &&
-                          `Container: ${alert.containerId} • `}
-                        {new Date(alert.timestamp).toLocaleString()}
-                      </div>
-                    </div>
+      <section aria-labelledby="alerts-heading" className="space-y-3">
+        <h2 id="alerts-heading" className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          Alerts
+        </h2>
+        <Toolbar>
+          <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search alerts…" />
+          <select
+            aria-label="Severity"
+            value={filterSeverity}
+            onChange={(e) => setFilterSeverity(e.target.value)}
+            className="field w-auto"
+          >
+            <option value="all">All severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <select
+            aria-label="Status"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="field w-auto"
+          >
+            <option value="all">All statuses</option>
+            <option value="open">Open</option>
+            <option value="acknowledged">Acknowledged</option>
+            <option value="resolved">Resolved</option>
+            <option value="false_positive">False positive</option>
+          </select>
+        </Toolbar>
+        {filteredAlerts.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={<CheckCircle />}
+              title={alerts.length === 0 ? "No alerts" : "No matching alerts"}
+              description={alerts.length === 0 ? "Nothing needs attention." : "Try a different search or filter."}
+            />
+          </Card>
+        ) : (
+          <List>
+            {filteredAlerts.slice(0, 20).map((alert) => (
+              <ListItem
+                key={alert.id}
+                leading={<IconTile tone={severityTone(alert.severity)}><AlertTriangle /></IconTile>}
+                title={alert.title}
+                subtitle={alert.description}
+                meta={
+                  <>
+                    <StatusBadge tone={severityTone(alert.severity)} label={alert.severity} />
+                    <span className="text-xs text-gray-500 dark:text-gray-400 tabular">
+                      {new Date(alert.timestamp).toLocaleString()}
+                    </span>
+                  </>
+                }
+                actions={
+                  <select
+                    aria-label={`Status of ${alert.title}`}
+                    value={alert.status}
+                    onChange={(e) => handleUpdateAlert(alert.id, e.target.value as SecurityAlert["status"])}
+                    className="field h-8 w-auto text-xs"
+                  >
+                    <option value="open">Open</option>
+                    <option value="acknowledged">Acknowledged</option>
+                    <option value="resolved">Resolved</option>
+                    <option value="false_positive">False positive</option>
+                  </select>
+                }
+              />
+            ))}
+          </List>
+        )}
+      </section>
+
+      <Modal
+        open={showPolicyModal}
+        onClose={() => setShowPolicyModal(false)}
+        title="Security policies"
+        footer={<Button onClick={() => setShowPolicyModal(false)}>Close</Button>}
+      >
+        {policies.length === 0 ? (
+          <EmptyState icon={<Settings />} title="No policies" description="No security policies are defined on this server." />
+        ) : (
+          <ul className="space-y-3">
+            {policies.map((policy) => (
+              <li key={policy.id} className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{policy.name}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{policy.description}</p>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <div
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getSeverityColor(alert.severity)}`}
-                    >
-                      {alert.severity}
-                    </div>
-                    <select
-                      value={alert.status}
-                      onChange={(e) =>
-                        handleUpdateAlert(
-                          alert.id,
-                          e.target.value as SecurityAlert["status"],
-                        )
-                      }
-                      className="px-2 py-1 text-xs border border-gray-200 dark:border-gray-700 rounded focus:outline-none focus:ring-1 focus:ring-gray-900"
-                    >
-                      <option value="open">Open</option>
-                      <option value="acknowledged">Acknowledged</option>
-                      <option value="resolved">Resolved</option>
-                      <option value="false_positive">False Positive</option>
-                    </select>
-                  </div>
+                  <StatusBadge tone={policy.enabled ? "success" : "neutral"} label={policy.enabled ? "enabled" : "disabled"} />
                 </div>
+                {policy.rules?.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {policy.rules.map((rule, i) => (
+                      <Badge key={i} tone={rule.action === "block" ? "danger" : rule.action === "warn" ? "warning" : "neutral"}>
+                        {rule.action} · {rule.type}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
+
+      {selectedScan && (
+        <Modal
+          open
+          wide
+          onClose={() => setSelectedScan(null)}
+          title={selectedScan.imageName}
+          footer={<Button onClick={() => setSelectedScan(null)}>Close</Button>}
+        >
+          <div className="space-y-5">
+            <DescriptionList
+              layout="stacked"
+              columns={2}
+              items={[
+                { label: "Status", value: <StatusBadge tone={scanTone(selectedScan.status)} label={selectedScan.status} /> },
+                { label: "Risk", value: <Badge tone={riskOf(selectedScan.riskScore).tone}>{riskOf(selectedScan.riskScore).label} · {selectedScan.riskScore}</Badge> },
+                { label: "Scanned", value: new Date(selectedScan.timestamp).toLocaleString() },
+                { label: "Container", value: <span className="font-mono text-xs break-all">{selectedScan.containerId || "–"}</span> },
+              ]}
+            />
+            <div className="flex flex-wrap gap-1.5">
+              {(["critical", "high", "medium", "low", "info"] as const).map((level) => (
+                <Badge key={level} tone={severityTone(level)}>
+                  {level} <span className="tabular">{selectedScan.summary?.[level] ?? 0}</span>
+                </Badge>
               ))}
             </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Vulnerabilities</h3>
+              {selectedScan.vulnerabilities?.length ? (
+                <ul className="divide-y divide-gray-100 dark:divide-gray-800 rounded-lg border border-gray-200 dark:border-gray-800">
+                  {selectedScan.vulnerabilities.slice(0, 50).map((v) => (
+                    <li key={v.id} className="p-3 flex items-start gap-3">
+                      <StatusBadge tone={severityTone(v.severity)} label={v.severity} />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                          {v.cveId ? `${v.cveId}: ` : ""}
+                          {v.title}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 font-mono break-all">
+                          {v.package}@{v.version}
+                          {v.fixedVersion ? ` → fixed in ${v.fixedVersion}` : ""}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No vulnerabilities found.</p>
+              )}
+            </div>
+            {selectedScan.compliance?.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Compliance</h3>
+                <ul className="space-y-2">
+                  {selectedScan.compliance.map((check, i) => (
+                    <li key={i} className="flex items-start gap-3">
+                      <StatusBadge
+                        tone={check.status === "pass" ? "success" : check.status === "fail" ? "danger" : "warning"}
+                        label={check.status}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm text-gray-900 dark:text-gray-100">{check.name}</p>
+                        {check.recommendation && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{check.recommendation}</p>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
-        </div>
-      </div>
+        </Modal>
+      )}
     </div>
   );
 }

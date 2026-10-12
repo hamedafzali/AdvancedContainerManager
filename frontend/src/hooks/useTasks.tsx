@@ -150,7 +150,7 @@ export function useTasks() {
 function statusIcon(status: TaskStatus) {
   switch (status) {
     case "running":
-      return <Loader2 className="w-4 h-4 text-blue-500 animate-spin" />;
+      return <Loader2 className="w-4 h-4 text-primary-500 animate-spin" />;
     case "success":
       return <CheckCircle className="w-4 h-4 text-green-500" />;
     case "failed":
@@ -176,27 +176,28 @@ export function TaskTray() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        className="relative flex items-center gap-1.5 h-8 px-2 sm:px-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         aria-label="Background tasks"
+        aria-expanded={open}
       >
         {runningCount > 0 ? (
-          <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+          <Loader2 className="w-4 h-4 animate-spin text-primary-500" />
         ) : (
           <ListChecks className="w-4 h-4" />
         )}
-        Tasks
+        <span className="hidden sm:inline">Tasks</span>
         {runningCount > 0 && (
-          <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[11px] font-semibold rounded-full bg-blue-600 text-white">
+          <span className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[11px] font-semibold rounded-full bg-primary-600 text-white">
             {runningCount}
           </span>
         )}
-        <ChevronDown className="w-3 h-3" />
+        <ChevronDown className="w-3 h-3 hidden sm:block" />
       </button>
 
       {open && (
         <>
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 z-30 mt-1 w-96 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-1 max-h-96 overflow-y-auto">
+          <div className="absolute right-0 z-30 mt-1 w-[min(24rem,calc(100vw-2rem))] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg py-1 max-h-96 overflow-y-auto">
             {tasks.length === 0 ? (
               <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
                 No background tasks yet. Deploys, builds and image pulls will

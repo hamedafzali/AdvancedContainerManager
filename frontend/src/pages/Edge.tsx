@@ -209,7 +209,7 @@ function TunnelsTab() {
                 onChange={(e) =>
                   setNewTunnel((prev) => ({ ...prev, name: e.target.value }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="field"
                 placeholder="my-container-tunnel"
                 required
               />
@@ -224,7 +224,7 @@ function TunnelsTab() {
                 onChange={(e) =>
                   setNewTunnel((prev) => ({ ...prev, port: e.target.value }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="field"
                 placeholder="3000"
                 required
               />
@@ -242,7 +242,7 @@ function TunnelsTab() {
                 onChange={(e) =>
                   setNewTunnel((prev) => ({ ...prev, domain: e.target.value }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="field"
                 placeholder="app.yourdomain.com"
               />
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -309,7 +309,7 @@ function TunnelsTab() {
                       </span>
                     </div>
                     <div className="space-y-1 text-sm">
-                      <p className="text-blue-600 dark:text-blue-400 font-medium truncate">
+                      <p className="text-primary-600 dark:text-primary-400 font-medium truncate">
                         https://{tunnel.url}
                       </p>
                       <p className="text-gray-600 dark:text-gray-300">
@@ -486,7 +486,7 @@ function CloudflareTab() {
                 value={apiToken}
                 onChange={(e) => setApiToken(e.target.value)}
                 placeholder="Enter your Cloudflare API token"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="field h-10"
                 required
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -503,7 +503,7 @@ function CloudflareTab() {
                 value={accountId}
                 onChange={(e) => setAccountId(e.target.value)}
                 placeholder="Enter your Cloudflare account ID"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="field h-10"
               />
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Found in the Cloudflare dashboard under Workers &amp; Pages
@@ -553,7 +553,7 @@ function CloudflareTab() {
                       value={newDomain}
                       onChange={(e) => setNewDomain(e.target.value)}
                       placeholder="example.com"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="field h-10"
                       required
                     />
                   </div>
@@ -605,11 +605,11 @@ function CloudflareTab() {
             )}
           </Card>
 
-          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
-            <h3 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">
+          <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-lg p-6">
+            <h3 className="font-semibold text-primary-900 dark:text-primary-200 mb-2">
               How to use custom domains
             </h3>
-            <ol className="list-decimal list-inside space-y-2 text-blue-800 dark:text-blue-300 text-sm">
+            <ol className="list-decimal list-inside space-y-2 text-primary-800 dark:text-primary-300 text-sm">
               <li>Add your domain to Cloudflare and point your registrar's nameservers at it</li>
               <li>
                 Authenticate here with a Cloudflare API token that has

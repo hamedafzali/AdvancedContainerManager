@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   User,
   Server,
@@ -20,6 +20,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
+import { Alert, Button, ErrorBanner, LoadingState, PageHeader } from "@/components/ui";
 
 interface Settings {
   general: {
@@ -82,9 +83,9 @@ function ChangePasswordForm({ onSuccess, onError }: { onSuccess: () => void; onE
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 max-w-sm">
-      <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} placeholder="Current password" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
-      <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
-      <button type="submit" disabled={loading || !oldPw || !newPw} className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm disabled:opacity-50 hover:bg-gray-800">
+      <input type="password" value={oldPw} onChange={(e) => setOldPw(e.target.value)} placeholder="Current password" className="field" />
+      <input type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="New password" className="field" />
+      <button type="submit" disabled={loading || !oldPw || !newPw} className="px-4 py-2 bg-primary-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 hover:bg-primary-700">
         {loading ? "Changing..." : "Change Password"}
       </button>
     </form>
@@ -127,6 +128,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
   const [activeSection, setActiveSection] = useState("general");
 
   // Git accounts
@@ -181,7 +183,15 @@ export default function Settings() {
         throw new Error("Failed to fetch settings");
       }
       const result = await response.json();
-      setSettings(result.data);
+      // Layer what the backend has over the defaults section by section, so a
+      // settings file written by an older version can't leave a section undefined.
+      setSettings((prev) => {
+        const next = { ...prev, ...result.data } as Settings;
+        for (const key of Object.keys(prev) as Array<keyof Settings>) {
+          next[key] = { ...prev[key], ...(result.data?.[key] || {}) } as any;
+        }
+        return next;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch settings");
     } finally {
@@ -294,70 +304,51 @@ export default function Settings() {
     { id: "git", title: "Git Accounts", icon: <Github className="w-4 h-4" /> },
   ];
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-light text-gray-900 dark:text-gray-100 mb-2">Loading Settings...</h2>
-          <p className="text-gray-500 dark:text-gray-400">Fetching configuration</p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Loading settings…" />;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900/50">
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-light text-gray-900 dark:text-gray-100 tracking-tight">Settings</h1>
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={exportSettings}
-              className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </button>
-            <label className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200 cursor-pointer">
-              <Upload className="w-4 h-4 mr-2" />
-              Import
+    <div className="max-w-screen-2xl mx-auto">
+      <div className="space-y-6">
+        <PageHeader
+          title="Settings"
+          subtitle="Server preferences, integrations and access"
+          actions={
+            <>
+              <Button icon={<Download className="w-4 h-4" />} onClick={exportSettings}>
+                Export
+              </Button>
+              <Button icon={<Upload className="w-4 h-4" />} onClick={() => importInputRef.current?.click()}>
+                Import
+              </Button>
               <input
+                ref={importInputRef}
                 type="file"
                 accept=".json"
                 onChange={importSettings}
                 className="hidden"
+                tabIndex={-1}
+                aria-hidden="true"
               />
-            </label>
-          </div>
-        </div>
+            </>
+          }
+        />
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center">
-            <AlertTriangle className="w-5 h-5 text-red-600 mr-3" />
-            <span className="text-red-800 dark:text-red-200">{error}</span>
-          </div>
-        )}
-
-        {success && (
-          <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center">
-            <CheckCircle className="w-5 h-5 text-green-600 mr-3" />
-            <span className="text-green-800 dark:text-green-200">{success}</span>
-          </div>
-        )}
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
+        {success && <Alert status="success" description={success} closable onClose={() => setSuccess(null)} />}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-4">
-              <nav className="space-y-1">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-card border border-gray-200 dark:border-gray-800 p-2 lg:sticky lg:top-4">
+              <nav aria-label="Settings sections" className="flex lg:flex-col gap-1 overflow-x-auto scrollbar-thin">
                 {sections.map((section) => (
                   <button
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center px-3 py-2 rounded-lg text-left transition-colors duration-200 ${
+                    aria-current={activeSection === section.id ? "page" : undefined}
+                    className={`shrink-0 lg:w-full flex items-center px-3 py-2 rounded-lg text-left text-sm font-medium whitespace-nowrap transition-colors duration-200 ${
                       activeSection === section.id
-                        ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800"
+                        ? "bg-primary-50 dark:bg-primary-500/10 text-primary-700 dark:text-primary-300"
                         : "text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-900 dark:hover:text-gray-100"
                     }`}
                   >
@@ -371,7 +362,7 @@ export default function Settings() {
 
           {/* Main Content */}
           <div className="lg:col-span-3">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div className="bg-white dark:bg-gray-900 rounded-xl shadow-card border border-gray-200 dark:border-gray-800 p-6">
               {/* General Settings */}
               {activeSection === "general" && (
                 <div className="space-y-6">
@@ -380,7 +371,7 @@ export default function Settings() {
                     <button
                       onClick={() => saveSettings("general")}
                       disabled={saving}
-                      className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      className="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
                     >
                       {saving ? (
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -399,7 +390,7 @@ export default function Settings() {
                       <select id="settings-field-1"
                         value={settings.general.theme}
                         onChange={(e) => updateSetting("general", "theme", e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       >
                         <option value="light">Light</option>
                         <option value="dark">Dark</option>
@@ -414,7 +405,7 @@ export default function Settings() {
                       <select id="settings-field-2"
                         value={settings.general.language}
                         onChange={(e) => updateSetting("general", "language", e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       >
                         <option value="en">English</option>
                         <option value="es">Spanish</option>
@@ -443,7 +434,7 @@ export default function Settings() {
                         type="number"
                         value={settings.general.refreshInterval}
                         onChange={(e) => updateSetting("general", "refreshInterval", parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       />
                     </div>
                   </div>
@@ -458,7 +449,7 @@ export default function Settings() {
                     <button
                       onClick={() => saveSettings("notifications")}
                       disabled={saving}
-                      className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      className="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
                     >
                       {saving ? (
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -521,7 +512,7 @@ export default function Settings() {
                     <button
                       onClick={() => saveSettings("docker")}
                       disabled={saving}
-                      className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      className="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
                     >
                       {saving ? (
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -541,7 +532,7 @@ export default function Settings() {
                         type="text"
                         value={settings.docker.defaultRegistry}
                         onChange={(e) => updateSetting("docker", "defaultRegistry", e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       />
                     </div>
 
@@ -563,7 +554,7 @@ export default function Settings() {
                         type="number"
                         value={settings.docker.pruneInterval}
                         onChange={(e) => updateSetting("docker", "pruneInterval", parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       />
                     </div>
 
@@ -575,7 +566,7 @@ export default function Settings() {
                         type="number"
                         value={settings.docker.maxContainers}
                         onChange={(e) => updateSetting("docker", "maxContainers", parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       />
                     </div>
                   </div>
@@ -590,7 +581,7 @@ export default function Settings() {
                     <button
                       onClick={() => saveSettings("security")}
                       disabled={saving}
-                      className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      className="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
                     >
                       {saving ? (
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -620,7 +611,7 @@ export default function Settings() {
                         type="number"
                         value={settings.security.sessionTimeout}
                         onChange={(e) => updateSetting("security", "sessionTimeout", parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       />
                     </div>
 
@@ -632,7 +623,7 @@ export default function Settings() {
                         type="number"
                         value={settings.security.maxLoginAttempts}
                         onChange={(e) => updateSetting("security", "maxLoginAttempts", parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       />
                     </div>
                   </div>
@@ -652,7 +643,7 @@ export default function Settings() {
                     <button
                       onClick={() => saveSettings("api")}
                       disabled={saving}
-                      className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
+                      className="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50"
                     >
                       {saving ? (
                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -682,7 +673,7 @@ export default function Settings() {
                         type="number"
                         value={settings.api.maxRequests}
                         onChange={(e) => updateSetting("api", "maxRequests", parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       />
                     </div>
 
@@ -694,7 +685,7 @@ export default function Settings() {
                         type="number"
                         value={settings.api.windowMs}
                         onChange={(e) => updateSetting("api", "windowMs", parseInt(e.target.value))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                       />
                     </div>
                   </div>
@@ -711,7 +702,7 @@ export default function Settings() {
                     <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Connect New Account</h3>
                     <div className="flex gap-2">
                       {(["github", "gitlab"] as const).map((p) => (
-                        <button key={p} onClick={() => setGitProvider(p)} className={`flex-1 py-2 rounded-lg border text-sm capitalize transition-colors ${gitProvider === p ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 dark:border-gray-600 hover:border-gray-500"}`}>{p}</button>
+                        <button key={p} onClick={() => setGitProvider(p)} className={`flex-1 py-2 rounded-lg border text-sm capitalize transition-colors ${gitProvider === p ? "bg-primary-600 text-white border-primary-600" : "border-gray-300 dark:border-gray-600 hover:border-gray-500"}`}>{p}</button>
                       ))}
                     </div>
                     <div>
@@ -720,7 +711,7 @@ export default function Settings() {
                         type="password"
                         value={gitToken}
                         onChange={(e) => setGitToken(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="field"
                         placeholder={gitProvider === "github" ? "ghp_..." : "glpat-..."}
                       />
                       <p className="text-xs text-gray-400 mt-1">
@@ -733,7 +724,7 @@ export default function Settings() {
                     <button
                       onClick={handleAddGitAccount}
                       disabled={gitLoading || !gitToken.trim()}
-                      className="flex items-center px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-50 text-sm"
+                      className="flex items-center px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg disabled:opacity-50 text-sm"
                     >
                       <Plus className="w-4 h-4 mr-2" />
                       {gitLoading ? "Connecting..." : "Connect Account"}

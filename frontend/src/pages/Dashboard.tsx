@@ -304,23 +304,25 @@ export default function Dashboard() {
     {
       label: "Network in",
       icon: Zap,
-      value: systemMetrics ? formatBytes(systemMetrics.networkIO.bytesRecv) : "0",
+      value: formatBytes(systemMetrics?.networkIO?.bytesRecv || 0),
       percent: null as number | null,
     },
   ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       <PageHeader
         title="Overview"
         subtitle="Live system, container and project health"
         actions={
           <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-300">
-            <span className="flex items-center gap-1.5">
-              <Server className="w-4 h-4" />
-              {systemMetrics ? formatUptime(systemMetrics.uptime) : "…"}
-            </span>
-            <span className="flex items-center gap-1.5 text-green-600">
+            {Number.isFinite(systemMetrics?.uptime) && (
+              <span className="hidden sm:flex items-center gap-1.5" title="Host uptime">
+                <Server className="w-4 h-4" aria-hidden="true" />
+                <span className="tabular">{formatUptime(systemMetrics!.uptime)}</span>
+              </span>
+            )}
+            <span className="hidden sm:flex items-center gap-1.5 text-green-600 dark:text-green-400">
               <CheckCircle className="w-4 h-4" />
               Operational
             </span>
@@ -356,13 +358,13 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="space-y-3">
-              <div className="text-2xl font-light text-gray-900 dark:text-gray-100">
+              <div className="text-2xl font-semibold tabular text-gray-900 dark:text-gray-100">
                 {tile.value}
               </div>
               <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1">
                 {tile.percent !== null && (
                   <div
-                    className="bg-gray-900 dark:bg-gray-200 rounded-full h-1 transition-all duration-500"
+                    className="bg-primary-600 dark:bg-primary-400 rounded-full h-1 transition-all duration-500"
                     style={{ width: `${Math.min(100, tile.percent)}%` }}
                   ></div>
                 )}
@@ -377,7 +379,7 @@ export default function Dashboard() {
         <Card padded={false}>
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
             <Package className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-            <h2 className="text-lg font-light text-gray-900 dark:text-gray-100">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
               Containers
             </h2>
             <span className="text-sm text-gray-400">
@@ -409,7 +411,7 @@ export default function Dashboard() {
         <Card padded={false}>
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-700 flex items-center gap-3">
             <GitBranch className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-            <h2 className="text-lg font-light text-gray-900 dark:text-gray-100">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
               Projects
             </h2>
             <span className="text-sm text-gray-400">

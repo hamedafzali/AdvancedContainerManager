@@ -2,26 +2,97 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens for pixelwizards-components. The library reads these CSS
+   variables, so mapping them to the Tailwind palette keeps library
+   components and Tailwind utilities on one set of colours. */
+:root {
+  --color-primary: theme("colors.primary.600");
+  --color-primary-dark: theme("colors.primary.700");
+  --color-primary-light: theme("colors.primary.400");
+  --color-success: theme("colors.green.600");
+  --color-warning: theme("colors.amber.600");
+  --color-error: theme("colors.red.600");
+  --color-info: theme("colors.sky.600");
+
+  --color-bg-primary: theme("colors.gray.50");
+  --color-bg-secondary: theme("colors.gray.100");
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #ffffff;
+  --color-border: theme("colors.gray.300");
+  --color-border-light: theme("colors.gray.200");
+  --color-border-dark: theme("colors.gray.400");
+  --color-text-primary: theme("colors.gray.900");
+  --color-text-secondary: theme("colors.gray.600");
+  --color-text-tertiary: theme("colors.gray.500");
+  --color-text-disabled: theme("colors.gray.400");
+
+  --font-sans: theme("fontFamily.sans");
+  --font-mono: theme("fontFamily.mono");
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+  --shadow-sm: theme("boxShadow.card");
+  --shadow-md: theme("boxShadow.raised");
+  --shadow-lg: theme("boxShadow.raised");
+  --shadow-xl: theme("boxShadow.overlay");
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+.dark {
+  /* indigo-500 keeps white button labels at AA contrast. */
+  --color-primary: theme("colors.primary.500");
+  --color-primary-dark: theme("colors.primary.400");
+  --color-primary-light: theme("colors.primary.300");
+  --color-success: theme("colors.green.400");
+  --color-warning: theme("colors.amber.400");
+  --color-error: theme("colors.red.400");
+  --color-info: theme("colors.sky.400");
+
+  --color-bg-primary: theme("colors.gray.950");
+  --color-bg-secondary: theme("colors.gray.800");
+  --color-bg-surface: theme("colors.gray.900");
+  --color-bg-elevated: theme("colors.gray.800");
+  --color-border: theme("colors.gray.700");
+  --color-border-light: theme("colors.gray.800");
+  --color-border-dark: theme("colors.gray.600");
+  --color-text-primary: theme("colors.gray.50");
+  --color-text-secondary: theme("colors.gray.300");
+  --color-text-tertiary: theme("colors.gray.400");
+  --color-text-disabled: theme("colors.gray.600");
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px -2px rgb(0 0 0 / 0.4);
+  --shadow-lg: 0 8px 20px -4px rgb(0 0 0 / 0.45);
+  --shadow-xl: 0 20px 40px -12px rgb(0 0 0 / 0.6);
+}
+
 @layer base {
   * {
     @apply border-gray-200 dark:border-gray-700;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
+    @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
     font-feature-settings:
       "rlig" 1,
       "calt" 1;
   }
 
   html {
-    @apply transition-colors duration-300;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
   }
 
   /* One visible focus ring for keyboard users everywhere; mouse clicks don't
      show it. */
   :focus-visible {
-    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-950;
   }
 
   [tabindex="-1"]:focus-visible {
@@ -54,50 +125,28 @@
 }
 
 @layer components {
-  .glass-morphism {
-    @apply bg-white/95 backdrop-blur-sm border border-white/18;
-  }
-
   .metric-card {
-    @apply bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-300 hover:transform hover:-translate-y-1 hover:shadow-lg;
+    @apply bg-gradient-to-r from-primary-500 to-primary-600 transition-shadow duration-200 hover:shadow-raised;
   }
 
-  .sidebar-item {
-    @apply transition-all duration-200 border-l-4 border-transparent hover:bg-primary-50 hover:border-primary-500 dark:hover:bg-gray-700;
+  /* Shared form control look, used by inputs that aren't components yet. */
+  .field {
+    @apply w-full h-9 px-3 text-sm rounded-lg border border-gray-300 bg-white text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:outline-none focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:bg-gray-900 dark:border-gray-700 dark:text-gray-100;
   }
-
-  .sidebar-item.active {
-    @apply bg-primary-100 border-primary-500 dark:bg-gray-700;
-  }
-
-  .container-card {
-    @apply transition-all duration-300 border-l-4 border-transparent hover:transform hover:-translate-y-1 hover:shadow-md;
-  }
-
-  .container-card.running {
-    @apply border-green-500;
-  }
-  .container-card.exited {
-    @apply border-red-500;
-  }
-  .container-card.paused {
-    @apply border-yellow-500;
-  }
-  .container-card.restarting {
-    @apply border-purple-500;
-  }
-
-  .terminal-container {
-    @apply bg-gray-900 rounded-lg font-mono text-sm h-96 overflow-y-auto p-4;
-  }
-
-  .pulse-dot {
-    @apply animate-pulse;
+  textarea.field {
+    @apply h-auto py-2;
   }
 }
 
 @layer utilities {
-  .text-gradient {
-    @apply bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent;
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: theme("colors.gray.300") transparent;
+  }
+  .dark .scrollbar-thin {
+    scrollbar-color: theme("colors.gray.700") transparent;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
   }
 }

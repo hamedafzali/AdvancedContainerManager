@@ -15,7 +15,7 @@ const STYLE: Record<GraphStage["status"], { box: string; icon: JSX.Element; labe
   running: { box: "border-amber-300 bg-amber-50 dark:bg-amber-900/20 animate-pulse", icon: <Clock className="w-4 h-4 text-amber-500" />, label: "Running" },
   pending: { box: "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800", icon: <Circle className="w-4 h-4 text-gray-300" />, label: "Pending" },
   skipped: { box: "border-dashed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50", icon: <MinusCircle className="w-4 h-4 text-gray-400" />, label: "Skipped" },
-  awaiting_approval: { box: "border-blue-300 bg-blue-50 dark:bg-blue-900/20 animate-pulse", icon: <PauseCircle className="w-4 h-4 text-blue-600" />, label: "Awaiting approval" },
+  awaiting_approval: { box: "border-primary-300 bg-primary-50 dark:bg-primary-900/20 animate-pulse", icon: <PauseCircle className="w-4 h-4 text-primary-600" />, label: "Awaiting approval" },
 };
 
 export default function PipelineGraph({
@@ -50,7 +50,7 @@ export default function PipelineGraph({
               onClick={() => onSelect(s.name)}
               onKeyDown={(e) => e.key === "Enter" && onSelect(s.name)}
               className={`group relative shrink-0 w-44 rounded-xl border-2 p-3 cursor-pointer transition-all ${st.box} ${
-                isSel ? "ring-2 ring-offset-1 ring-blue-400 shadow-md" : "hover:shadow-sm"
+                isSel ? "ring-2 ring-offset-1 ring-primary-400 shadow-md" : "hover:shadow-sm"
               }`}
               title={s.name}
             >

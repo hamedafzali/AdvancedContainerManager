@@ -53,7 +53,7 @@ export default function Login({ onLogin }: Props) {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="field pl-9"
                 placeholder="admin"
                 autoFocus
               />
@@ -67,7 +67,7 @@ export default function Login({ onLogin }: Props) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="field pl-9"
                 placeholder="••••••••"
               />
             </div>

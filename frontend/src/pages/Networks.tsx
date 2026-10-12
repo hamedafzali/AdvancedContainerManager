@@ -1,15 +1,29 @@
 import { useState, useCallback } from "react";
-import { Search, Plus, Trash2, Wifi, Lock } from "lucide-react";
+import { Plus, Trash2, Wifi, Lock, Network as NetworkIcon, RefreshCw } from "lucide-react";
 import { apiJson, apiPost } from "@/utils/api";
 import {
+  Badge,
   Button,
-  IconButton,
-  Modal,
+  Card,
+  CardBody,
+  CardHeader,
+  CollectionView,
   ConfirmDialog,
-  ErrorBanner,
+  DescriptionList,
   EmptyState,
+  ErrorBanner,
+  IconButton,
+  IconTile,
+  ListItem,
   LoadingState,
+  Modal,
   PageHeader,
+  SearchInput,
+  StatusBadge,
+  Toolbar,
+  ViewSwitcher,
+  useViewMode,
+  type DataTableColumn,
 } from "@/components/ui";
 import { usePolling } from "@/hooks/usePolling";
 
@@ -28,6 +42,8 @@ interface Network {
 // Docker's own networks cannot be removed.
 const BUILT_IN = new Set(["bridge", "host", "none"]);
 
+const VIEWS = ["grid", "list", "table"] as const;
+
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/;
 
 export default function Networks() {
@@ -43,6 +59,7 @@ export default function Networks() {
   const [creating, setCreating] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Network | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [view, setView] = useViewMode("networks", "grid", VIEWS);
 
   const fetchNetworks = useCallback(async () => {
     try {
@@ -128,125 +145,166 @@ export default function Networks() {
     return <LoadingState label="Fetching Docker networks…" />;
   }
 
-  const row = (label: string, value: string | number) => (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <dt className="text-gray-500 dark:text-gray-400">{label}</dt>
-      <dd className="font-medium text-gray-900 dark:text-gray-100 truncate">{value || "–"}</dd>
-    </div>
+  const tone = (n: Network) => (n.containers > 0 ? "success" : "neutral");
+  const badges = (n: Network) => (
+    <>
+      {BUILT_IN.has(n.name) && (
+        <Badge icon={<Lock className="w-3 h-3" />} title="Docker's own network, cannot be removed">
+          Built-in
+        </Badge>
+      )}
+      {n.internal && <Badge tone="warning">Internal</Badge>}
+    </>
   );
+  const attached = (n: Network) =>
+    n.containers > 0 ? (
+      <StatusBadge tone="success" label={`${n.containers} attached`} />
+    ) : (
+      <StatusBadge tone="neutral" label="No containers" />
+    );
+  const deleteButton = (n: Network) =>
+    BUILT_IN.has(n.name) ? null : (
+      <IconButton label={`Delete network ${n.name}`} tone="danger" onClick={() => setDeleteTarget(n)}>
+        <Trash2 className="w-4 h-4" />
+      </IconButton>
+    );
+
+  const columns: DataTableColumn<Network>[] = [
+    {
+      key: "name",
+      header: "Network",
+      render: (n) => (
+        <div className="flex items-center gap-3 min-w-0">
+          <IconTile tone={tone(n)}>
+            <NetworkIcon />
+          </IconTile>
+          <div className="min-w-0 max-w-[12rem] sm:max-w-[20rem]">
+            <div className="font-medium text-gray-900 dark:text-gray-100 truncate" title={n.name}>
+              {n.name}
+            </div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {n.driver} · {n.scope}
+            </div>
+          </div>
+        </div>
+      ),
+    },
+    { key: "subnet", header: "Subnet", hideBelow: "md", render: (n) => <span className="font-mono text-xs">{n.subnet || "–"}</span> },
+    { key: "gateway", header: "Gateway", hideBelow: "xl", render: (n) => <span className="font-mono text-xs">{n.gateway || "–"}</span> },
+    { key: "attached", header: "Containers", nowrap: true, hideBelow: "sm", render: attached },
+    { key: "flags", header: <span className="sr-only">Flags</span>, hideBelow: "lg", render: (n) => <span className="flex gap-1">{badges(n)}</span> },
+    { key: "actions", header: <span className="sr-only">Actions</span>, align: "right", width: "1%", render: deleteButton },
+  ];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       <PageHeader
         title="Networks"
-        subtitle={`${networks.length} networks`}
+        subtitle={`${networks.length} networks, ${networks.filter((n) => n.containers > 0).length} in use`}
         actions={
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative">
-              <Search
-                className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"
-                aria-hidden="true"
-              />
-              <input
-                type="search"
-                aria-label="Search networks"
-                placeholder="Search networks…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+          <>
+            <IconButton label="Refresh" onClick={fetchNetworks}>
+              <RefreshCw className="w-4 h-4" />
+            </IconButton>
             <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
-              Create Network
+              New network
             </Button>
-          </div>
+          </>
         }
       />
 
       <ErrorBanner message={error} onDismiss={() => setError(null)} onRetry={fetchNetworks} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((network) => {
-          const builtIn = BUILT_IN.has(network.name);
-          return (
-            <div
-              key={network.id}
-              className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6"
-            >
-              <div className="flex items-center justify-between gap-2 mb-4">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${network.containers > 0 ? "bg-green-500" : "bg-gray-300 dark:bg-gray-600"}`}
-                    aria-hidden="true"
-                  />
-                  <h3
-                    className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate"
-                    title={network.name}
-                  >
-                    {network.name}
-                  </h3>
-                  {builtIn && (
-                    <span className="shrink-0 inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
-                      <Lock className="w-3 h-3" aria-hidden="true" />
-                      built-in
-                    </span>
-                  )}
-                  {network.internal && (
-                    <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                      internal
-                    </span>
-                  )}
-                </div>
-                {!builtIn && (
-                  <IconButton
-                    label={`Delete network ${network.name}`}
-                    tone="danger"
-                    onClick={() => setDeleteTarget(network)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </IconButton>
-                )}
-              </div>
+      <Toolbar end={<ViewSwitcher value={view} onChange={setView} />}>
+        <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search name or driver…" label="Search networks" />
+      </Toolbar>
 
-              <dl className="space-y-3">
-                {row("Driver", network.driver)}
-                {row("Scope", network.scope)}
-                {row("Subnet", network.subnet)}
-                {row("Gateway", network.gateway)}
-                {row(
-                  "Containers",
-                  network.containers === 0 ? "none attached" : `${network.containers} attached`,
-                )}
-                {row("Created", network.created)}
-              </dl>
-            </div>
-          );
-        })}
-      </div>
-
-      {hasLoaded && filtered.length === 0 && (
-        <EmptyState
-          icon={<Wifi className="w-6 h-6" />}
-          title={networks.length === 0 ? "No networks yet" : "No networks match your search"}
-          description={
-            networks.length === 0
-              ? "Create a network so containers can reach each other by name."
-              : "Try a different search term."
-          }
-          action={
-            networks.length === 0 ? (
-              <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
-                Create Network
-              </Button>
-            ) : undefined
-          }
+      {hasLoaded && filtered.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<Wifi className="w-6 h-6" />}
+            title={networks.length === 0 ? "No networks yet" : "No networks match your search"}
+            description={
+              networks.length === 0
+                ? "Create a network so containers can reach each other by name."
+                : "Try a different search term."
+            }
+            action={
+              networks.length === 0 ? (
+                <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={openCreate}>
+                  New network
+                </Button>
+              ) : (
+                <Button onClick={() => setSearchTerm("")}>Clear search</Button>
+              )
+            }
+          />
+        </Card>
+      ) : (
+        <CollectionView
+          view={view}
+          rows={filtered}
+          rowKey={(n) => n.id}
+          caption="Networks"
+          columns={columns}
+          renderCard={(n) => (
+            <Card>
+              <CardHeader
+                leading={
+                  <IconTile tone={tone(n)}>
+                    <NetworkIcon />
+                  </IconTile>
+                }
+                title={<span title={n.name}>{n.name}</span>}
+                subtitle={`${n.driver} · ${n.scope}`}
+                badges={
+                  <>
+                    {attached(n)}
+                    {badges(n)}
+                  </>
+                }
+                actions={deleteButton(n)}
+              />
+              <CardBody className="mt-4">
+                <DescriptionList
+                  items={[
+                    { label: "Subnet", value: n.subnet, mono: true },
+                    { label: "Gateway", value: n.gateway, mono: true },
+                    { label: "Created", value: n.created },
+                  ]}
+                />
+              </CardBody>
+            </Card>
+          )}
+          renderListItem={(n) => (
+            <ListItem
+              leading={
+                <IconTile tone={tone(n)}>
+                  <NetworkIcon />
+                </IconTile>
+              }
+              title={n.name}
+              subtitle={
+                <span>
+                  {n.driver} · <span className="font-mono">{n.subnet || "no subnet"}</span>
+                </span>
+              }
+              meta={
+                <span className="flex items-center gap-1.5">
+                  {badges(n)}
+                  {attached(n)}
+                </span>
+              }
+              actions={deleteButton(n)}
+            />
+          )}
         />
       )}
 
       <Modal
         open={showCreate}
         onClose={() => setShowCreate(false)}
-        title="Create Network"
+        title="New network"
         footer={
           <>
             <Button variant="secondary" onClick={() => setShowCreate(false)} disabled={creating}>
@@ -289,7 +347,7 @@ export default function Networks() {
               aria-invalid={Boolean(nameProblem)}
               aria-describedby={nameProblem ? "network-name-error" : undefined}
               placeholder="app-backend"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
             />
             {nameProblem && (
               <p id="network-name-error" className="mt-1 text-xs text-red-600 dark:text-red-400">
@@ -308,7 +366,7 @@ export default function Networks() {
               id="network-driver"
               value={newDriver}
               onChange={(e) => setNewDriver(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
             >
               <option value="bridge">bridge (single host)</option>
               <option value="overlay">overlay (Swarm, multi-host)</option>
@@ -320,7 +378,7 @@ export default function Networks() {
               type="checkbox"
               checked={newInternal}
               onChange={(e) => setNewInternal(e.target.checked)}
-              className="mt-0.5"
+              className="mt-0.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
             />
             <span>
               Internal

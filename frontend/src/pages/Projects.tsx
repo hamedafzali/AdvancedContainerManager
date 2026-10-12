@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Search,
@@ -26,19 +26,44 @@ import {
   BookOpen,
   Workflow,
   Loader2,
+  Folder,
+  Network,
+  Package2,
+  Cpu,
+  ScrollText,
 } from "lucide-react";
 import { apiFetch, apiJson, apiPost } from "@/utils/api";
 import ProjectEnvironments from "@/components/ProjectEnvironments";
 import { useTasks } from "@/hooks/useTasks";
 import {
+  Badge,
   Button,
-  IconButton,
+  Card,
+  CardBody,
+  CardFooter,
+  CardGrid,
+  CardHeader,
+  CollectionView,
   ConfirmDialog,
+  DescriptionList,
   DropdownMenu,
-  ErrorBanner,
   EmptyState,
+  ErrorBanner,
+  IconButton,
+  IconTile,
+  ListItem,
   LoadingState,
+  Modal,
   PageHeader,
+  SearchInput,
+  Segmented,
+  StatTile,
+  StatusBadge,
+  Toolbar,
+  ViewSwitcher,
+  useViewMode,
+  type DataTableColumn,
+  type Tone,
 } from "@/components/ui";
 
 interface Project {
@@ -83,6 +108,28 @@ interface Project {
   tunnelUrl?: string;
 }
 
+const cx = (...parts: Array<string | false | null | undefined>) =>
+  parts.filter(Boolean).join(" ");
+
+const VIEWS = ["grid", "list", "table"] as const;
+
+const STATUS_TONE: Record<Project["status"], Tone> = {
+  configured: "info",
+  building: "warning",
+  built: "accent",
+  running: "success",
+  degraded: "warning",
+  stopped: "neutral",
+  error: "danger",
+};
+
+/** github.com/owner/repo from an https or ssh remote. */
+const repoLabel = (url: string) =>
+  url
+    .replace(/^https?:\/\//, "")
+    .replace(/^git@([^:]+):/, "$1/")
+    .replace(/\.git$/, "");
+
 export default function Projects() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -106,6 +153,8 @@ export default function Projects() {
   >({});
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "running" | "attention" | "stopped">("all");
+  const [view, setView] = useViewMode("projects", "grid", VIEWS);
   const { startTask, appendTaskLog, finishTask, openTask } = useTasks();
   // Active streaming deploy/build; websocket chunks append to this task
   const deployTaskRef = useRef<{ project: string; taskId: string } | null>(
@@ -630,6 +679,37 @@ export default function Projects() {
     );
   };
 
+  // Several compose files were found; save the one the user picked.
+  const handleUseSelectedCompose = async () => {
+    if (!newProject.composeFile) return;
+    try {
+      await apiJson(`/api/projects/${encodeURIComponent(newProject.name)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ composeFile: newProject.composeFile }),
+      });
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : "Could not save the compose file choice");
+      return;
+    }
+    await fetchProjects();
+    setNewProject({ name: "", repository: "", branch: "main", composeFile: "", environmentVars: [] });
+    setDetectedComposeFiles([]);
+    setSelectedRepo(null);
+    setBranches([]);
+    setShowAddModal(false);
+  };
+
+  const closeEnvModal = () => {
+    setShowEnvModal(false);
+    setEnvProject(null);
+    setEnvEditor([]);
+    setRepoUrlEditor("");
+    setBranchEditor("");
+    setComposeFileEditor("");
+    setPortEditor([]);
+  };
+
   const handleSaveEnvVars = async () => {
     if (!envProject) {
       return;
@@ -1086,53 +1166,296 @@ export default function Projects() {
     }
   }, [searchParams, setSearchParams]);
 
-  const getStatusIcon = (status: Project["status"]) => {
-    switch (status) {
-      case "configured":
-        return <CheckCircle className="w-4 h-4 text-blue-600" />;
-      case "building":
-        return <Clock className="w-4 h-4 text-yellow-600 animate-pulse" />;
-      case "built":
-        return <CheckCircle className="w-4 h-4 text-indigo-600" />;
-      case "running":
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case "degraded":
-        return <AlertTriangle className="w-4 h-4 text-orange-600" />;
-      case "stopped":
-        return <Square className="w-4 h-4 text-gray-600 dark:text-gray-300" />;
-      case "error":
-        return <XCircle className="w-4 h-4 text-red-600" />;
-      default:
-        return null;
-    }
+  const statusCounts = {
+    all: projects.length,
+    running: projects.filter((p) => p.status === "running").length,
+    attention: projects.filter((p) => p.status === "degraded" || p.status === "error").length,
+    stopped: projects.filter((p) => p.status === "stopped").length,
   };
 
-  const getStatusColor = (status: Project["status"]) => {
-    switch (status) {
-      case "configured":
-        return "text-blue-600";
-      case "building":
-        return "text-yellow-600";
-      case "built":
-        return "text-indigo-600";
-      case "running":
-        return "text-green-600";
-      case "degraded":
-        return "text-orange-600";
-      case "stopped":
-        return "text-gray-600 dark:text-gray-300";
-      case "error":
-        return "text-red-600";
-      default:
-        return "text-gray-600 dark:text-gray-300";
-    }
+  const filteredProjects = projects.filter((project) => {
+    const term = searchTerm.toLowerCase();
+    const matchesSearch =
+      project.name.toLowerCase().includes(term) ||
+      project.repoUrl.toLowerCase().includes(term) ||
+      project.branch.toLowerCase().includes(term);
+    if (!matchesSearch) return false;
+    if (statusFilter === "running") return project.status === "running";
+    if (statusFilter === "attention") return project.status === "degraded" || project.status === "error";
+    if (statusFilter === "stopped") return project.status === "stopped";
+    return true;
+  });
+
+  const renderStatus = (project: Project) => {
+    const pending = pendingProjects[project.name];
+    return pending ? (
+      <StatusBadge tone="info" label={`${pending}…`} busy />
+    ) : (
+      <StatusBadge
+        tone={STATUS_TONE[project.status] ?? "neutral"}
+        label={project.status}
+        busy={project.status === "building"}
+      />
+    );
   };
 
-  const filteredProjects = projects.filter(
-    (project) =>
-      project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.repoUrl.toLowerCase().includes(searchTerm.toLowerCase()),
+  const renderPorts = (project: Project, limit?: number) => {
+    const ports = project.ports ?? [];
+    if (ports.length === 0) {
+      return <span className="text-gray-400 dark:text-gray-500">None</span>;
+    }
+    const conflicts = portConflicts[project.name] || [];
+    const shown = limit ? ports.slice(0, limit) : ports;
+    const hidden = ports.length - shown.length;
+    return (
+      <span className="inline-flex flex-wrap justify-end gap-1 min-w-0">
+        {shown.map((port) => {
+          const conflict = port.hostPort
+            ? conflicts.find((c) => c.includes(`port ${port.hostPort}`))
+            : undefined;
+          const key = `${port.service}-${port.hostPort ?? ""}-${port.containerPort}`;
+          const label = `${port.hostPort ? `${port.hostPort}→` : ""}${port.containerPort}`;
+          const chip = cx(
+            "inline-flex items-center gap-1 font-mono text-xs px-1.5 py-0.5 rounded-md",
+            conflict
+              ? "bg-red-50 text-red-700 ring-1 ring-red-200 dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/30"
+              : port.hostPort
+                ? "bg-primary-50 text-primary-700 hover:underline dark:bg-primary-500/10 dark:text-primary-300"
+                : "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300",
+          );
+          const body = (
+            <>
+              {label}
+              {conflict && <AlertTriangle className="w-3 h-3" aria-label="Port conflict" />}
+            </>
+          );
+          return port.hostPort ? (
+            <a
+              key={key}
+              href={`http://${window.location.hostname}:${port.hostPort}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={conflict ?? `${port.service}: open http://${window.location.hostname}:${port.hostPort}`}
+              className={chip}
+            >
+              {body}
+            </a>
+          ) : (
+            <span key={key} title={port.service} className={chip}>
+              {body}
+            </span>
+          );
+        })}
+        {hidden > 0 && (
+          <span
+            className="text-xs px-1.5 py-0.5 text-gray-500 dark:text-gray-400"
+            title={ports
+              .slice(shown.length)
+              .map((p) => `${p.service} ${p.hostPort ? `${p.hostPort}→` : ""}${p.containerPort}`)
+              .join(", ")}
+          >
+            +{hidden}
+          </span>
+        )}
+        {conflictChecking === project.name && (
+          <span className="text-xs text-gray-400">checking…</span>
+        )}
+      </span>
+    );
+  };
+
+  const renderPublicUrl = (project: Project) => {
+    const domain = (project as any).tunnelDomain as string | undefined;
+    const url = domain || project.tunnelUrl;
+    if (!url) return null;
+    return (
+      <span className="inline-flex items-center gap-1 min-w-0 max-w-full">
+        <a
+          href={`https://${url}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="truncate text-primary-600 hover:underline dark:text-primary-400"
+          title={`https://${url}`}
+        >
+          {url}
+        </a>
+        <IconButton
+          size="sm"
+          label="Copy public URL"
+          onClick={() => navigator.clipboard.writeText(`https://${url}`)}
+        >
+          <Copy className="w-3.5 h-3.5" />
+        </IconButton>
+      </span>
+    );
+  };
+
+  const menuItems = (project: Project) => {
+    const busy = Boolean(pendingProjects[project.name]);
+    const domain = (project as any).tunnelDomain as string | undefined;
+    return [
+      { label: "Container logs", icon: <ScrollText className="w-4 h-4" />, onClick: () => handleViewLogs(project) },
+      { label: "Pipeline", icon: <Workflow className="w-4 h-4" />, onClick: () => navigate(`/pipelines?project=${encodeURIComponent(project.name)}`) },
+      { label: "Deploy without sync", icon: <Zap className="w-4 h-4" />, disabled: busy, dividerAbove: true, onClick: () => handleDeployProject(project.name) },
+      { label: "Restart production", icon: <RefreshCw className="w-4 h-4" />, disabled: busy, onClick: () => handleRestartEnv(project.name, "prod") },
+      { label: "Stop production", icon: <Square className="w-4 h-4" />, disabled: busy, onClick: () => handleStopProject(project.name) },
+      { label: "Start dev", icon: <Play className="w-4 h-4" />, disabled: busy, dividerAbove: true, onClick: () => handleStartDev(project.name) },
+      { label: "Restart dev", icon: <RefreshCw className="w-4 h-4" />, disabled: busy, onClick: () => handleRestartEnv(project.name, "dev") },
+      { label: "Stop dev", icon: <Square className="w-4 h-4" />, disabled: busy, onClick: () => handleStopDev(project.name) },
+      { label: "Sync repository", icon: <GitBranch className="w-4 h-4" />, disabled: busy, dividerAbove: true, onClick: () => handleSyncProject(project.name) },
+      { label: "Build images", icon: <Code2 className="w-4 h-4" />, disabled: busy, onClick: () => handleBuildProject(project.name) },
+      project.tunnelId
+        ? { label: "Stop tunnel", icon: <Link2Off className="w-4 h-4" />, disabled: tunnelLoading === project.name, dividerAbove: true, onClick: () => handleStopTunnel(project.name) }
+        : { label: "Create tunnel", icon: <Globe className="w-4 h-4" />, disabled: tunnelLoading === project.name, dividerAbove: true, onClick: () => openTunnelModal(project) },
+      ...(project.tunnelUrl
+        ? [
+            domain
+              ? { label: "Remove domain", icon: <Link2Off className="w-4 h-4" />, onClick: () => handleDetachDomain(project.name) }
+              : { label: "Attach domain", icon: <Globe className="w-4 h-4" />, onClick: () => openDomainModal(project) },
+          ]
+        : []),
+      { label: "Settings", icon: <Settings className="w-4 h-4" />, onClick: () => openEnvModal(project) },
+      { label: "Delete project", icon: <Trash2 className="w-4 h-4" />, danger: true, dividerAbove: true, onClick: () => setDeleteTarget(project) },
+    ];
+  };
+
+  const renderActions = (project: Project, compact = false) => {
+    const pending = pendingProjects[project.name];
+    return (
+      <div className="flex items-center gap-1 shrink-0">
+        <Button
+          size="sm"
+          icon={<Zap className="w-3.5 h-3.5" />}
+          loading={pending === "deploying"}
+          disabled={Boolean(pending)}
+          onClick={() => handleSyncDeploy(project.name)}
+          title="Pull the latest commit, then deploy to production"
+          aria-label={`Deploy ${project.name}`}
+        >
+          <span className={compact ? "hidden xl:inline" : undefined}>Deploy</span>
+        </Button>
+        <DropdownMenu
+          iconTrigger
+          triggerLabel={`More actions for ${project.name}`}
+          items={menuItems(project)}
+        />
+      </div>
+    );
+  };
+
+  const projectTitle = (project: Project) => (
+    <span title={project.name}>{project.name}</span>
   );
+
+  const repoSubtitle = (project: Project) => (
+    <span className="font-mono text-xs" title={project.repoUrl}>
+      {repoLabel(project.repoUrl)}
+    </span>
+  );
+
+  const renderCard = (project: Project) => (
+    <Card className={cx("flex flex-col", pendingProjects[project.name] && "opacity-80")}>
+      <CardHeader
+        leading={
+          <IconTile tone={STATUS_TONE[project.status] ?? "neutral"}>
+            <Folder />
+          </IconTile>
+        }
+        title={projectTitle(project)}
+        subtitle={repoSubtitle(project)}
+        actions={renderStatus(project)}
+      />
+      <CardBody className="mt-4 flex-1">
+        <DescriptionList
+          items={[
+            { label: "Branch", icon: <GitBranch className="w-3.5 h-3.5" />, value: project.branch, mono: true },
+            { label: "Ports", icon: <Network className="w-3.5 h-3.5" />, value: renderPorts(project, 3), title: "" },
+            { label: "Public URL", icon: <Globe className="w-3.5 h-3.5" />, value: renderPublicUrl(project), hidden: !project.tunnelUrl, title: "" },
+            {
+              label: "Containers",
+              icon: <Package2 className="w-3.5 h-3.5" />,
+              value: project.containers.length || "None",
+            },
+            {
+              label: "Limits",
+              icon: <Cpu className="w-3.5 h-3.5" />,
+              value: `${project.resourceLimits.memory} · ${project.resourceLimits.cpu} CPU`,
+            },
+          ]}
+        />
+        <ProjectEnvironments projectName={project.name} />
+      </CardBody>
+      <CardFooter>
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          Created {new Date(project.createdAt).toLocaleDateString()}
+        </span>
+        {renderActions(project)}
+      </CardFooter>
+    </Card>
+  );
+
+  const renderListItem = (project: Project) => (
+    <ListItem
+      leading={
+        <IconTile tone={STATUS_TONE[project.status] ?? "neutral"}>
+          <Folder />
+        </IconTile>
+      }
+      title={projectTitle(project)}
+      subtitle={
+        <span className="font-mono text-xs" title={project.repoUrl}>
+          {repoLabel(project.repoUrl)} · {project.branch}
+        </span>
+      }
+      meta={
+        <span className="flex items-center gap-3">
+          {project.ports?.length > 0 && renderPorts(project, 1)}
+          {renderStatus(project)}
+        </span>
+      }
+      actions={renderActions(project)}
+    />
+  );
+
+  const columns: DataTableColumn<Project>[] = [
+    {
+      key: "name",
+      header: "Project",
+      render: (project) => (
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="hidden sm:block">
+            <IconTile tone={STATUS_TONE[project.status] ?? "neutral"}>
+              <Folder />
+            </IconTile>
+          </span>
+          <div className="min-w-0 max-w-[10rem] sm:max-w-[14rem] xl:max-w-[18rem]">
+            <div className="font-medium text-gray-900 dark:text-gray-50 truncate" title={project.name}>
+              {project.name}
+            </div>
+            <div className="font-mono text-xs text-gray-500 dark:text-gray-400 truncate" title={project.repoUrl}>
+              {repoLabel(project.repoUrl)}
+            </div>
+            <div className="sm:hidden mt-1">{renderStatus(project)}</div>
+          </div>
+        </div>
+      ),
+    },
+    { key: "status", header: "Status", hideBelow: "sm", render: renderStatus },
+    {
+      key: "branch",
+      header: "Branch",
+      hideBelow: "xl",
+      render: (project) => <Badge mono>{project.branch}</Badge>,
+    },
+    {
+      key: "ports",
+      header: "Ports",
+      hideBelow: "xl",
+      nowrap: true,
+      render: (project) => <span className="inline-flex justify-start">{renderPorts(project, 2)}</span>,
+    },
+    { key: "actions", header: <span className="sr-only">Actions</span>, align: "right", render: (project) => renderActions(project, true) },
+  ];
 
   if (loading && projects.length === 0 && !error) {
     return <LoadingState label="Fetching project data…" />;
@@ -1142,363 +1465,115 @@ export default function Projects() {
     <div className="max-w-7xl mx-auto space-y-6">
       <PageHeader
         title="Projects"
-        subtitle={`${projects.length} projects`}
+        subtitle="Git repositories deployed with docker compose, with dev, test and prod side by side."
         actions={
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search projects…"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
+          <>
+            <IconButton label="Refresh projects" onClick={fetchProjects} loading={loading}>
+              <RefreshCw className="w-4 h-4" />
+            </IconButton>
             <Button
               variant="primary"
               icon={<Plus className="w-4 h-4" />}
               onClick={() => setShowAddModal(true)}
             >
-              Add Project
+              New project
             </Button>
-          </div>
+          </>
         }
       />
 
-      <ErrorBanner
-        message={error}
-        onDismiss={() => setError(null)}
-        onRetry={fetchProjects}
-      />
-      <ErrorBanner
-        message={actionError}
-        onDismiss={() => setActionError(null)}
-      />
+      <ErrorBanner message={error} onDismiss={() => setError(null)} onRetry={fetchProjects} />
+      <ErrorBanner message={actionError} onDismiss={() => setActionError(null)} />
 
-      <div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredProjects.map((project, index) => (
-            <div
-              key={index}
-              className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col hover:shadow-md hover:border-gray-300 transition-all duration-200"
-            >
-              {/* Card header — status stripe */}
-              <div className={`h-1 rounded-t-2xl ${
-                project.status === "running" ? "bg-green-400" :
-                project.status === "error" ? "bg-red-400" :
-                project.status === "degraded" ? "bg-orange-400" :
-                project.status === "building" ? "bg-yellow-400" :
-                project.status === "built" ? "bg-indigo-400" :
-                project.status === "stopped" ? "bg-gray-300" :
-                "bg-blue-300"
-              }`} />
-
-              <div className="p-5 flex flex-col flex-1">
-                {/* Title row — full width, status badge beside name */}
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    {getStatusIcon(project.status)}
-                    <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 break-all leading-snug" title={project.name}>
-                      {project.name}
-                    </h3>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      project.status === "running" ? "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300" :
-                      project.status === "error" ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" :
-                      project.status === "degraded" ? "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" :
-                      project.status === "building" ? "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300" :
-                      project.status === "built" ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300" :
-                      project.status === "stopped" ? "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300" :
-                      "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300"
-                    }`}>
-                      {project.status}
-                    </span>
-                    {project.containers.length > 0 && (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                        <Activity className="w-3 h-3" />
-                        {project.containers.length} container{project.containers.length !== 1 ? "s" : ""}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Info rows */}
-                <div className="space-y-2.5 flex-1">
-                  {/* Repo */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <ExternalLink className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <a
-                      href={project.repoUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 truncate min-w-0"
-                      title={project.repoUrl}
-                    >
-                      {project.repoUrl.replace(/^https?:\/\//, "").replace(/\.git$/, "")}
-                    </a>
-                  </div>
-
-                  {/* Branch */}
-                  <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                    <GitBranch className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <span className="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">{project.branch}</span>
-                  </div>
-
-                  {/* Ports + conflict warnings */}
-                  {project.ports && project.ports.length > 0 && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <Shield className={`w-3.5 h-3.5 shrink-0 mt-0.5 ${portConflicts[project.name]?.length ? "text-red-400" : "text-gray-400"}`} />
-                      <div className="flex flex-wrap gap-1">
-                        {project.ports.map((port, pi) => {
-                          const hasConflict = (portConflicts[project.name] || []).some((c) =>
-                            c.includes(`port ${port.hostPort}`)
-                          );
-                          const chipClasses = `font-mono text-xs px-1.5 py-0.5 rounded ${
-                            hasConflict
-                              ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 ring-1 ring-red-300"
-                              : "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
-                          }`;
-                          const chipBody = (
-                            <>
-                              {port.hostPort ? `${port.hostPort}→` : ""}{port.containerPort}
-                              <span className={`ml-1 ${hasConflict ? "text-red-400" : "text-blue-400"}`}>{port.service}</span>
-                              {hasConflict && <AlertTriangle className="w-3 h-3 ml-1 inline" aria-label="Port conflict" />}
-                            </>
-                          );
-                          // Exposed host ports are clickable — open the app in a new tab
-                          return port.hostPort ? (
-                            <a
-                              key={pi}
-                              href={`http://${window.location.hostname}:${port.hostPort}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              title={
-                                hasConflict
-                                  ? portConflicts[project.name].find((c) => c.includes(`port ${port.hostPort}`))
-                                  : `Open http://${window.location.hostname}:${port.hostPort}`
-                              }
-                              className={`${chipClasses} hover:underline hover:ring-1 hover:ring-blue-400 cursor-pointer`}
-                            >
-                              {chipBody}
-                            </a>
-                          ) : (
-                            <span key={pi} className={chipClasses}>
-                              {chipBody}
-                            </span>
-                          );
-                        })}
-                        {conflictChecking === project.name && (
-                          <span className="text-xs text-gray-400 italic">checking…</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tunnel */}
-                  {project.tunnelUrl && (
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Globe className="w-3.5 h-3.5 text-teal-500 shrink-0" />
-                        <a href={`https://${project.tunnelUrl}`} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-800 text-xs truncate min-w-0">
-                          {project.tunnelUrl}
-                        </a>
-                        <button onClick={() => navigator.clipboard.writeText(`https://${project.tunnelUrl}`)} className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0" title="Copy tunnel URL">
-                          <Copy className="w-3 h-3" />
-                        </button>
-                        {(project as any).tunnelService && (
-                          <span className="text-xs text-teal-400 shrink-0">({(project as any).tunnelService}:{(project as any).tunnelPort})</span>
-                        )}
-                      </div>
-                      {(project as any).tunnelDomain ? (
-                        <div className="flex items-center gap-2 pl-5">
-                          <a href={`https://${(project as any).tunnelDomain}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 text-xs truncate font-medium">
-                            {(project as any).tunnelDomain}
-                          </a>
-                          <span className="text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-600 px-1 rounded">CF</span>
-                          <button onClick={() => navigator.clipboard.writeText(`https://${(project as any).tunnelDomain}`)} className="p-0.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 shrink-0" title="Copy domain">
-                            <Copy className="w-3 h-3" />
-                          </button>
-                          <button onClick={() => handleDetachDomain(project.name)} className="text-xs text-red-400 hover:text-red-600 shrink-0">remove</button>
-                        </div>
-                      ) : (
-                        <button onClick={() => openDomainModal(project)} className="pl-5 text-xs text-blue-500 hover:text-blue-700 text-left">
-                          + Attach Cloudflare domain
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Resources */}
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <Zap className="w-3.5 h-3.5 shrink-0" />
-                    <span>{project.resourceLimits.memory} · {project.resourceLimits.cpu} CPU</span>
-                    <span className="ml-auto">{new Date(project.createdAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
-
-                {/* Action toolbar — dev workflow first, prod deploy last */}
-                <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
-                  <div className="flex items-center gap-0.5">
-                    <IconButton
-                      label="Start dev environment"
-                      tone="success"
-                      loading={pendingProjects[project.name] === "starting dev"}
-                      disabled={Boolean(pendingProjects[project.name])}
-                      onClick={() => handleStartDev(project.name)}
-                    >
-                      <Play className="w-4 h-4" />
-                    </IconButton>
-                    <IconButton
-                      label="Stop dev environment"
-                      loading={pendingProjects[project.name] === "stopping dev"}
-                      disabled={Boolean(pendingProjects[project.name])}
-                      onClick={() => handleStopDev(project.name)}
-                    >
-                      <Square className="w-4 h-4" />
-                    </IconButton>
-                    <IconButton
-                      label="Restart dev environment"
-                      tone="info"
-                      loading={
-                        pendingProjects[project.name] === "restarting dev"
-                      }
-                      disabled={Boolean(pendingProjects[project.name])}
-                      onClick={() => handleRestartEnv(project.name, "dev")}
-                    >
-                      <RefreshCw className="w-4 h-4" />
-                    </IconButton>
-                    <IconButton
-                      label="Container logs"
-                      onClick={() => handleViewLogs(project)}
-                    >
-                      <Terminal className="w-4 h-4" />
-                    </IconButton>
-                    {pendingProjects[project.name] && (
-                      <span className="inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        {pendingProjects[project.name]}…
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="secondary"
-                      className="!px-2.5 !py-1 !text-xs"
-                      icon={<Zap className="w-3.5 h-3.5" />}
-                      loading={pendingProjects[project.name] === "deploying"}
-                      disabled={Boolean(pendingProjects[project.name])}
-                      onClick={() => handleSyncDeploy(project.name)}
-                      title="Sync repository, then deploy to production"
-                    >
-                      Deploy
-                    </Button>
-                    <DropdownMenu
-                      items={[
-                        {
-                          label: "Deploy prod (no sync)",
-                          icon: <Zap className="w-4 h-4" />,
-                          disabled: Boolean(pendingProjects[project.name]),
-                          onClick: () => handleDeployProject(project.name),
-                        },
-                        {
-                          label: "Restart production",
-                          icon: <RefreshCw className="w-4 h-4" />,
-                          disabled: Boolean(pendingProjects[project.name]),
-                          onClick: () => handleRestartEnv(project.name, "prod"),
-                        },
-                        {
-                          label: "Stop production",
-                          icon: <Square className="w-4 h-4" />,
-                          disabled: Boolean(pendingProjects[project.name]),
-                          onClick: () => handleStopProject(project.name),
-                        },
-                        {
-                          label: "Sync repo (git pull)",
-                          icon: <GitBranch className="w-4 h-4" />,
-                          disabled: Boolean(pendingProjects[project.name]),
-                          dividerAbove: true,
-                          onClick: () => handleSyncProject(project.name),
-                        },
-                        {
-                          label: "Build images",
-                          icon: <Code2 className="w-4 h-4" />,
-                          disabled: Boolean(pendingProjects[project.name]),
-                          onClick: () => handleBuildProject(project.name),
-                        },
-                        {
-                          label: "Pipeline",
-                          icon: <Workflow className="w-4 h-4" />,
-                          onClick: () =>
-                            navigate(
-                              `/pipelines?project=${encodeURIComponent(project.name)}`,
-                            ),
-                        },
-                        project.tunnelId
-                          ? {
-                              label: "Stop tunnel",
-                              icon: <Link2Off className="w-4 h-4" />,
-                              disabled: tunnelLoading === project.name,
-                              onClick: () => handleStopTunnel(project.name),
-                            }
-                          : {
-                              label: "Create tunnel",
-                              icon: <Globe className="w-4 h-4" />,
-                              disabled: tunnelLoading === project.name,
-                              onClick: () => openTunnelModal(project),
-                            },
-                        {
-                          label: "Settings",
-                          icon: <Settings className="w-4 h-4" />,
-                          onClick: () => openEnvModal(project),
-                        },
-                        {
-                          label: "Delete project",
-                          icon: <Trash2 className="w-4 h-4" />,
-                          danger: true,
-                          dividerAbove: true,
-                          onClick: () => setDeleteTarget(project),
-                        },
-                      ]}
-                    />
-                  </div>
-                </div>
-                <ProjectEnvironments projectName={project.name} />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {filteredProjects.length === 0 && (
-          <EmptyState
-            icon={<Code2 className="w-6 h-6" />}
-            title={
-              projects.length === 0
-                ? "No projects yet"
-                : "No projects match your search"
-            }
-            description={
-              projects.length === 0
-                ? "Connect a Git repository and deploy it with docker-compose in a couple of clicks."
-                : "Try a different search term."
-            }
-            action={
-              projects.length === 0 ? (
-                <Button
-                  variant="primary"
-                  icon={<Plus className="w-4 h-4" />}
-                  onClick={() => setShowAddModal(true)}
-                >
-                  Add your first project
-                </Button>
-              ) : undefined
-            }
-          />
-        )}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <StatTile
+          label="Total"
+          value={statusCounts.all}
+          icon={<Folder />}
+          tone="accent"
+          active={statusFilter === "all"}
+          onClick={() => setStatusFilter("all")}
+        />
+        <StatTile
+          label="Running"
+          value={statusCounts.running}
+          icon={<Activity />}
+          tone="success"
+          active={statusFilter === "running"}
+          onClick={() => setStatusFilter(statusFilter === "running" ? "all" : "running")}
+        />
+        <StatTile
+          label="Needs attention"
+          value={statusCounts.attention}
+          icon={<AlertTriangle />}
+          tone={statusCounts.attention > 0 ? "danger" : "neutral"}
+          active={statusFilter === "attention"}
+          onClick={() => setStatusFilter(statusFilter === "attention" ? "all" : "attention")}
+        />
+        <StatTile
+          label="Stopped"
+          value={statusCounts.stopped}
+          icon={<Square />}
+          tone="neutral"
+          active={statusFilter === "stopped"}
+          onClick={() => setStatusFilter(statusFilter === "stopped" ? "all" : "stopped")}
+        />
       </div>
+
+      <Toolbar end={<ViewSwitcher value={view} onChange={setView} />}>
+        <SearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Search projects…"
+          label="Search projects"
+        />
+      </Toolbar>
+
+      {filteredProjects.length === 0 ? (
+        <EmptyState
+          icon={<Code2 className="w-6 h-6" />}
+          title={projects.length === 0 ? "No projects yet" : "No projects match"}
+          description={
+            projects.length === 0
+              ? "Connect a Git repository and deploy it with docker compose in a couple of clicks."
+              : "Try a different search term or status filter."
+          }
+          action={
+            projects.length === 0 ? (
+              <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowAddModal(true)}>
+                Add your first project
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter("all");
+                }}
+              >
+                Clear filters
+              </Button>
+            )
+          }
+        />
+      ) : view === "grid" ? (
+        // Project cards carry the dev → test → prod strip, so they get the
+        // roomier two/three-column grid rather than the dense one.
+        <CardGrid>
+          {filteredProjects.map((project) => (
+            <Fragment key={project.name}>{renderCard(project)}</Fragment>
+          ))}
+        </CardGrid>
+      ) : (
+        <CollectionView
+          view={view}
+          rows={filteredProjects}
+          rowKey={(project) => project.name}
+          columns={columns}
+          caption="Projects"
+          renderCard={renderCard}
+          renderListItem={renderListItem}
+        />
+      )}
 
       {/* Delete confirmation */}
       <ConfirmDialog
@@ -1521,817 +1596,777 @@ export default function Projects() {
       />
 
       {/* Add Project Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-2xl w-full m-4 flex flex-col max-h-[90vh]">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Add New Project</h3>
-              {/* Mode tabs */}
-              <div className="flex mt-3 space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-fit">
-                <button
-                  onClick={() => setAddMode("manual")}
-                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${addMode === "manual" ? "bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
-                >
-                  Manual URL
-                </button>
-                <button
-                  onClick={() => { setAddMode("browse"); if (gitAccounts.length > 0 && !selectedAccount) handleSelectAccount(gitAccounts[0]); }}
-                  className={`px-4 py-1.5 text-sm rounded-md transition-colors ${addMode === "browse" ? "bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-gray-100" : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"}`}
-                >
-                  Browse Repositories
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 overflow-y-auto flex-1">
-              {addMode === "browse" && (
-                <div className="mb-6">
-                  {/* Account selector */}
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Git Account:</span>
-                    <div className="flex gap-2 flex-wrap">
-                      {gitAccounts.map((acc) => (
-                        <button
-                          key={acc.id}
-                          onClick={() => handleSelectAccount(acc)}
-                          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors ${selectedAccount?.id === acc.id ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 dark:border-gray-600 hover:border-gray-500"}`}
-                        >
-                          <Github className="w-3 h-3" />
-                          {acc.username}
-                        </button>
-                      ))}
-                      <button
-                        onClick={() => setShowGitAccountModal(true)}
-                        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-400 text-gray-500 dark:text-gray-400 hover:text-blue-600 transition-colors"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Connect Account
-                      </button>
-                    </div>
-                  </div>
-
-                  {selectedAccount && (
-                    <>
-                      <div className="relative mb-2">
-                        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input
-                          type="text"
-                          placeholder="Search repositories..."
-                          value={repoSearch}
-                          onChange={(e) => setRepoSearch(e.target.value)}
-                          className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
-                      <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-y-auto max-h-48">
-                        {reposLoading ? (
-                          <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">Loading repositories...</div>
-                        ) : repos.filter(r => r.name.toLowerCase().includes(repoSearch.toLowerCase())).length === 0 ? (
-                          <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">No repositories found</div>
-                        ) : (
-                          repos.filter(r => r.name.toLowerCase().includes(repoSearch.toLowerCase())).map((repo) => (
-                            <button
-                              key={repo.id}
-                              onClick={() => handleSelectRepo(repo)}
-                              className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${selectedRepo?.id === repo.id ? "bg-blue-50 dark:bg-blue-900/20" : ""}`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <BookOpen className="w-4 h-4 text-gray-400" />
-                                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{repo.name}</span>
-                                  {repo.private && <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">private</span>}
-                                </div>
-                                <span className="text-xs text-gray-400">{repo.defaultBranch}</span>
-                              </div>
-                              {repo.description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate pl-6">{repo.description}</p>}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {!selectedAccount && gitAccounts.length === 0 && (
-                    <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
-                      No git accounts connected.{" "}
-                      <button onClick={() => setShowGitAccountModal(true)} className="text-blue-600 hover:underline">Connect one</button> to browse repositories.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="projects-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name</label>
-                  <input id="projects-field-1"
-                    type="text"
-                    value={newProject.name}
-                    onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter project name"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="projects-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository URL</label>
-                  <input id="projects-field-2"
-                    type="text"
-                    value={newProject.repository}
-                    onChange={(e) => setNewProject({ ...newProject, repository: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://github.com/user/repo"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
-                  {branches.length > 0 ? (
-                    <select
-                      value={newProject.branch}
-                      onChange={(e) => setNewProject({ ...newProject, branch: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {branches.map((b) => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      value={newProject.branch}
-                      onChange={(e) => setNewProject({ ...newProject, branch: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder={branchesLoading ? "Loading branches..." : "main"}
-                    />
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Compose File Path</label>
-                  {detectedComposeFiles.length > 1 ? (
-                    <div className="space-y-1">
-                      <p className="text-xs text-amber-600 mb-2">Multiple compose files found — pick one to use:</p>
-                      {detectedComposeFiles.map((f) => (
-                        <button
-                          key={f}
-                          onClick={() => setNewProject((p) => ({ ...p, composeFile: f }))}
-                          className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${newProject.composeFile === f ? "bg-blue-50 dark:bg-blue-900/20 border-blue-400 text-blue-700 dark:text-blue-300" : "border-gray-200 dark:border-gray-700 hover:border-gray-400"}`}
-                        >
-                          {f}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <>
-                      <input
-                        type="text"
-                        value={newProject.composeFile}
-                        onChange={(e) => setNewProject({ ...newProject, composeFile: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="docker-compose.yml (default)"
-                      />
-                      <p className="text-xs text-gray-400 mt-1">Relative path from repo root, e.g. <code>infra/docker-compose.yml</code></p>
-                    </>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Environment Variables</label>
-                    <button onClick={addEnvironmentVar} className="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center">
-                      <Plus className="w-3 h-3 mr-1" />Add Variable
-                    </button>
-                  </div>
-                  <div className="space-y-2 max-h-32 overflow-y-auto">
-                    {newProject.environmentVars.map((env, index) => (
-                      <div key={index} className="flex items-center space-x-2">
-                        <input type="text" placeholder="KEY" value={env.key} onChange={(e) => updateEnvironmentVar(index, "key", e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
-                        <input type="text" placeholder="VALUE" value={env.value} onChange={(e) => updateEnvironmentVar(index, "value", e.target.value)} className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm" />
-                        <button onClick={() => removeEnvironmentVar(index)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    ))}
-                    {newProject.environmentVars.length === 0 && <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">No environment variables configured</div>}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {addError && (
-              <div role="alert" className="mx-6 mb-2 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
-                {addError}
-              </div>
+      <Modal
+        open={showAddModal}
+        onClose={() => { setShowAddModal(false); setAddError(null); setAddMode("manual"); setSelectedRepo(null); setBranches([]); setDetectedComposeFiles([]); }}
+        title="New project"
+        wide
+        footer={
+          <>
+            <Button
+              onClick={() => {
+                setShowAddModal(false);
+                setAddError(null);
+                setAddMode("manual");
+                setSelectedRepo(null);
+                setBranches([]);
+                setDetectedComposeFiles([]);
+              }}
+            >
+              Cancel
+            </Button>
+            {detectedComposeFiles.length > 1 ? (
+              <Button variant="primary" onClick={handleUseSelectedCompose} disabled={!newProject.composeFile}>
+                Use selected file
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={handleAddProject} loading={adding}>
+                {adding ? "Cloning…" : "Add project"}
+              </Button>
             )}
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
-              <button onClick={() => { setShowAddModal(false); setAddError(null); setAddMode("manual"); setSelectedRepo(null); setBranches([]); setDetectedComposeFiles([]); }} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">Cancel</button>
-              {detectedComposeFiles.length > 1 ? (
-                <button
-                  onClick={async () => {
-                    if (!newProject.composeFile) return;
-                    try {
-                      await apiJson(`/api/projects/${encodeURIComponent(newProject.name)}`, {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ composeFile: newProject.composeFile }),
-                      });
-                    } catch (err) {
-                      setAddError(err instanceof Error ? err.message : "Could not save the compose file choice");
-                      return;
-                    }
-                    await fetchProjects();
-                    setNewProject({ name: "", repository: "", branch: "main", composeFile: "", environmentVars: [] });
-                    setDetectedComposeFiles([]);
-                    setSelectedRepo(null);
-                    setBranches([]);
-                    setShowAddModal(false);
-                  }}
-                  disabled={!newProject.composeFile}
-                  className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-50"
-                >
-                  Use Selected
-                </button>
-              ) : (
-                <button onClick={handleAddProject} disabled={adding} className="inline-flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-60">
-                  {adding && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {adding ? "Cloning…" : "Add Project"}
-                </button>
-              )}
-            </div>
-          </div>
+          </>
+        }
+      >
+        <div className="mb-5">
+          <Segmented
+            label="Repository source"
+            value={addMode}
+            onChange={(mode) => {
+              setAddMode(mode);
+              if (mode === "browse" && gitAccounts.length > 0 && !selectedAccount) {
+                handleSelectAccount(gitAccounts[0]);
+              }
+            }}
+            options={[
+              { value: "manual", label: "Repository URL" },
+              { value: "browse", label: "Browse repositories" },
+            ]}
+          />
         </div>
-      )}
 
-      {/* Connect Git Account Modal */}
-      {showGitAccountModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full m-4">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Connect Git Account</h3>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Provider</label>
-                <div className="flex gap-2">
-                  {(["github", "gitlab"] as const).map((p) => (
-                    <button key={p} onClick={() => setGitProvider(p)} className={`flex-1 py-2 rounded-lg border text-sm capitalize transition-colors ${gitProvider === p ? "bg-gray-900 text-white border-gray-900" : "border-gray-300 dark:border-gray-600 hover:border-gray-500"}`}>{p}</button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label htmlFor="projects-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token</label>
-                <input id="projects-field-3"
-                  type="password"
-                  value={gitToken}
-                  onChange={(e) => setGitToken(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder={gitProvider === "github" ? "ghp_..." : "glpat-..."}
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  {gitProvider === "github" ? "Needs repo scope. Create at GitHub → Settings → Developer settings → PATs." : "Needs read_api scope. Create at GitLab → User Settings → Access Tokens."}
-                </p>
-              </div>
-              {gitAccountError && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{gitAccountError}</div>}
-
-              {gitAccounts.length > 0 && (
-                <div>
-                  <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Connected Accounts</div>
+        <div>
+          {addMode === "browse" && (
+            <div className="mb-6">
+              {/* Account selector */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Git Account:</span>
+                <div className="flex gap-2 flex-wrap">
                   {gitAccounts.map((acc) => (
-                    <div key={acc.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Github className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-                        <span className="font-medium">{acc.username}</span>
-                        <span className="text-gray-400 capitalize">({acc.provider})</span>
-                      </div>
-                      <button onClick={() => handleRemoveGitAccount(acc.id)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
-                    </div>
+                    <button
+                      key={acc.id}
+                      onClick={() => handleSelectAccount(acc)}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border transition-colors ${selectedAccount?.id === acc.id ? "bg-primary-50 text-primary-700 border-primary-300 dark:bg-primary-500/10 dark:text-primary-300 dark:border-primary-500/40" : "border-gray-300 dark:border-gray-600 hover:border-gray-400"}`}
+                    >
+                      <Github className="w-3 h-3" />
+                      {acc.username}
+                    </button>
                   ))}
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
-              <button onClick={() => { setShowGitAccountModal(false); setGitToken(""); setGitAccountError(null); }} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg">Close</button>
-              <button onClick={handleAddGitAccount} disabled={gitAccountLoading || !gitToken.trim()} className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg disabled:opacity-50">
-                {gitAccountLoading ? "Connecting..." : "Connect"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showLogsModal && selectedProject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-3xl w-full m-4">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Terminal className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Logs: {selectedProject.name}
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowLogsModal(false)}
-                className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                title="Close"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="px-6 pt-4 flex space-x-1 border-b border-gray-200 dark:border-gray-700">
-              {(["dev", "test", "prod"] as const).map((env) => (
-                <button
-                  key={env}
-                  onClick={() => {
-                    setLogsEnv(env);
-                    fetchProjectLogs(selectedProject.name, env);
-                  }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
-                    logsEnv === env
-                      ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100"
-                      : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                  }`}
-                >
-                  {env}
-                </button>
-              ))}
-            </div>
-            <div className="p-6 max-h-[60vh] overflow-auto">
-              {logsLoading ? (
-                <div className="text-sm text-gray-500 dark:text-gray-400">Loading logs...</div>
-              ) : projectLogs.length === 0 ? (
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  No logs found for the {logsEnv} environment.
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {projectLogs.map((entry) => (
-                    <div key={entry.containerId}>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        Container: {entry.containerId}
-                      </div>
-                      <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 overflow-auto whitespace-pre-wrap">
-                        {entry.logs || "(no output)"}
-                      </pre>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-              <button
-                onClick={() => fetchProjectLogs(selectedProject.name, logsEnv)}
-                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
-              >
-                Refresh Logs
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showEnvModal && envProject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-2xl w-full m-4">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Settings className="w-5 h-5 text-gray-600 dark:text-gray-300" />
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Environment Vars: {envProject.name}
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setShowEnvModal(false);
-                  setEnvProject(null);
-                  setEnvEditor([]);
-                  setRepoUrlEditor("");
-                  setBranchEditor("");
-                  setComposeFileEditor("");
-                  setPortEditor([]);
-                }}
-                className="p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded"
-                title="Close"
-              >
-                <XCircle className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-6 max-h-[60vh] overflow-auto">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div>
-                  <label htmlFor="projects-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Repository URL
-                  </label>
-                  <input id="projects-field-4"
-                    type="text"
-                    value={repoUrlEditor}
-                    onChange={(e) => setRepoUrlEditor(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://github.com/user/repo"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="projects-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Branch
-                  </label>
-                  <input id="projects-field-5"
-                    type="text"
-                    value={branchEditor}
-                    onChange={(e) => setBranchEditor(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="main"
-                  />
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label htmlFor="projects-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Compose File
-                </label>
-                <input id="projects-field-6"
-                  type="text"
-                  value={composeFileEditor}
-                  onChange={(e) => setComposeFileEditor(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="docker-compose.yml"
-                />
-              </div>
-
-              <div className="mb-6">
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Webhook (Auto-Deploy)</div>
-                <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 space-y-2">
-                  <p className="text-xs text-gray-500 dark:text-gray-400">Generate a secret and point your GitHub/GitLab webhook to trigger automatic sync & deploy on push.</p>
-                  <div className="flex items-center gap-2">
-                    <code className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 flex-1 truncate">
-                      {window.location.protocol}//{window.location.hostname}:5003/api/webhook/{envProject?.name}
-                    </code>
-                    <button onClick={() => navigator.clipboard.writeText(`${window.location.protocol}//${window.location.hostname}:5003/api/webhook/${envProject?.name}`)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800">Copy</button>
-                  </div>
-                  {webhookSecret && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Secret:</span>
-                      <code className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 flex-1 font-mono truncate">{webhookSecret}</code>
-                      <button onClick={() => navigator.clipboard.writeText(webhookSecret)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800">Copy</button>
-                    </div>
-                  )}
-                  <button onClick={() => handleGenerateWebhook(envProject!.name)} disabled={webhookLoading} className="text-xs px-3 py-1.5 bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50">
-                    {webhookLoading ? "Generating..." : webhookSecret ? "Regenerate Secret" : "Generate Secret"}
+                  <button
+                    onClick={() => setShowGitAccountModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm border border-dashed border-gray-300 dark:border-gray-600 hover:border-primary-400 text-gray-500 dark:text-gray-400 hover:text-primary-600 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" />
+                    Connect Account
                   </button>
                 </div>
               </div>
 
-              <div className="mb-6">
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Port Mappings
-                </div>
-                {portEditor.length === 0 ? (
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    No ports detected in compose file.
+              {selectedAccount && (
+                <>
+                  <div className="relative mb-2">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search repositories..."
+                      value={repoSearch}
+                      onChange={(e) => setRepoSearch(e.target.value)}
+                      className="field pl-9"
+                    />
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {portEditor.map((port, index) => (
-                      <div
-                        key={`${port.service}-${port.containerPort}-${port.protocol}-${index}`}
-                        className="grid grid-cols-4 gap-2 items-center"
-                      >
-                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-700 dark:text-gray-300 truncate">
-                          {port.service}
-                        </div>
-                        <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-700 dark:text-gray-300">
-                          {port.containerPort}/{port.protocol}
-                        </div>
-                        <input
-                          type="number"
-                          min={1}
-                          max={65535}
-                          value={port.hostPort}
-                          onChange={(e) =>
-                            setPortEditor((prev) =>
-                              prev.map((p, i) =>
-                                i === index
-                                  ? { ...p, hostPort: e.target.value }
-                                  : p,
-                              ),
-                            )
-                          }
-                          className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                          placeholder="Host port"
-                        />
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          Leave blank to keep unchanged
-                        </div>
-                      </div>
-                    ))}
+                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-y-auto max-h-48">
+                    {reposLoading ? (
+                      <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">Loading repositories...</div>
+                    ) : repos.filter(r => r.name.toLowerCase().includes(repoSearch.toLowerCase())).length === 0 ? (
+                      <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">No repositories found</div>
+                    ) : (
+                      repos.filter(r => r.name.toLowerCase().includes(repoSearch.toLowerCase())).map((repo) => (
+                        <button
+                          key={repo.id}
+                          onClick={() => handleSelectRepo(repo)}
+                          className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors ${selectedRepo?.id === repo.id ? "bg-primary-50 dark:bg-primary-900/20" : ""}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <BookOpen className="w-4 h-4 text-gray-400" />
+                              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{repo.name}</span>
+                              {repo.private && <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-1.5 py-0.5 rounded">private</span>}
+                            </div>
+                            <span className="text-xs text-gray-400">{repo.defaultBranch}</span>
+                          </div>
+                          {repo.description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate pl-6">{repo.description}</p>}
+                        </button>
+                      ))
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
 
-              <div className="space-y-3">
-                <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Environment Variables
+              {!selectedAccount && gitAccounts.length === 0 && (
+                <div className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
+                  No git accounts connected.{" "}
+                  <button onClick={() => setShowGitAccountModal(true)} className="text-primary-600 hover:underline">Connect one</button> to browse repositories.
                 </div>
-                {/* Env tabs: Common is shared; dev/test/prod override Common per environment */}
-                <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-fit">
-                  {(["common", "dev", "test", "prod"] as const).map((tab) => (
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="projects-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Project Name</label>
+              <input id="projects-field-1"
+                type="text"
+                value={newProject.name}
+                onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                className="field"
+                placeholder="Enter project name"
+              />
+            </div>
+            <div>
+              <label htmlFor="projects-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Repository URL</label>
+              <input id="projects-field-2"
+                type="text"
+                value={newProject.repository}
+                onChange={(e) => setNewProject({ ...newProject, repository: e.target.value })}
+                className="field"
+                placeholder="https://github.com/user/repo"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
+              {branches.length > 0 ? (
+                <select
+                  value={newProject.branch}
+                  onChange={(e) => setNewProject({ ...newProject, branch: e.target.value })}
+                  className="field"
+                >
+                  {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={newProject.branch}
+                  onChange={(e) => setNewProject({ ...newProject, branch: e.target.value })}
+                  className="field"
+                  placeholder={branchesLoading ? "Loading branches..." : "main"}
+                />
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Compose File Path</label>
+              {detectedComposeFiles.length > 1 ? (
+                <div className="space-y-1">
+                  <p className="text-xs text-amber-600 mb-2">Multiple compose files found — pick one to use:</p>
+                  {detectedComposeFiles.map((f) => (
                     <button
-                      key={tab}
-                      onClick={() => switchEnvTab(tab, envProject.name)}
-                      className={`px-3 py-1 text-xs rounded-md capitalize transition-colors ${
-                        envTab === tab
-                          ? "bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-gray-100 font-medium"
-                          : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                      }`}
+                      key={f}
+                      onClick={() => setNewProject((p) => ({ ...p, composeFile: f }))}
+                      className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors ${newProject.composeFile === f ? "bg-primary-50 dark:bg-primary-900/20 border-primary-400 text-primary-700 dark:text-primary-300" : "border-gray-200 dark:border-gray-700 hover:border-gray-400"}`}
                     >
-                      {tab}
+                      {f}
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {envTab === "common"
-                    ? "Shared by every environment. Per-environment tabs override these values."
-                    : `Overrides for ${envTab} — keys set here replace the Common value; keys left out inherit Common. Use this for ports, URLs and secrets that differ per environment.`}
-                </p>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    value={newProject.composeFile}
+                    onChange={(e) => setNewProject({ ...newProject, composeFile: e.target.value })}
+                    className="field"
+                    placeholder="docker-compose.yml (default)"
+                  />
+                  <p className="text-xs text-gray-400 mt-1">Relative path from repo root, e.g. <code>infra/docker-compose.yml</code></p>
+                </>
+              )}
+            </div>
 
-                {envTab === "common" ? (
-                  <>
-                    {envEditor.map((env, index) => {
-                      const isUnmanaged =
-                        env.key && unmanagedEnvVars.includes(env.key);
-                      return (
-                        <div key={index}>
-                          <div className="flex items-center space-x-2">
-                            <input
-                              type="text"
-                              placeholder="KEY"
-                              value={env.key}
-                              onChange={(e) =>
-                                updateEnvEditorRow(index, "key", e.target.value)
-                              }
-                              className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                isUnmanaged
-                                  ? "border-amber-400 dark:border-amber-600"
-                                  : "border-gray-300 dark:border-gray-600"
-                              }`}
-                            />
-                            <input
-                              type="text"
-                              placeholder="VALUE"
-                              value={env.value}
-                              onChange={(e) =>
-                                updateEnvEditorRow(index, "value", e.target.value)
-                              }
-                              className={`flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                isUnmanaged
-                                  ? "border-amber-400 dark:border-amber-600"
-                                  : "border-gray-300 dark:border-gray-600"
-                              }`}
-                            />
-                            <button
-                              onClick={() => removeEnvEditorRow(index)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                              title="Remove"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          {isUnmanaged && (
-                            <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
-                              Not read anywhere in {composeFileEditor || "the compose file"} — saving this has no effect until it's wired into a service's environment or build args.
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })}
-                    <button
-                      onClick={addEnvEditorRow}
-                      className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
-                    >
-                      Add Variable
-                    </button>
-                    <p className="text-xs text-gray-400">
-                      Common variables are saved with “Save Settings” below.
-                    </p>
-                  </>
-                ) : overridesLoading ? (
-                  <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
-                    Loading {envTab} overrides…
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Environment Variables</label>
+                <button onClick={addEnvironmentVar} className="px-3 py-1 text-sm bg-primary-600 hover:bg-primary-700 text-white rounded-md flex items-center">
+                  <Plus className="w-3 h-3 mr-1" />Add Variable
+                </button>
+              </div>
+              <div className="space-y-2 max-h-32 overflow-y-auto">
+                {newProject.environmentVars.map((env, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <input type="text" placeholder="KEY" value={env.key} onChange={(e) => updateEnvironmentVar(index, "key", e.target.value)} className="flex-1 field text-sm" />
+                    <input type="text" placeholder="VALUE" value={env.value} onChange={(e) => updateEnvironmentVar(index, "value", e.target.value)} className="flex-1 field text-sm" />
+                    <button onClick={() => removeEnvironmentVar(index)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg"><Trash2 className="w-4 h-4" /></button>
                   </div>
-                ) : (
-                  <>
-                    {/* Inherited common keys not overridden yet */}
-                    {envEditor
-                      .filter(
-                        (row) =>
-                          row.key &&
-                          !overrideEditor.some((o) => o.key === row.key),
-                      )
-                      .map((row) => (
-                        <div
-                          key={`inherited-${row.key}`}
-                          className="flex items-center space-x-2 opacity-60"
-                        >
-                          <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono truncate">
-                            {row.key}
-                          </div>
-                          <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono truncate">
-                            {row.value}
-                          </div>
-                          <button
-                            onClick={() =>
-                              setOverrideEditor((prev) => [
-                                ...prev,
-                                { key: row.key, value: row.value },
-                              ])
-                            }
-                            className="px-2 py-2 text-xs text-blue-600 dark:text-blue-400 hover:underline shrink-0"
-                            title={`Override ${row.key} for ${envTab}`}
-                          >
-                            override
-                          </button>
-                        </div>
-                      ))}
-                    {overrideEditor.map((row, index) => (
-                      <div key={index} className="flex items-center space-x-2">
+                ))}
+                {newProject.environmentVars.length === 0 && <div className="text-center py-4 text-gray-500 dark:text-gray-400 text-sm">No environment variables configured</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {addError && (
+          <div role="alert" className="mt-4 text-sm text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">
+            {addError}
+          </div>
+        )}
+      </Modal>
+
+      {/* Connect Git Account Modal */}
+      <Modal
+        open={showGitAccountModal}
+        onClose={() => { setShowGitAccountModal(false); setGitToken(""); setGitAccountError(null); }}
+        title="Connect Git account"
+        footer={
+          <>
+            <Button onClick={() => { setShowGitAccountModal(false); setGitToken(""); setGitAccountError(null); }}>
+              Close
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleAddGitAccount}
+              loading={gitAccountLoading}
+              disabled={!gitToken.trim()}
+            >
+              Connect
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div>
+            <div className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Provider</div>
+            <Segmented
+              label="Git provider"
+              value={gitProvider}
+              onChange={setGitProvider}
+              options={[
+                { value: "github", label: "GitHub" },
+                { value: "gitlab", label: "GitLab" },
+              ]}
+            />
+          </div>
+          <div>
+            <label htmlFor="projects-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Access Token</label>
+            <input id="projects-field-3"
+              type="password"
+              value={gitToken}
+              onChange={(e) => setGitToken(e.target.value)}
+              className="field"
+              placeholder={gitProvider === "github" ? "ghp_..." : "glpat-..."}
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              {gitProvider === "github" ? "Needs repo scope. Create at GitHub → Settings → Developer settings → PATs." : "Needs read_api scope. Create at GitLab → User Settings → Access Tokens."}
+            </p>
+          </div>
+          {gitAccountError && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg px-3 py-2">{gitAccountError}</div>}
+
+          {gitAccounts.length > 0 && (
+            <div>
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Connected Accounts</div>
+              {gitAccounts.map((acc) => (
+                <div key={acc.id} className="flex items-center justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Github className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <span className="font-medium">{acc.username}</span>
+                    <span className="text-gray-400 capitalize">({acc.provider})</span>
+                  </div>
+                  <button onClick={() => handleRemoveGitAccount(acc.id)} className="text-xs text-red-500 hover:text-red-700">Remove</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {showLogsModal && selectedProject && (
+      <Modal
+        open
+        onClose={() => setShowLogsModal(false)}
+        title={`${selectedProject.name} logs`}
+        wide
+        footer={
+          <>
+            <Button
+              icon={<RefreshCw className="w-4 h-4" />}
+              onClick={() => fetchProjectLogs(selectedProject.name, logsEnv)}
+              loading={logsLoading}
+            >
+              Refresh
+            </Button>
+          </>
+        }
+      >
+        <div className="-mt-1 mb-4 flex gap-1 border-b border-gray-200 dark:border-gray-700">
+          {(["dev", "test", "prod"] as const).map((env) => (
+            <button
+              key={env}
+              onClick={() => {
+                setLogsEnv(env);
+                fetchProjectLogs(selectedProject.name, env);
+              }}
+              className={`px-3 py-1.5 text-sm font-medium rounded-t-lg border-b-2 transition-colors ${
+                logsEnv === env
+                  ? "border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100"
+                  : "border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+              }`}
+            >
+              {env}
+            </button>
+          ))}
+        </div>
+        <div>
+          {logsLoading ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">Loading logs...</div>
+          ) : projectLogs.length === 0 ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">
+              No logs found for the {logsEnv} environment.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {projectLogs.map((entry) => (
+                <div key={entry.containerId}>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                    Container: {entry.containerId}
+                  </div>
+                  <pre className="bg-gray-900 text-gray-100 text-xs rounded-lg p-3 overflow-auto whitespace-pre-wrap">
+                    {entry.logs || "(no output)"}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
+      )}
+
+      {showEnvModal && envProject && (
+      <Modal
+        open
+        onClose={closeEnvModal}
+        title={`${envProject.name} settings`}
+        wide
+        footer={
+          <>
+            <Button onClick={closeEnvModal}>Cancel</Button>
+            <Button variant="primary" onClick={handleSaveEnvVars}>
+              Save settings
+            </Button>
+          </>
+        }
+      >
+        <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div>
+              <label htmlFor="projects-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Repository URL
+              </label>
+              <input id="projects-field-4"
+                type="text"
+                value={repoUrlEditor}
+                onChange={(e) => setRepoUrlEditor(e.target.value)}
+                className="field"
+                placeholder="https://github.com/user/repo"
+              />
+            </div>
+            <div>
+              <label htmlFor="projects-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Branch
+              </label>
+              <input id="projects-field-5"
+                type="text"
+                value={branchEditor}
+                onChange={(e) => setBranchEditor(e.target.value)}
+                className="field"
+                placeholder="main"
+              />
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <label htmlFor="projects-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              Compose File
+            </label>
+            <input id="projects-field-6"
+              type="text"
+              value={composeFileEditor}
+              onChange={(e) => setComposeFileEditor(e.target.value)}
+              className="field"
+              placeholder="docker-compose.yml"
+            />
+          </div>
+
+          <div className="mb-6">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Webhook (Auto-Deploy)</div>
+            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3 space-y-2">
+              <p className="text-xs text-gray-500 dark:text-gray-400">Generate a secret and point your GitHub/GitLab webhook to trigger automatic sync & deploy on push.</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 flex-1 truncate">
+                  {window.location.protocol}//{window.location.hostname}:5003/api/webhook/{envProject?.name}
+                </code>
+                <button onClick={() => navigator.clipboard.writeText(`${window.location.protocol}//${window.location.hostname}:5003/api/webhook/${envProject?.name}`)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800">Copy</button>
+              </div>
+              {webhookSecret && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Secret:</span>
+                  <code className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 flex-1 font-mono truncate">{webhookSecret}</code>
+                  <button onClick={() => navigator.clipboard.writeText(webhookSecret)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800">Copy</button>
+                </div>
+              )}
+              <Button size="sm" onClick={() => handleGenerateWebhook(envProject!.name)} loading={webhookLoading}>
+                {webhookSecret ? "Regenerate secret" : "Generate secret"}
+              </Button>
+            </div>
+          </div>
+
+          <div className="mb-6">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Port Mappings
+            </div>
+            {portEditor.length === 0 ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                No ports detected in compose file.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {portEditor.map((port, index) => (
+                  <div
+                    key={`${port.service}-${port.containerPort}-${port.protocol}-${index}`}
+                    className="grid grid-cols-4 gap-2 items-center"
+                  >
+                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-700 dark:text-gray-300 truncate">
+                      {port.service}
+                    </div>
+                    <div className="px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-700 dark:text-gray-300">
+                      {port.containerPort}/{port.protocol}
+                    </div>
+                    <input
+                      type="number"
+                      min={1}
+                      max={65535}
+                      value={port.hostPort}
+                      onChange={(e) =>
+                        setPortEditor((prev) =>
+                          prev.map((p, i) =>
+                            i === index
+                              ? { ...p, hostPort: e.target.value }
+                              : p,
+                          ),
+                        )
+                      }
+                      className="field text-sm"
+                      placeholder="Host port"
+                    />
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      Leave blank to keep unchanged
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-3">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Environment Variables
+            </div>
+            {/* Env tabs: Common is shared; dev/test/prod override Common per environment */}
+            <div className="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1 w-fit">
+              {(["common", "dev", "test", "prod"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => switchEnvTab(tab, envProject.name)}
+                  className={`px-3 py-1 text-xs rounded-md capitalize transition-colors ${
+                    envTab === tab
+                      ? "bg-white dark:bg-gray-800 shadow text-gray-900 dark:text-gray-100 font-medium"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {envTab === "common"
+                ? "Shared by every environment. Per-environment tabs override these values."
+                : `Overrides for ${envTab} — keys set here replace the Common value; keys left out inherit Common. Use this for ports, URLs and secrets that differ per environment.`}
+            </p>
+
+            {envTab === "common" ? (
+              <>
+                {envEditor.map((env, index) => {
+                  const isUnmanaged =
+                    env.key && unmanagedEnvVars.includes(env.key);
+                  return (
+                    <div key={index}>
+                      <div className="flex items-center space-x-2">
                         <input
                           type="text"
                           placeholder="KEY"
-                          value={row.key}
+                          value={env.key}
                           onChange={(e) =>
-                            setOverrideEditor((prev) =>
-                              prev.map((r, i) =>
-                                i === index ? { ...r, key: e.target.value } : r,
-                              ),
-                            )
+                            updateEnvEditorRow(index, "key", e.target.value)
                           }
-                          className="flex-1 px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className={`flex-1 field ${
+                            isUnmanaged
+                              ? "border-amber-400 dark:border-amber-600"
+                              : "border-gray-300 dark:border-gray-600"
+                          }`}
                         />
                         <input
                           type="text"
                           placeholder="VALUE"
-                          value={row.value}
+                          value={env.value}
                           onChange={(e) =>
-                            setOverrideEditor((prev) =>
-                              prev.map((r, i) =>
-                                i === index
-                                  ? { ...r, value: e.target.value }
-                                  : r,
-                              ),
-                            )
+                            updateEnvEditorRow(index, "value", e.target.value)
                           }
-                          className="flex-1 px-3 py-2 border border-blue-300 dark:border-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className={`flex-1 field ${
+                            isUnmanaged
+                              ? "border-amber-400 dark:border-amber-600"
+                              : "border-gray-300 dark:border-gray-600"
+                          }`}
                         />
                         <button
-                          onClick={() =>
-                            setOverrideEditor((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            )
-                          }
+                          onClick={() => removeEnvEditorRow(index)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                          title="Remove override (inherits Common again)"
+                          title="Remove"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    ))}
-                    <div className="flex items-center gap-3">
+                      {isUnmanaged && (
+                        <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">
+                          Not read anywhere in {composeFileEditor || "the compose file"} — saving this has no effect until it's wired into a service's environment or build args.
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={addEnvEditorRow}
+                  className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Add Variable
+                </button>
+                <p className="text-xs text-gray-400">
+                  Common variables are saved with “Save Settings” below.
+                </p>
+              </>
+            ) : overridesLoading ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400 py-2">
+                Loading {envTab} overrides…
+              </div>
+            ) : (
+              <>
+                {/* Inherited common keys not overridden yet */}
+                {envEditor
+                  .filter(
+                    (row) =>
+                      row.key &&
+                      !overrideEditor.some((o) => o.key === row.key),
+                  )
+                  .map((row) => (
+                    <div
+                      key={`inherited-${row.key}`}
+                      className="flex items-center space-x-2 opacity-60"
+                    >
+                      <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono truncate">
+                        {row.key}
+                      </div>
+                      <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg text-sm font-mono truncate">
+                        {row.value}
+                      </div>
                       <button
                         onClick={() =>
                           setOverrideEditor((prev) => [
                             ...prev,
-                            { key: "", value: "" },
+                            { key: row.key, value: row.value },
                           ])
                         }
-                        className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                        className="px-2 py-2 text-xs text-primary-600 dark:text-primary-400 hover:underline shrink-0"
+                        title={`Override ${row.key} for ${envTab}`}
                       >
-                        Add Override
-                      </button>
-                      <button
-                        onClick={() => saveOverrides(envProject.name, envTab)}
-                        disabled={overridesSaving}
-                        className="px-3 py-2 text-sm bg-gray-900 hover:bg-gray-700 text-white rounded-lg disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-white"
-                      >
-                        {overridesSaving
-                          ? "Saving…"
-                          : `Save ${envTab} overrides`}
+                        override
                       </button>
                     </div>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowEnvModal(false);
-                  setEnvProject(null);
-                  setEnvEditor([]);
-                  setRepoUrlEditor("");
-                  setBranchEditor("");
-                }}
-                className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveEnvVars}
-                className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-lg transition-colors duration-200"
-              >
-                Save Settings
-              </button>
-            </div>
+                  ))}
+                {overrideEditor.map((row, index) => (
+                  <div key={index} className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      placeholder="KEY"
+                      value={row.key}
+                      onChange={(e) =>
+                        setOverrideEditor((prev) =>
+                          prev.map((r, i) =>
+                            i === index ? { ...r, key: e.target.value } : r,
+                          ),
+                        )
+                      }
+                      className="field flex-1"
+                    />
+                    <input
+                      type="text"
+                      placeholder="VALUE"
+                      value={row.value}
+                      onChange={(e) =>
+                        setOverrideEditor((prev) =>
+                          prev.map((r, i) =>
+                            i === index
+                              ? { ...r, value: e.target.value }
+                              : r,
+                          ),
+                        )
+                      }
+                      className="field flex-1"
+                    />
+                    <button
+                      onClick={() =>
+                        setOverrideEditor((prev) =>
+                          prev.filter((_, i) => i !== index),
+                        )
+                      }
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                      title="Remove override (inherits Common again)"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() =>
+                      setOverrideEditor((prev) => [
+                        ...prev,
+                        { key: "", value: "" },
+                      ])
+                    }
+                    className="px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700"
+                  >
+                    Add Override
+                  </button>
+                  <Button
+                    size="sm"
+                    onClick={() => saveOverrides(envProject.name, envTab)}
+                    loading={overridesSaving}
+                  >
+                    Save {envTab} overrides
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         </div>
+      </Modal>
       )}
 
       {/* Port picker modal for multi-port tunnel creation */}
       {showTunnelModal && tunnelModalProject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-sm w-full m-4">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Choose port to expose</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                <span className="font-medium">{tunnelModalProject.name}</span> has multiple ports. Pick the one to make public.
-              </p>
-            </div>
-            <div className="p-6 space-y-2">
-              {tunnelModalProject.ports.filter((p) => p.hostPort).map((port, i) => (
-                <label key={i} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${tunnelSelectedPort === port.hostPort ? "border-teal-500 bg-teal-50 dark:bg-teal-900/20" : "border-gray-200 dark:border-gray-700 hover:border-gray-300"}`}>
-                  <input
-                    type="radio"
-                    name="tunnelPort"
-                    value={port.hostPort}
-                    checked={tunnelSelectedPort === port.hostPort}
-                    onChange={() => setTunnelSelectedPort(port.hostPort!)}
-                    className="text-teal-600"
-                  />
-                  <div>
-                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{port.service}</div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">host:{port.hostPort} → container:{port.containerPort}/{port.protocol}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-              <button onClick={() => setShowTunnelModal(false)} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm">Cancel</button>
-              <button
-                onClick={() => handleCreateTunnel(tunnelModalProject.name, tunnelSelectedPort!)}
-                disabled={!tunnelSelectedPort || tunnelLoading === tunnelModalProject.name}
-                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm disabled:opacity-50"
-              >
-                {tunnelLoading === tunnelModalProject.name ? "Creating..." : "Create Tunnel"}
-              </button>
-            </div>
-          </div>
+      <Modal
+        open
+        onClose={() => setShowTunnelModal(false)}
+        title="Choose a port to expose"
+        footer={
+          <>
+            <Button onClick={() => setShowTunnelModal(false)}>Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={() => handleCreateTunnel(tunnelModalProject.name, tunnelSelectedPort!)}
+              loading={tunnelLoading === tunnelModalProject.name}
+              disabled={!tunnelSelectedPort}
+            >
+              Create tunnel
+            </Button>
+          </>
+        }
+      >
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            <span className="font-medium">{tunnelModalProject.name}</span> has multiple ports. Pick the one to make public.
+          </p>
+        <div className="space-y-2">
+          {tunnelModalProject.ports.filter((p) => p.hostPort).map((port, i) => (
+            <label key={i} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${tunnelSelectedPort === port.hostPort ? "border-teal-500 bg-teal-50 dark:bg-teal-900/20" : "border-gray-200 dark:border-gray-700 hover:border-gray-300"}`}>
+              <input
+                type="radio"
+                name="tunnelPort"
+                value={port.hostPort}
+                checked={tunnelSelectedPort === port.hostPort}
+                onChange={() => setTunnelSelectedPort(port.hostPort!)}
+                className="text-teal-600"
+              />
+              <div>
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{port.service}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">host:{port.hostPort} → container:{port.containerPort}/{port.protocol}</div>
+              </div>
+            </label>
+          ))}
         </div>
+      </Modal>
       )}
 
       {/* Cloudflare domain attachment modal */}
       {showDomainModal && domainModalProject && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 max-w-md w-full m-4">
-            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Attach Cloudflare Domain</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                Creates a CNAME record on your Cloudflare zone pointing to <span className="font-mono text-xs">{domainModalProject.tunnelUrl}</span>
+      <Modal
+        open
+        onClose={() => setShowDomainModal(false)}
+        title="Attach Cloudflare domain"
+        footer={
+          <>
+            <Button onClick={() => setShowDomainModal(false)}>Cancel</Button>
+            <Button
+              variant="primary"
+              onClick={handleAttachDomain}
+              loading={cfDomainLoading}
+              disabled={!cfZoneId || !cfSubdomain}
+            >
+              Attach domain
+            </Button>
+          </>
+        }
+      >
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Creates a CNAME record on your Cloudflare zone pointing to <span className="font-mono text-xs">{domainModalProject.tunnelUrl}</span>
+          </p>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cloudflare Zone (domain)</label>
+            {cfZonesLoading ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400">Loading zones…</div>
+            ) : cfZones.length === 0 ? (
+              <div className="text-sm text-red-500">No zones found. Configure Cloudflare in Settings → Cloudflare first.</div>
+            ) : (
+              <select value={cfZoneId} onChange={(e) => setCfZoneId(e.target.value)} className="field text-sm">
+                <option value="">— select a zone —</option>
+                {cfZones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
+              </select>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subdomain</label>
+            <div className="flex items-center gap-1">
+              <input
+                type="text"
+                value={cfSubdomain}
+                onChange={(e) => setCfSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+                className="flex-1 field text-sm font-mono"
+                placeholder="myapp"
+              />
+              {cfZoneId && <span className="text-sm text-gray-500 dark:text-gray-400">.{cfZones.find((z) => z.id === cfZoneId)?.name}</span>}
+            </div>
+            {cfZoneId && cfSubdomain && (
+              <p className="text-xs text-gray-400 mt-1">
+                Will create: <span className="font-mono">{cfSubdomain}.{cfZones.find((z) => z.id === cfZoneId)?.name}</span> → <span className="font-mono">{domainModalProject.tunnelUrl}</span>
               </p>
-            </div>
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Cloudflare Zone (domain)</label>
-                {cfZonesLoading ? (
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Loading zones…</div>
-                ) : cfZones.length === 0 ? (
-                  <div className="text-sm text-red-500">No zones found. Configure Cloudflare in Settings → Cloudflare first.</div>
-                ) : (
-                  <select value={cfZoneId} onChange={(e) => setCfZoneId(e.target.value)} className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm">
-                    <option value="">— select a zone —</option>
-                    {cfZones.map((z) => <option key={z.id} value={z.id}>{z.name}</option>)}
-                  </select>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subdomain</label>
-                <div className="flex items-center gap-1">
-                  <input
-                    type="text"
-                    value={cfSubdomain}
-                    onChange={(e) => setCfSubdomain(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-mono"
-                    placeholder="myapp"
-                  />
-                  {cfZoneId && <span className="text-sm text-gray-500 dark:text-gray-400">.{cfZones.find((z) => z.id === cfZoneId)?.name}</span>}
-                </div>
-                {cfZoneId && cfSubdomain && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Will create: <span className="font-mono">{cfSubdomain}.{cfZones.find((z) => z.id === cfZoneId)?.name}</span> → <span className="font-mono">{domainModalProject.tunnelUrl}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-              <button onClick={() => setShowDomainModal(false)} className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg text-sm">Cancel</button>
-              <button
-                onClick={handleAttachDomain}
-                disabled={cfDomainLoading || !cfZoneId || !cfSubdomain}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm disabled:opacity-50"
-              >
-                {cfDomainLoading ? "Creating CNAME…" : "Attach Domain"}
-              </button>
-            </div>
+            )}
           </div>
         </div>
+      </Modal>
       )}
     </div>
   );

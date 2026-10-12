@@ -18,11 +18,16 @@ import {
   Download,
   Package,
   Menu,
-  X,
 } from "lucide-react";
+import {
+  Badge,
+  DropdownMenu,
+  Sidebar,
+  usePersistentState,
+  type SidebarSection,
+} from "pixelwizards-components";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AdvancedSearch } from "@/components/AdvancedSearch";
-import { DropdownMenu } from "@/components/ui";
 import { TaskTray } from "@/hooks/useTasks";
 
 interface NavItem {
@@ -31,14 +36,8 @@ interface NavItem {
   icon: typeof LayoutDashboard;
 }
 
-interface NavSection {
-  label: string | null;
-  items: NavItem[];
-}
-
-const navSections: NavSection[] = [
+const navSections: Array<{ label?: string; items: NavItem[] }> = [
   {
-    label: null,
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
       { name: "Analytics", href: "/analytics", icon: BarChart3 },
@@ -108,15 +107,16 @@ function formatUptime(ms: number) {
   return `${minutes}m`;
 }
 
+const isBoolean = (v: unknown): v is boolean => typeof v === "boolean";
+
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { connected, uptime } = useSystemStatus();
 
-  const activeItem = allNavItems.find((item) =>
-    location.pathname.startsWith(item.href),
-  );
+  const activeItem = allNavItems.find((item) => location.pathname.startsWith(item.href));
   const [navOpen, setNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = usePersistentState("acm.sidebar.collapsed", false, isBoolean);
   const mainRef = useRef<HTMLElement>(null);
   const firstRender = useRef(true);
 
@@ -136,17 +136,19 @@ export default function Layout() {
     if (activeItem) document.title = `${activeItem.name} · Container Manager`;
   }, [activeItem]);
 
-  useEffect(() => {
-    if (!navOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setNavOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [navOpen]);
+  const sections: SidebarSection[] = navSections.map((section) => ({
+    title: section.label,
+    items: section.items.map((item) => ({
+      id: item.href,
+      label: item.name,
+      href: item.href,
+      icon: <item.icon />,
+      active: location.pathname.startsWith(item.href),
+    })),
+  }));
 
   return (
-    <div className="app-shell flex bg-gray-50 dark:bg-gray-900">
+    <div className="app-shell flex bg-gray-50 dark:bg-gray-950">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-gray-900 focus:text-white"
@@ -154,131 +156,80 @@ export default function Layout() {
         Skip to content
       </a>
 
-      {navOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40 lg:hidden"
-          aria-hidden="true"
-          onClick={() => setNavOpen(false)}
-        />
-      )}
-
-      {/* Sidebar: static from lg up, a drawer below */}
-      <nav
-        id="primary-nav"
-        aria-label="Primary"
-        className={`fixed inset-y-0 left-0 z-40 w-64 transform transition-transform duration-200 lg:static lg:translate-x-0 ${
-          navOpen ? "translate-x-0" : "-translate-x-full"
-        } bg-white dark:bg-gray-800 shadow-lg flex flex-col border-r border-gray-200 dark:border-gray-700`}
-      >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center">
-            <div className="w-10 h-10 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center">
-              <Layers className="w-6 h-6 text-white" />
-            </div>
-            <div className="ml-3">
-              <h1 className="text-base font-bold text-gray-900 dark:text-gray-100 leading-tight">
-                Container Manager
-              </h1>
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                Enterprise Edition
-              </p>
-            </div>
+      <Sidebar
+        ariaLabel="Primary"
+        sections={sections}
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
+        mobileOpen={navOpen}
+        onMobileClose={() => setNavOpen(false)}
+        renderLink={({ item, children, ...rest }) => (
+          <Link to={item.href ?? "/"} {...rest}>
+            {children}
+          </Link>
+        )}
+        header={
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2.5 min-w-0 rounded-lg"
+            aria-label="Container Manager home"
+          >
+            <span className="w-8 h-8 shrink-0 rounded-lg bg-primary-600 text-white flex items-center justify-center">
+              <Layers className="w-[18px] h-[18px]" aria-hidden="true" />
+            </span>
+            {!collapsed && (
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold text-gray-900 dark:text-gray-50 truncate">
+                  Container Manager
+                </span>
+                <span className="block text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                  Docker, delivery and edge
+                </span>
+              </span>
+            )}
+          </Link>
+        }
+        footer={
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
+              <span
+                className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`}
+                aria-hidden="true"
+              />
+              {connected ? "Backend connected" : "Backend offline"}
+            </span>
+            {uptime !== null && (
+              <span className="tabular text-gray-500 dark:text-gray-400" title="Backend uptime">
+                {formatUptime(uptime)}
+              </span>
+            )}
           </div>
+        }
+      />
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="sticky top-0 z-20 h-14 shrink-0 flex items-center gap-3 px-4 sm:px-6 bg-white/80 dark:bg-gray-900/80 backdrop-blur border-b border-gray-200 dark:border-gray-800">
           <button
             type="button"
-            onClick={() => setNavOpen(false)}
-            aria-label="Close navigation"
-            className="lg:hidden p-2 -mr-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            onClick={() => setNavOpen(true)}
+            aria-label="Open navigation"
+            aria-expanded={navOpen}
+            className="lg:hidden inline-flex items-center justify-center w-9 h-9 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
           >
-            <X className="w-5 h-5" />
+            <Menu className="w-5 h-5" />
           </button>
-        </div>
 
-        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-          {navSections.map((section) => (
-            <div key={section.label ?? "main"}>
-              {section.label && (
-                <div className="px-4 mb-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                  {section.label}
-                </div>
-              )}
-              <div className="space-y-1">
-                {section.items.map((item) => {
-                  const isActive = location.pathname.startsWith(item.href);
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`sidebar-item flex items-center px-4 py-2.5 rounded-lg text-sm text-gray-700 dark:text-gray-200 ${
-                        isActive ? "active" : ""
-                      }`}
-                    >
-                      <item.icon className="w-5 h-5 mr-3" aria-hidden="true" />
-                      {item.name}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* System Status — reflects the actual WebSocket connection */}
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-              Backend
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate">
+              {activeItem?.name || "Not found"}
             </span>
-            <div className="flex items-center space-x-2">
-              <div
-                className={`w-2 h-2 rounded-full ${connected ? "bg-green-500 pulse-dot" : "bg-red-500"}`}
-              ></div>
-              <span
-                className={`text-xs ${connected ? "text-green-600" : "text-red-500"}`}
-              >
-                {connected ? "Connected" : "Disconnected"}
-              </span>
-            </div>
+            <Badge color={connected ? "success" : "neutral"} variant="subtle" size="sm" dot>
+              {connected ? "Live" : "Offline"}
+            </Badge>
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            {uptime !== null ? `Uptime: ${formatUptime(uptime)}` : " "}
-          </div>
-        </div>
-      </nav>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between px-4 sm:px-6 py-4 gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <button
-                type="button"
-                onClick={() => setNavOpen(true)}
-                aria-label="Open navigation"
-                aria-controls="primary-nav"
-                aria-expanded={navOpen}
-                className="lg:hidden p-2 -ml-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 truncate">
-                {activeItem?.name || "Not found"}
-              </h2>
-              <span
-                className={`px-2 py-1 text-xs font-medium rounded-full ${
-                  connected
-                    ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300"
-                    : "bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300"
-                }`}
-              >
-                {connected ? "Live" : "Offline"}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-              <div className="hidden md:block">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="hidden lg:block">
               <AdvancedSearch
                 items={[]}
                 onSearch={(query, filters) => {
@@ -294,49 +245,48 @@ export default function Layout() {
                 }}
                 className="w-56 xl:w-72"
               />
-              </div>
-
-              <TaskTray />
-              <ThemeToggle />
-
-              <DropdownMenu
-                triggerLabel="Create"
-                trigger={
-                  <span className="flex items-center px-2.5 py-0.5 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg dark:bg-primary-700 dark:hover:bg-primary-800">
-                    <Plus className="w-4 h-4 mr-1.5" />
-                    New
-                  </span>
-                }
-                items={[
-                  {
-                    label: "New Project",
-                    icon: <Folder className="w-4 h-4" />,
-                    onClick: () => navigate("/projects?add=1"),
-                  },
-                  {
-                    label: "New Container",
-                    icon: <Package className="w-4 h-4" />,
-                    onClick: () => navigate("/containers?create=1"),
-                  },
-                  {
-                    label: "Pull Image",
-                    icon: <Download className="w-4 h-4" />,
-                    onClick: () => navigate("/images?pull=1"),
-                  },
-                ]}
-              />
             </div>
+
+            <TaskTray />
+            <ThemeToggle />
+
+            <DropdownMenu
+              triggerLabel="Create"
+              triggerVariant="primary"
+              label={
+                <>
+                  <Plus className="w-4 h-4" aria-hidden="true" />
+                  <span className="hidden sm:inline">New</span>
+                </>
+              }
+              items={[
+                {
+                  label: "New project",
+                  icon: <Folder className="w-4 h-4" />,
+                  onClick: () => navigate("/projects?add=1"),
+                },
+                {
+                  label: "New container",
+                  icon: <Package className="w-4 h-4" />,
+                  onClick: () => navigate("/containers?create=1"),
+                },
+                {
+                  label: "Pull image",
+                  icon: <Download className="w-4 h-4" />,
+                  onClick: () => navigate("/images?pull=1"),
+                },
+              ]}
+            />
           </div>
         </header>
 
-        {/* Page Content */}
         <main
           id="main-content"
           ref={mainRef}
           tabIndex={-1}
           className="flex-1 overflow-auto outline-none"
         >
-          <div className="p-4 sm:p-6">
+          <div className="px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
             <Outlet />
           </div>
         </main>

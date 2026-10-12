@@ -164,14 +164,16 @@ export function AdvancedSearch({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={placeholder}
-          className="w-full px-4 py-3 pl-12 pr-24 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
+          aria-label="Search resources"
+          className="field pl-9 pr-16"
         />
-        <Search className="w-5 h-5 text-gray-400 absolute left-4 top-3.5" />
+        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" aria-hidden="true" />
 
-        <div className="absolute right-2 top-2 flex items-center space-x-1">
+        <div className="absolute right-1 top-1/2 -translate-y-1/2 flex items-center">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-2 rounded-md transition-colors ${
+            type="button"
+            className={`p-1.5 rounded-md transition-colors ${
               showFilters || hasActiveFilters
                 ? "bg-primary-100 dark:bg-primary-900 text-primary-600 dark:text-primary-400"
                 : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -187,7 +189,8 @@ export function AdvancedSearch({
                 setQuery("");
                 clearFilters();
               }}
-              className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md transition-colors"
+              type="button"
+              className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-md transition-colors"
               aria-label="Clear search"
             >
               <X className="w-4 h-4" />

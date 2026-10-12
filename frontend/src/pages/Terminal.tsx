@@ -19,6 +19,7 @@ import {
   HardDrive,
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
+import { Button, ErrorBanner, LoadingState, PageHeader } from "@/components/ui";
 
 interface TerminalLine {
   id: string;
@@ -383,135 +384,85 @@ export default function Terminal() {
     URL.revokeObjectURL(url);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-xl font-light text-white mb-2">
-            Loading Terminal...
-          </h2>
-          <p className="text-gray-400">
-            Fetching containers and connecting to Docker
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <LoadingState label="Loading containers…" />;
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-900 rounded-full flex items-center justify-center mx-auto mb-4">
-            <X className="w-8 h-8 text-red-400" />
-          </div>
-          <h2 className="text-xl font-light text-white mb-2">Terminal Error</h2>
-          <p className="text-gray-400 mb-4">{error}</p>
-          <button
-            onClick={() => setError(null)}
-            className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors duration-200"
-          >
-            Retry
-          </button>
-        </div>
+      <div className="max-w-screen-2xl mx-auto">
+        <ErrorBanner message={error} onRetry={() => setError(null)} />
       </div>
     );
   }
 
-  return (
-    <div className={`min-h-screen bg-gray-900 ${isMaximized ? "" : "p-4"}`}>
-      <div
-        className={`bg-gray-800 rounded-lg shadow-2xl border border-gray-700 ${isMaximized ? "h-screen" : "h-[70vh]"}`}
-      >
-        {/* Header */}
-        <div className="bg-gray-900 border-b border-gray-700 px-4 py-2 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <TerminalIcon className="w-4 h-4 text-green-400" />
-              <span className="text-sm font-medium text-white">
-                Terminal:{" "}
-                {selectedContainer
-                  ? containers.find((c) => c.id === selectedContainer)?.name
-                  : "No container selected"}
-              </span>
-              <div
-                className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-gray-600"}`}
-              ></div>
-            </div>
+  const selectedName = containers.find((c) => c.id === selectedContainer)?.name;
 
-            <div className="flex items-center space-x-2">
+  return (
+    <div className={isMaximized ? "fixed inset-0 z-50 flex flex-col bg-gray-950" : "max-w-screen-2xl mx-auto space-y-4"}>
+      {!isMaximized && (
+        <PageHeader
+          title="Terminal"
+          subtitle="Open a shell in a running container"
+          actions={
+            <>
               <select
+                aria-label="Container"
                 value={selectedContainer}
                 onChange={(e) => setSelectedContainer(e.target.value)}
                 disabled={isConnected}
-                className="bg-gray-800 text-white text-sm px-3 py-1 rounded border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="field w-full sm:w-64 disabled:opacity-60"
               >
-                <option value="">Select container...</option>
+                <option value="">Select container…</option>
                 {containers
                   .filter((c) => c.status === "running")
                   .map((container) => (
                     <option key={container.id} value={container.id}>
-                      {container.name} ({container.image})
+                      {container.name}
                     </option>
                   ))}
               </select>
+              <Button
+                variant={isConnected ? "danger" : "primary"}
+                disabled={!selectedContainer}
+                onClick={isConnected ? closeSession : () => createSession(selectedContainer)}
+              >
+                {isConnected ? "Disconnect" : "Connect"}
+              </Button>
+            </>
+          }
+        />
+      )}
 
-              {selectedContainer && (
-                <button
-                  onClick={
-                    isConnected
-                      ? closeSession
-                      : () => createSession(selectedContainer)
-                  }
-                  className={`px-3 py-1 text-sm rounded ${
-                    isConnected
-                      ? "bg-red-600 hover:bg-red-700"
-                      : "bg-green-600 hover:bg-green-700"
-                  } text-white transition-colors duration-200`}
-                >
-                  {isConnected ? "Disconnect" : "Connect"}
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={handleCopy}
-              className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white transition-colors duration-200"
-              title="Copy output"
-            >
-              <Copy className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleDownload}
-              className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white transition-colors duration-200"
-              title="Download output"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => setIsMaximized(!isMaximized)}
-              className="p-1 hover:bg-gray-700 rounded text-gray-300 hover:text-white transition-colors duration-200"
-              title={isMaximized ? "Minimize" : "Maximize"}
-            >
-              {isMaximized ? (
-                <Minimize2 className="w-4 h-4" />
-              ) : (
-                <Maximize2 className="w-4 h-4" />
-              )}
-            </button>
-          </div>
+      <div
+        className={`bg-gray-900 border border-gray-800 overflow-hidden flex flex-col ${isMaximized ? "flex-1" : "rounded-xl shadow-raised h-[70vh]"}`}
+      >
+        <div className="bg-gray-900 border-b border-gray-800 px-3 h-11 shrink-0 flex items-center gap-2">
+          <TerminalIcon className="w-4 h-4 text-green-400 shrink-0" aria-hidden="true" />
+          <span className="text-sm font-medium text-gray-100 truncate min-w-0 flex-1">
+            {selectedName ?? "No container selected"}
+          </span>
+          <span className="flex items-center gap-1.5 text-xs text-gray-400 shrink-0">
+            <span className={`w-2 h-2 rounded-full ${isConnected ? "bg-green-500" : "bg-gray-600"}`} aria-hidden="true" />
+            <span className="hidden sm:inline">{isConnected ? "Connected" : "Idle"}</span>
+          </span>
+          <button type="button" onClick={handleCopy} aria-label="Copy output" title="Copy output"
+            className="p-1.5 rounded text-gray-300 hover:bg-gray-800 hover:text-white">
+            <Copy className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={handleDownload} aria-label="Download output" title="Download output"
+            className="p-1.5 rounded text-gray-300 hover:bg-gray-800 hover:text-white">
+            <Download className="w-4 h-4" />
+          </button>
+          <button type="button" onClick={() => setIsMaximized(!isMaximized)}
+            aria-label={isMaximized ? "Exit full screen" : "Full screen"} title={isMaximized ? "Exit full screen" : "Full screen"}
+            className="p-1.5 rounded text-gray-300 hover:bg-gray-800 hover:text-white">
+            {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
         </div>
 
         {/* Terminal Output */}
         <div
           ref={terminalRef}
-          className="bg-black p-4 font-mono text-sm text-green-400 overflow-auto"
-          style={{
-            height: isMaximized ? "calc(100vh - 60px)" : "calc(70vh - 60px)",
-          }}
+          className="flex-1 min-h-0 bg-black p-4 font-mono text-sm text-green-400 overflow-auto"
         >
           {lines.length === 0 && !isConnected ? (
             <div className="text-gray-500 dark:text-gray-400 text-sm">
@@ -530,7 +481,7 @@ export default function Terminal() {
                     : line.type === "success"
                       ? "text-green-400"
                       : line.type === "input"
-                        ? "text-blue-400"
+                        ? "text-primary-400"
                         : "text-gray-300"
                 }
               >
@@ -546,7 +497,7 @@ export default function Terminal() {
               <span className="text-gray-500 dark:text-gray-400 mr-2 text-xs">
                 {new Date().toLocaleTimeString()}
               </span>
-              <span className="text-blue-400">$</span>
+              <span className="text-primary-400">$</span>
               <input
                 ref={inputRef}
                 type="text"
@@ -567,7 +518,7 @@ export default function Terminal() {
                   key={suggestion}
                   className={`px-3 py-2 cursor-pointer text-sm ${
                     index === suggestionIndex
-                      ? "bg-blue-600 text-white"
+                      ? "bg-primary-600 text-white"
                       : "text-gray-300 hover:bg-gray-700"
                   }`}
                   onClick={() => {

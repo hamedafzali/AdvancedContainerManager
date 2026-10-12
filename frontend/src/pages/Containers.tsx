@@ -6,33 +6,51 @@ import {
   RefreshCw,
   Trash2,
   Terminal,
-  Search,
   Plus,
-  AlertCircle,
   Clock,
   CheckCircle,
   XCircle,
-  Eye,
-  Activity,
-  HardDrive,
+  PauseCircle,
   Copy,
   Download,
   Layers,
   Package2,
+  Boxes,
+  Cpu,
+  MemoryStick,
+  Network,
+  ScrollText,
 } from "lucide-react";
 import { apiFetch, apiJson, apiPost } from "@/utils/api";
 import {
   Button,
   IconButton,
   Card,
-  Modal,
+  CardBody,
+  CardFooter,
+  CardGrid,
+  CardHeader,
   ConfirmDialog,
-  StatTile,
-  ErrorBanner,
+  DataTable,
+  DescriptionList,
+  DropdownMenu,
   EmptyState,
+  ErrorBanner,
+  IconTile,
+  List,
+  ListItem,
   LoadingState,
+  Modal,
   PageHeader,
+  SearchInput,
+  StatTile,
+  StatusBadge,
   ToggleChip,
+  Toolbar,
+  ViewSwitcher,
+  useViewMode,
+  type DataTableColumn,
+  type Tone,
 } from "@/components/ui";
 import { usePolling } from "@/hooks/usePolling";
 
@@ -75,185 +93,212 @@ function transformPorts(raw: any): ContainerPort[] {
 
 type ContainerAction = "start" | "stop" | "restart" | "delete";
 
+const cx = (...parts: Array<string | false | undefined>) => parts.filter(Boolean).join(" ");
+
 const STATS_FETCH_LIMIT = 10;
+const VIEWS = ["grid", "list", "table"] as const;
 
-function getStatusIcon(status: Container["status"]) {
-  switch (status) {
-    case "running":
-      return <CheckCircle className="w-4 h-4 text-green-600" />;
-    case "stopped":
-      return <XCircle className="w-4 h-4 text-red-600" />;
-    case "paused":
-      return <AlertCircle className="w-4 h-4 text-yellow-600" />;
-    case "restarting":
-      return <RefreshCw className="w-4 h-4 text-blue-600 animate-spin" />;
-    default:
-      return null;
-  }
-}
+const STATUS_TONE: Record<Container["status"], Tone> = {
+  running: "success",
+  stopped: "danger",
+  paused: "warning",
+  restarting: "info",
+};
 
-function getStatusClasses(status: Container["status"]) {
-  switch (status) {
-    case "running":
-      return "text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400";
-    case "stopped":
-      return "text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400";
-    case "paused":
-      return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-400";
-    case "restarting":
-      return "text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-400";
-    default:
-      return "text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300";
-  }
-}
+const PENDING_LABEL: Record<ContainerAction, string> = {
+  start: "Starting",
+  stop: "Stopping",
+  restart: "Restarting",
+  delete: "Deleting",
+};
 
-function ContainerRow({
-  container,
-  pendingAction,
-  onAction,
-  onViewLogs,
-  onOpenTerminal,
-}: {
+interface RowProps {
   container: Container;
   pendingAction: ContainerAction | null;
   onAction: (container: Container, action: ContainerAction) => void;
   onViewLogs: (container: Container) => void;
   onOpenTerminal: (container: Container) => void;
-}) {
+}
+
+function ContainerStatus({
+  container,
+  pendingAction,
+}: Pick<RowProps, "container" | "pendingAction">) {
+  return (
+    <StatusBadge
+      tone={pendingAction ? "info" : STATUS_TONE[container.status] ?? "neutral"}
+      label={pendingAction ? `${PENDING_LABEL[pendingAction]}…` : container.status}
+      busy={pendingAction !== null}
+    />
+  );
+}
+
+/** Port chips; published ports link to the host. */
+function PortList({ ports, limit }: { ports: ContainerPort[]; limit?: number }) {
+  if (ports.length === 0) {
+    return <span className="text-gray-400 dark:text-gray-500">None</span>;
+  }
+  const shown = limit ? ports.slice(0, limit) : ports;
+  const hidden = ports.length - shown.length;
+  return (
+    <span className="inline-flex flex-wrap justify-end gap-1 min-w-0">
+      {shown.map((port) =>
+        port.publicPort ? (
+          <a
+            key={port.label}
+            href={`http://${window.location.hostname}:${port.publicPort}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open http://${window.location.hostname}:${port.publicPort}`}
+            className="font-mono text-xs px-1.5 py-0.5 rounded-md bg-primary-50 text-primary-700 hover:underline dark:bg-primary-500/10 dark:text-primary-300"
+          >
+            {port.label}
+          </a>
+        ) : (
+          <span
+            key={port.label}
+            className="font-mono text-xs px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300"
+          >
+            {port.label}
+          </span>
+        ),
+      )}
+      {hidden > 0 && (
+        <span
+          className="text-xs px-1.5 py-0.5 text-gray-500 dark:text-gray-400"
+          title={ports.slice(shown.length).map((p) => p.label).join(", ")}
+        >
+          +{hidden}
+        </span>
+      )}
+    </span>
+  );
+}
+
+const formatCpu = (c: Container) => (c.cpu === null ? null : `${c.cpu.toFixed(1)}%`);
+const formatMemory = (c: Container) =>
+  c.memory === null ? null : c.memory >= 1024 ? `${(c.memory / 1024).toFixed(2)} GB` : `${c.memory.toFixed(0)} MB`;
+
+/**
+ * Logs, start/stop, restart, terminal and delete, in that order everywhere.
+ * `collapseBelow` swaps the row of icons for start/stop plus a menu on
+ * narrow screens so tables and lists don't scroll sideways.
+ */
+function ContainerActions({
+  container,
+  pendingAction,
+  onAction,
+  onViewLogs,
+  onOpenTerminal,
+  collapseBelow,
+}: RowProps & { collapseBelow?: "md" | "xl" }) {
   const busy = pendingAction !== null;
   const running = container.status === "running";
-
+  const full = (
+    <div
+      className={cx(
+        "items-center gap-0.5",
+        collapseBelow === "md" ? "hidden md:flex" : collapseBelow === "xl" ? "hidden xl:flex" : "flex",
+      )}
+    >
+      <IconButton label="View logs" onClick={() => onViewLogs(container)} disabled={busy}>
+        <ScrollText className="w-4 h-4" />
+      </IconButton>
+      <IconButton
+        label={running ? "Stop" : "Start"}
+        tone={running ? "danger" : "success"}
+        loading={pendingAction === "start" || pendingAction === "stop"}
+        disabled={busy}
+        onClick={() => onAction(container, running ? "stop" : "start")}
+      >
+        {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+      </IconButton>
+      <IconButton
+        label="Restart"
+        tone="info"
+        loading={pendingAction === "restart"}
+        disabled={busy || !running}
+        onClick={() => onAction(container, "restart")}
+      >
+        <RefreshCw className="w-4 h-4" />
+      </IconButton>
+      <IconButton
+        label="Open terminal"
+        disabled={busy || !running}
+        onClick={() => onOpenTerminal(container)}
+      >
+        <Terminal className="w-4 h-4" />
+      </IconButton>
+      <IconButton
+        label="Delete"
+        tone="danger"
+        loading={pendingAction === "delete"}
+        disabled={busy}
+        onClick={() => onAction(container, "delete")}
+      >
+        <Trash2 className="w-4 h-4" />
+      </IconButton>
+    </div>
+  );
+  if (!collapseBelow) return full;
   return (
-    <tr className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors duration-150">
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
-          {container.name}
-        </div>
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          ID: {container.id.slice(0, 12)}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900 dark:text-gray-100 font-mono">
-          {container.image}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div
-          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusClasses(container.status)}`}
+    <>
+      {full}
+      <div className={cx("items-center gap-0.5", collapseBelow === "md" ? "flex md:hidden" : "flex xl:hidden")}>
+        <IconButton
+          label={running ? "Stop" : "Start"}
+          tone={running ? "danger" : "success"}
+          loading={pendingAction === "start" || pendingAction === "stop"}
+          disabled={busy}
+          onClick={() => onAction(container, running ? "stop" : "start")}
         >
-          {pendingAction ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
-          ) : (
-            getStatusIcon(container.status)
-          )}
-          <span className="ml-1">
-            {pendingAction ? `${pendingAction}ing…` : container.status}
-          </span>
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex flex-wrap gap-1 text-sm font-mono max-w-[220px]">
-          {container.ports.length === 0 && (
-            <span className="text-gray-400">—</span>
-          )}
-          {container.ports.map((port) =>
-            port.publicPort ? (
-              <a
-                key={port.label}
-                href={`http://${window.location.hostname}:${port.publicPort}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Open http://${window.location.hostname}:${port.publicPort}`}
-                className="text-xs px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:underline hover:ring-1 hover:ring-blue-400"
-              >
-                {port.label}
-              </a>
-            ) : (
-              <span
-                key={port.label}
-                className="text-xs px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"
-              >
-                {port.label}
-              </span>
-            ),
-          )}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
-          <Activity className="w-4 h-4 text-gray-400 mr-2" />
-          <span className="text-sm text-gray-900 dark:text-gray-100">
-            {container.cpu === null ? "—" : `${container.cpu.toFixed(1)}%`}
-          </span>
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
-          <HardDrive className="w-4 h-4 text-gray-400 mr-2" />
-          <span className="text-sm text-gray-900 dark:text-gray-100">
-            {container.memory === null ? "—" : `${container.memory}MB`}
-          </span>
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center">
-          <Clock className="w-4 h-4 text-gray-400 mr-2" />
-          <span className="text-sm text-gray-900 dark:text-gray-100">
-            {container.uptime}
-          </span>
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center space-x-1">
-          <IconButton
-            label="View logs"
-            onClick={() => onViewLogs(container)}
-            disabled={busy}
-          >
-            <Eye className="w-4 h-4" />
-          </IconButton>
-          <IconButton
-            label={running ? "Stop" : "Start"}
-            tone={running ? "danger" : "success"}
-            loading={pendingAction === "start" || pendingAction === "stop"}
-            disabled={busy}
-            onClick={() => onAction(container, running ? "stop" : "start")}
-          >
-            {running ? (
-              <Square className="w-4 h-4" />
-            ) : (
-              <Play className="w-4 h-4" />
-            )}
-          </IconButton>
-          <IconButton
-            label="Restart"
-            tone="info"
-            loading={pendingAction === "restart"}
-            disabled={busy || !running}
-            onClick={() => onAction(container, "restart")}
-          >
-            <RefreshCw className="w-4 h-4" />
-          </IconButton>
-          <IconButton
-            label="Open terminal"
-            disabled={busy || !running}
-            onClick={() => onOpenTerminal(container)}
-          >
-            <Terminal className="w-4 h-4" />
-          </IconButton>
-          <IconButton
-            label="Delete"
-            tone="danger"
-            loading={pendingAction === "delete"}
-            disabled={busy}
-            onClick={() => onAction(container, "delete")}
-          >
-            <Trash2 className="w-4 h-4" />
-          </IconButton>
-        </div>
-      </td>
-    </tr>
+          {running ? <Square className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+        </IconButton>
+        <DropdownMenu
+          iconTrigger
+          triggerLabel={`More actions for ${container.name}`}
+          items={[
+            { label: "View logs", icon: <ScrollText className="w-4 h-4" />, onClick: () => onViewLogs(container), disabled: busy },
+            { label: "Restart", icon: <RefreshCw className="w-4 h-4" />, onClick: () => onAction(container, "restart"), disabled: busy || !running },
+            { label: "Open terminal", icon: <Terminal className="w-4 h-4" />, onClick: () => onOpenTerminal(container), disabled: busy || !running },
+            { label: "Delete", icon: <Trash2 className="w-4 h-4" />, onClick: () => onAction(container, "delete"), disabled: busy, danger: true, dividerAbove: true },
+          ]}
+        />
+      </div>
+    </>
+  );
+}
+
+function ContainerCard(props: RowProps) {
+  const { container } = props;
+  return (
+    <Card className={props.pendingAction ? "opacity-70" : undefined}>
+      <CardHeader
+        leading={
+          <IconTile tone={STATUS_TONE[container.status] ?? "neutral"}>
+            <Package2 />
+          </IconTile>
+        }
+        title={<span title={container.name}>{container.name}</span>}
+        subtitle={<span className="font-mono text-xs" title={container.image}>{container.image}</span>}
+        actions={<ContainerStatus container={container} pendingAction={props.pendingAction} />}
+      />
+      <CardBody className="mt-4">
+        <DescriptionList
+          items={[
+            { label: "Ports", icon: <Network className="w-3.5 h-3.5" />, value: <PortList ports={container.ports} limit={3} />, title: "" },
+            { label: "CPU", icon: <Cpu className="w-3.5 h-3.5" />, value: formatCpu(container), mono: true },
+            { label: "Memory", icon: <MemoryStick className="w-3.5 h-3.5" />, value: formatMemory(container), mono: true },
+            { label: "Project", icon: <Layers className="w-3.5 h-3.5" />, value: container.projectName, hidden: !container.projectName },
+            { label: "Created", icon: <Clock className="w-3.5 h-3.5" />, value: container.created },
+          ]}
+        />
+      </CardBody>
+      <CardFooter>
+        <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">{container.id.slice(0, 12)}</span>
+        <ContainerActions {...props} />
+      </CardFooter>
+    </Card>
   );
 }
 
@@ -276,6 +321,7 @@ export default function Containers() {
   const [logsError, setLogsError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [groupByProject, setGroupByProject] = useState(false);
+  const [view, setView] = useViewMode("containers", "table", VIEWS);
   const [showCreateModal, setShowCreateModal] = useState(
     searchParams.get("create") === "1",
   );
@@ -588,197 +634,210 @@ export default function Containers() {
     return <LoadingState label="Fetching container information from Docker…" />;
   }
 
-  const renderRow = (container: Container) => (
-    <ContainerRow
-      key={container.id}
-      container={container}
-      pendingAction={pendingActions[container.id] || null}
-      onAction={handleAction}
-      onViewLogs={handleViewLogs}
-      onOpenTerminal={(c) => navigate(`/terminal/${c.id}`)}
-    />
+  const rowProps = (container: Container): RowProps => ({
+    container,
+    pendingAction: pendingActions[container.id] || null,
+    onAction: handleAction,
+    onViewLogs: handleViewLogs,
+    onOpenTerminal: (c) => navigate(`/terminal/${c.id}`),
+  });
+
+  const groups = groupedContainers
+    ? Object.entries(groupedContainers)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([projectName, rows]) => ({ key: projectName, label: projectName, rows }))
+    : [{ key: "all", label: null as string | null, rows: filteredContainers }];
+
+  const columns: DataTableColumn<Container>[] = [
+    {
+      key: "name",
+      header: "Container",
+      render: (c) => (
+        <div className="min-w-0 max-w-[12rem] sm:max-w-[18rem]">
+          <div className="font-medium text-gray-900 dark:text-gray-100 truncate" title={c.name}>
+            {c.name}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate" title={c.image}>
+            {c.image}
+          </div>
+          <div className="mt-1.5 sm:hidden">
+            <ContainerStatus container={c} pendingAction={pendingActions[c.id] || null} />
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "status",
+      header: "Status",
+      hideBelow: "sm",
+      nowrap: true,
+      render: (c) => <ContainerStatus container={c} pendingAction={pendingActions[c.id] || null} />,
+    },
+    { key: "ports", header: "Ports", hideBelow: "xl", nowrap: true, render: (c) => <PortList ports={c.ports} limit={1} /> },
+    {
+      key: "usage",
+      header: "CPU / Memory",
+      align: "right",
+      hideBelow: "lg",
+      nowrap: true,
+      render: (c) =>
+        c.cpu === null ? (
+          <span className="text-gray-400">–</span>
+        ) : (
+          <div className="tabular text-xs leading-5">
+            <div className="text-gray-900 dark:text-gray-100">{formatCpu(c)}</div>
+            <div className="text-gray-500 dark:text-gray-400">{formatMemory(c)}</div>
+          </div>
+        ),
+    },
+    { key: "actions", header: <span className="sr-only">Actions</span>, align: "right", width: "1%", render: (c) => <ContainerActions {...rowProps(c)} collapseBelow="xl" /> },
+  ];
+
+  const groupHeading = (label: string, count: number) => (
+    <h2 className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+      <Layers className="w-3.5 h-3.5" aria-hidden="true" />
+      {label}
+      <span className="font-normal tabular">({count})</span>
+    </h2>
   );
 
+  const statusFilters = [
+    { value: "all", label: "Total", count: containers.length, icon: <Boxes />, tone: "accent" as Tone },
+    { value: "running", label: "Running", count: runningCount, icon: <CheckCircle />, tone: "success" as Tone },
+    { value: "stopped", label: "Stopped", count: stoppedCount, icon: <XCircle />, tone: "danger" as Tone },
+    { value: "paused", label: "Paused", count: pausedCount, icon: <PauseCircle />, tone: "warning" as Tone },
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-screen-2xl mx-auto space-y-6">
       <PageHeader
         title="Containers"
-        subtitle={`${containers.length} containers · ${runningCount} running`}
+        subtitle={`${containers.length} containers, ${runningCount} running`}
         actions={
-          <Button
-            variant="primary"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => setShowCreateModal(true)}
-          >
-            New Container
-          </Button>
+          <>
+            <ToggleChip label="Auto refresh" checked={autoRefresh} onChange={setAutoRefresh} />
+            <IconButton label="Refresh" onClick={fetchContainers}>
+              <RefreshCw className="w-4 h-4" />
+            </IconButton>
+            <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreateModal(true)}>
+              New container
+            </Button>
+          </>
         }
       />
 
-      <ErrorBanner
-        message={error}
-        onDismiss={() => setError(null)}
-        onRetry={fetchContainers}
-      />
+      <ErrorBanner message={error} onDismiss={() => setError(null)} onRetry={fetchContainers} />
 
-      {/* Clickable stat tiles double as status filters */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatTile
-          value={runningCount}
-          label="Running"
-          active={filterStatus === "running"}
-          icon={
-            <div className="p-3 bg-green-50 dark:bg-green-900/30 rounded-lg">
-              <CheckCircle className="w-5 h-5 text-green-600" />
-            </div>
-          }
-          onClick={() => applyStatusFilter("running")}
-        />
-        <StatTile
-          value={stoppedCount}
-          label="Stopped"
-          active={filterStatus === "stopped"}
-          icon={
-            <div className="p-3 bg-red-50 dark:bg-red-900/30 rounded-lg">
-              <XCircle className="w-5 h-5 text-red-600" />
-            </div>
-          }
-          onClick={() => applyStatusFilter("stopped")}
-        />
-        <StatTile
-          value={pausedCount}
-          label="Paused"
-          active={filterStatus === "paused"}
-          icon={
-            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/30 rounded-lg">
-              <AlertCircle className="w-5 h-5 text-yellow-600" />
-            </div>
-          }
-          onClick={() => applyStatusFilter("paused")}
-        />
+      {/* Stat cards double as the status filter. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {statusFilters.map((f) => (
+          <StatTile
+            key={f.value}
+            label={f.label}
+            value={<span className="tabular">{f.count}</span>}
+            icon={f.icon}
+            tone={f.tone}
+            active={filterStatus === f.value}
+            onClick={() => applyStatusFilter(f.value)}
+          />
+        ))}
       </div>
 
-      {/* Toolbar */}
-      <Card>
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex-1 min-w-[220px] relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search containers…"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-300 focus:border-transparent"
-            />
-          </div>
-          <select
-            value={filterStatus}
-            onChange={(e) => applyStatusFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-gray-900 dark:focus:ring-gray-300"
-          >
-            <option value="all">All Status</option>
-            <option value="running">Running</option>
-            <option value="stopped">Stopped</option>
-            <option value="paused">Paused</option>
-            <option value="restarting">Restarting</option>
-          </select>
-          <IconButton label="Refresh" onClick={fetchContainers}>
-            <RefreshCw className="w-4 h-4" />
-          </IconButton>
-          <ToggleChip
-            label="Auto refresh"
-            checked={autoRefresh}
-            onChange={setAutoRefresh}
-          />
-          <ToggleChip
-            label="Group by project"
-            icon={<Layers className="w-3.5 h-3.5" />}
-            checked={groupByProject}
-            onChange={setGroupByProject}
-          />
-        </div>
-      </Card>
+      <Toolbar
+        end={
+          <ViewSwitcher value={view} onChange={setView} />
+        }
+      >
+        <SearchInput value={searchTerm} onChange={setSearchTerm} placeholder="Search name or image…" label="Search containers" />
+        <ToggleChip
+          label="Group by project"
+          icon={<Layers className="w-3.5 h-3.5" />}
+          checked={groupByProject}
+          onChange={setGroupByProject}
+        />
+      </Toolbar>
 
-      {/* Containers table */}
-      <Card padded={false}>
-        {filteredContainers.length === 0 ? (
+      {filteredContainers.length === 0 ? (
+        <Card>
           <EmptyState
             icon={<Package2 className="w-6 h-6" />}
-            title={
-              containers.length === 0
-                ? "No containers yet"
-                : "No containers match your filters"
-            }
+            title={containers.length === 0 ? "No containers yet" : "No containers match your filters"}
             description={
               containers.length === 0
                 ? "Create your first container or deploy a project to get started."
-                : "Try adjusting the search or status filter."
+                : "Try a different search or status."
             }
             action={
               containers.length === 0 ? (
-                <Button
-                  variant="primary"
-                  icon={<Plus className="w-4 h-4" />}
-                  onClick={() => setShowCreateModal(true)}
-                >
-                  New Container
+                <Button variant="primary" icon={<Plus className="w-4 h-4" />} onClick={() => setShowCreateModal(true)}>
+                  New container
                 </Button>
-              ) : undefined
+              ) : (
+                <Button
+                  onClick={() => {
+                    setSearchTerm("");
+                    applyStatusFilter("all");
+                  }}
+                >
+                  Clear filters
+                </Button>
+              )
             }
           />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-700">
-                <tr>
-                  {[
-                    "Name",
-                    "Image",
-                    "Status",
-                    "Ports",
-                    "CPU",
-                    "Memory",
-                    "Uptime",
-                    "Actions",
-                  ].map((header) => (
-                    <th
-                      key={header}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                    >
-                      {header}
-                    </th>
+        </Card>
+      ) : view === "table" ? (
+        <Card padded={false} className="overflow-hidden">
+          <DataTable
+            caption="Containers"
+            columns={columns}
+            rowKey={(c) => c.id}
+            rows={groupedContainers ? undefined : filteredContainers}
+            groups={
+              groupedContainers
+                ? groups.map((g) => ({ key: g.key, label: `${g.label} (${g.rows.length})`, rows: g.rows }))
+                : undefined
+            }
+            rowClassName={(c) => (pendingActions[c.id] ? "opacity-60" : undefined)}
+          />
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {groups.map((group) => (
+            <section key={group.key} className="space-y-3">
+              {group.label !== null && groupHeading(group.label, group.rows.length)}
+              {view === "grid" ? (
+                <CardGrid dense>
+                  {group.rows.map((c) => (
+                    <ContainerCard key={c.id} {...rowProps(c)} />
                   ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                {groupedContainers
-                  ? Object.entries(groupedContainers).map(
-                      ([projectName, group]) => (
-                        <>
-                          <tr
-                            key={`group-${projectName}`}
-                            className="bg-gray-100 dark:bg-gray-900/60"
-                          >
-                            <td colSpan={8} className="px-6 py-2">
-                              <div className="flex items-center gap-2 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
-                                <Layers className="w-3.5 h-3.5" />
-                                {projectName}
-                                <span className="font-normal text-gray-400">
-                                  ({group.length})
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
-                          {group.map(renderRow)}
-                        </>
-                      ),
-                    )
-                  : filteredContainers.map(renderRow)}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+                </CardGrid>
+              ) : (
+                <List>
+                  {group.rows.map((c) => (
+                    <ListItem
+                      key={c.id}
+                      leading={
+                        <IconTile tone={STATUS_TONE[c.status] ?? "neutral"}>
+                          <Package2 />
+                        </IconTile>
+                      }
+                      title={c.name}
+                      subtitle={<span className="font-mono text-xs">{c.image}</span>}
+                      meta={
+                        <span className="flex items-center gap-2">
+                          {c.ports.length > 0 && <PortList ports={c.ports} limit={1} />}
+                          <ContainerStatus container={c} pendingAction={pendingActions[c.id] || null} />
+                        </span>
+                      }
+                      actions={<ContainerActions {...rowProps(c)} collapseBelow="md" />}
+                    />
+                  ))}
+                </List>
+              )}
+            </section>
+          ))}
+        </div>
+      )}
 
       {/* Logs modal */}
       <Modal
@@ -786,8 +845,8 @@ export default function Containers() {
         onClose={() => setShowLogsModal(false)}
         title={
           <span className="flex items-center gap-2">
-            <Terminal className="w-5 h-5 text-gray-500" />
-            {selectedContainer?.name} — Logs
+            <ScrollText className="w-5 h-5 text-gray-500" aria-hidden="true" />
+            {selectedContainer?.name} logs
           </span>
         }
         wide
@@ -863,7 +922,7 @@ export default function Containers() {
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Create Container"
+        title="New container"
         footer={
           <>
             <Button
@@ -881,7 +940,7 @@ export default function Containers() {
         <div className="space-y-4">
           {createError && <ErrorBanner message={createError} />}
           <div>
-            <label htmlFor="containers-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="containers-field-1" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Image
             </label>
             <select id="containers-field-1"
@@ -889,7 +948,7 @@ export default function Containers() {
               onChange={(e) =>
                 setCreateForm((prev) => ({ ...prev, image: e.target.value }))
               }
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
             >
               <option value="alpine:latest">alpine:latest</option>
               <option value="ubuntu:latest">ubuntu:latest</option>
@@ -903,13 +962,14 @@ export default function Containers() {
               onChange={(e) =>
                 setCreateForm((prev) => ({ ...prev, image: e.target.value }))
               }
-              className="w-full mt-2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field mt-2"
+              aria-label="Custom image"
               placeholder="custom-image:tag"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="containers-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="containers-field-2" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Container Port
               </label>
               <input id="containers-field-2"
@@ -921,12 +981,12 @@ export default function Containers() {
                     containerPort: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="field"
                 placeholder="8080"
               />
             </div>
             <div>
-              <label htmlFor="containers-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label htmlFor="containers-field-3" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                 Host Port (optional)
               </label>
               <input id="containers-field-3"
@@ -938,13 +998,13 @@ export default function Containers() {
                     hostPort: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="field"
                 placeholder="3001"
               />
             </div>
           </div>
           <div>
-            <label htmlFor="containers-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="containers-field-4" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Packages (optional)
             </label>
             <input id="containers-field-4"
@@ -956,7 +1016,7 @@ export default function Containers() {
                   packagesText: e.target.value,
                 }))
               }
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
               placeholder="nodejs npm curl"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -965,7 +1025,7 @@ export default function Containers() {
             </p>
           </div>
           <div>
-            <label htmlFor="containers-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="containers-field-5" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Environment Variables (optional)
             </label>
             <textarea id="containers-field-5"
@@ -973,12 +1033,12 @@ export default function Containers() {
               onChange={(e) =>
                 setCreateForm((prev) => ({ ...prev, envText: e.target.value }))
               }
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[90px]"
+              className="field h-auto py-2 min-h-[90px] font-mono"
               placeholder="KEY=value"
             />
           </div>
           <div>
-            <label htmlFor="containers-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label htmlFor="containers-field-6" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
               Command (optional)
             </label>
             <input id="containers-field-6"
@@ -987,7 +1047,7 @@ export default function Containers() {
               onChange={(e) =>
                 setCreateForm((prev) => ({ ...prev, command: e.target.value }))
               }
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="field"
               placeholder="bash -lc 'echo hello'"
             />
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

@@ -33,7 +33,7 @@ const DOT: Record<string, string> = {
   success: "text-green-500",
   failed: "text-red-500",
   running: "text-amber-500 animate-pulse",
-  awaiting_approval: "text-blue-500 animate-pulse",
+  awaiting_approval: "text-primary-500 animate-pulse",
 };
 
 export default function Pipelines() {
@@ -258,7 +258,7 @@ export default function Pipelines() {
                 <button onClick={() => setShowWebhook((v) => !v)} className="px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                   Webhook
                 </button>
-                <button onClick={() => run()} disabled={running} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-gray-900 hover:bg-gray-700 rounded-lg disabled:opacity-50">
+                <button onClick={() => run()} disabled={running} className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-50">
                   <Play className="w-4 h-4" /> {running ? "Running…" : "Run all"}
                 </button>
               </div>
@@ -283,12 +283,12 @@ export default function Pipelines() {
 
             {/* Manual approval gate — a stage is paused waiting for a decision */}
             {awaiting && (
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center gap-3">
+              <div className="bg-primary-50 dark:bg-primary-900/20 border border-primary-200 dark:border-primary-800 rounded-xl p-4 flex items-center gap-3">
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-blue-800 dark:text-blue-200">
+                  <p className="text-sm font-semibold text-primary-800 dark:text-primary-200">
                     “{awaiting.name}” is awaiting approval
                   </p>
-                  <p className="text-xs text-blue-600 dark:text-blue-300/80">
+                  <p className="text-xs text-primary-600 dark:text-primary-300/80">
                     The pipeline is paused before this stage. Approve to continue or reject to stop the run.
                   </p>
                 </div>
@@ -300,7 +300,7 @@ export default function Pipelines() {
                 </button>
                 <button
                   onClick={() => decide(awaiting.name, "approve")}
-                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
+                  className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg"
                 >
                   <Check className="w-4 h-4" /> Approve
                 </button>
@@ -364,7 +364,7 @@ export default function Pipelines() {
                         <button
                           key={file}
                           onClick={() => downloadArtifact(openStage, file)}
-                          className="flex items-center gap-1.5 text-xs text-blue-300 hover:text-blue-200 bg-gray-900 rounded-lg px-2.5 py-1.5"
+                          className="flex items-center gap-1.5 text-xs text-primary-300 hover:text-primary-200 bg-gray-900 rounded-lg px-2.5 py-1.5"
                         >
                           <Download className="w-3.5 h-3.5" /> {file}
                         </button>

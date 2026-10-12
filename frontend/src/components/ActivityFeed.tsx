@@ -66,7 +66,7 @@ export default function ActivityFeed({
       case "warning":
         return "text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30";
       case "info":
-        return "text-blue-600 bg-blue-50 dark:bg-blue-900/30";
+        return "text-primary-600 bg-primary-50 dark:bg-primary-900/30";
       case "container_stop":
       default:
         return "text-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-gray-300";

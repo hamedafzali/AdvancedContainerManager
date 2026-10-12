@@ -39,13 +39,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       // Update DOM
       root.classList.remove("light", "dark");
       root.classList.add(newTheme);
+      // pixelwizards-components keys a few overrides off data-theme.
+      root.dataset.theme = newTheme;
 
       // Update meta theme-color
       const metaThemeColor = document.querySelector('meta[name="theme-color"]');
       if (metaThemeColor) {
         metaThemeColor.setAttribute(
           "content",
-          newTheme === "dark" ? "#1f2937" : "#ffffff",
+          newTheme === "dark" ? "#020617" : "#f8fafc",
         );
       }
     };

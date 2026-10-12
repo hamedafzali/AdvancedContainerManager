@@ -124,3 +124,6 @@ dist/
 build/
 tsconfig.dev.json
 tsconfig.test.json
+
+# The vendored component library tarball is needed by the frontend build.
+!frontend/vendor/*.tgz
