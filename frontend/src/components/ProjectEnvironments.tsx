@@ -1,5 +1,5 @@
-import { Fragment, useCallback, useEffect, useState } from "react";
-import { ArrowRight, ChevronDown, ChevronRight, Info, Loader2, Play, RotateCw, Settings2, Square } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowUp, Info, Loader2, Play, RotateCw, Settings2, Square } from "lucide-react";
 import { DropdownMenu } from "pixelwizards-components";
 import { apiFetch, apiJson, apiPost } from "@/utils/api";
 import { ConfirmDialog, ErrorBanner, Modal, Button } from "@/components/ui";
@@ -23,6 +23,7 @@ interface EnvRow {
 }
 
 const NEXT: Partial<Record<EnvName, EnvName>> = { dev: "test", test: "prod" };
+const ORDER: EnvName[] = ["prod", "test", "dev"];
 
 const DOT: Record<EnvRow["status"], string> = {
   running: "bg-green-500",
@@ -145,22 +146,20 @@ export default function ProjectEnvironments({ projectName }: { projectName: stri
 
   const byName = Object.fromEntries(envs.map((e) => [e.env, e])) as Partial<Record<EnvName, EnvRow>>;
 
+  // Prod first: it's the one people check, and promotion reads bottom-up.
+  const ordered = [...envs].sort((a, b) => ORDER.indexOf(a.env) - ORDER.indexOf(b.env));
+
   return (
     <div className="space-y-2">
-      <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        Environments
-      </div>
-      {/* One tile per stage. Each tile opens its own labelled menu, so the
-          actions read as words instead of a row of tiny icons. */}
-      <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-1">
-        {envs.map((e) => {
+      <ul className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+        {ordered.map((e) => {
           const next = NEXT[e.env];
-          const target = next ? byName[next] : undefined;
           const envBusy = busy.startsWith(`${e.env}:`);
           const canPromote = !!next && e.status === "running" && !!e.deployedAt && !busy;
           const behind = !!(head && e.commit && e.commit !== head);
           const failed = e.lastResult?.status === "failed";
           const stopped = e.status === "stopped" || e.status === "unknown";
+          const statusText = failed ? "Failed" : e.status === "unknown" ? "Not deployed" : e.status;
           const items = [
             {
               label: stopped ? `Deploy ${e.env}` : `Redeploy ${e.env}`,
@@ -173,8 +172,8 @@ export default function ProjectEnvironments({ projectName }: { projectName: stri
               : [{ label: `Stop ${e.env}`, icon: <Square className="w-4 h-4" />, disabled: !!busy, onClick: () => act(e.env, "stop") }]),
             ...(next
               ? [{
-                  label: canPromote ? `Promote to ${next}` : `Promote to ${next} (deploy ${e.env} first)`,
-                  icon: <ArrowRight className="w-4 h-4" />,
+                  label: `Promote to ${next}`,
+                  icon: <ArrowUp className="w-4 h-4" />,
                   disabled: !canPromote,
                   onClick: () => setPromote({ from: e.env, to: next }),
                 }]
@@ -182,56 +181,59 @@ export default function ProjectEnvironments({ projectName }: { projectName: stri
             { label: "Variables", icon: <Settings2 className="w-4 h-4" />, dividerAbove: true, onClick: () => openVars(e.env) },
             { label: "Details", icon: <Info className="w-4 h-4" />, onClick: () => setDetails(e) },
           ];
-          const statusText = failed ? "failed" : e.status === "unknown" ? "not deployed" : e.status;
           return (
-            <Fragment key={e.env}>
+            <li
+              key={e.env}
+              className={`flex min-h-[44px] items-center gap-3 pl-3 pr-1 ${
+                failed ? "bg-red-50/70 dark:bg-red-500/10" : "bg-gray-50/60 dark:bg-gray-900/40"
+              }`}
+            >
+              <span className="flex shrink-0 items-center gap-2 sm:w-[8.5rem]">
+                {envBusy ? (
+                  <Loader2 className="w-3 h-3 shrink-0 animate-spin text-primary-500" aria-label="Working" />
+                ) : (
+                  <span className={`w-2 h-2 shrink-0 rounded-full ${failed ? "bg-red-500" : DOT[e.status]}`} aria-hidden />
+                )}
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{e.env}</span>
+                <span className="sr-only sm:hidden">{statusText}</span>
+                <span
+                  className={`hidden truncate text-xs capitalize sm:inline ${failed ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"}`}
+                  title={failed ? e.lastResult?.error : undefined}
+                >
+                  {statusText}
+                </span>
+              </span>
+              <span
+                className={`min-w-0 flex-1 truncate font-mono text-xs ${
+                  behind ? "text-amber-600 dark:text-amber-400" : "text-gray-500 dark:text-gray-400"
+                }`}
+                title={behind && head ? `Checkout is at ${short(head)}; redeploy to pick it up` : undefined}
+              >
+                {e.commit ? `${short(e.commit)}${e.deployedAt ? ` · ${ago(e.deployedAt)}` : ""}` : ""}
+              </span>
+              {next && canPromote && (
+                <button
+                  type="button"
+                  onClick={() => setPromote({ from: e.env, to: next })}
+                  title={`Promote ${e.env} (${short(e.commit)}) to ${next}`}
+                  aria-label={`Promote ${e.env} to ${next}`}
+                  className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs font-medium text-primary-600 hover:bg-primary-50 dark:text-primary-400 dark:hover:bg-primary-500/10"
+                >
+                  <ArrowUp className="w-3.5 h-3.5" aria-hidden />
+                  {next}
+                </button>
+              )}
               <DropdownMenu
-                className="flex min-w-0"
-                align={e.env === "prod" ? "right" : "left"}
+                iconTrigger
+                align="right"
                 triggerLabel={`${e.env} actions`}
                 items={items}
-                triggerClassName={`flex w-full min-w-0 flex-col items-stretch gap-0.5 rounded-lg border px-2.5 py-2 text-left transition-colors ${
-                  failed
-                    ? "border-red-200 bg-red-50/60 hover:bg-red-50 dark:border-red-500/30 dark:bg-red-500/10 dark:hover:bg-red-500/15"
-                    : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-gray-600 dark:hover:bg-gray-800"
-                }`}
-                label={
-                  <>
-                    <span className="flex items-center gap-1.5 min-w-0">
-                      <span className={`w-2 h-2 shrink-0 rounded-full ${failed ? "bg-red-500" : DOT[e.status]}`} aria-hidden />
-                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-100">{e.env}</span>
-                      {envBusy ? (
-                        <Loader2 className="ml-auto w-3.5 h-3.5 shrink-0 text-gray-400 animate-spin" aria-label="Working" />
-                      ) : (
-                        <ChevronDown className="ml-auto w-3.5 h-3.5 shrink-0 text-gray-400" aria-hidden />
-                      )}
-                    </span>
-                    <span
-                      className={`truncate text-[11px] capitalize ${
-                        failed ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"
-                      }`}
-                    >
-                      {statusText}
-                    </span>
-                    <code
-                      className={`truncate text-[11px] ${behind ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-gray-500"}`}
-                      title={behind && head ? `Checkout is at ${short(head)}; redeploy to pick it up` : undefined}
-                    >
-                      {e.commit ? `${short(e.commit)}${e.deployedAt ? ` · ${ago(e.deployedAt)}` : ""}` : "–"}
-                    </code>
-                  </>
-                }
+                triggerClassName="!border-transparent !bg-transparent hover:!bg-gray-200/70 dark:hover:!bg-gray-800"
               />
-              {next && (
-                <ChevronRight
-                  className={`self-center w-3.5 h-3.5 ${target?.commit && e.commit && target.commit !== e.commit ? "text-primary-400" : "text-gray-300 dark:text-gray-600"}`}
-                  aria-hidden
-                />
-              )}
-            </Fragment>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
       <ErrorBanner message={error} onDismiss={() => setError(null)} />
       {notice && (

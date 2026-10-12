@@ -1353,60 +1353,102 @@ export default function Projects() {
     </span>
   );
 
-  const renderCard = (project: Project) => (
-    <Card className={cx("flex flex-col", pendingProjects[project.name] && "opacity-80")}>
-      <CardHeader
-        leading={
+  const renderCard = (project: Project) => {
+    const pending = pendingProjects[project.name];
+    const domain = (project as any).tunnelDomain as string | undefined;
+    const publicUrl = domain || project.tunnelUrl;
+    const hostPorts = (project.ports ?? []).filter((p) => p.hostPort);
+    return (
+      <Card padded={false} className={cx("flex h-full flex-col", pending && "opacity-80")}>
+        {/* Identity: what it is, where it comes from, how it's doing */}
+        <div className="flex items-start gap-3 p-4 sm:p-5">
           <IconTile tone={STATUS_TONE[project.status] ?? "neutral"}>
             <Folder />
           </IconTile>
-        }
-        title={projectTitle(project)}
-        subtitle={
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate font-mono text-xs" title={project.repoUrl}>
-              {repoLabel(project.repoUrl)}
-            </span>
-            <span aria-hidden className="text-gray-300 dark:text-gray-600">·</span>
-            <span className="inline-flex shrink-0 items-center gap-1 font-mono text-xs" title={`Branch ${project.branch}`}>
-              <GitBranch className="w-3 h-3" aria-hidden />
-              {project.branch}
-            </span>
-          </span>
-        }
-        actions={renderStatus(project)}
-      />
-      <CardBody className="mt-4 flex-1 space-y-4">
-        {project.tunnelUrl && (
-          <div className="flex min-w-0 items-center gap-2 text-sm">
-            <Globe className="w-4 h-4 shrink-0 text-gray-400" aria-label="Public URL" />
-            {renderPublicUrl(project)}
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 items-center gap-2">
+              <h3 className="truncate text-[15px] font-semibold text-gray-900 dark:text-gray-50" title={project.name}>
+                {project.name}
+              </h3>
+              <span className="shrink-0">{renderStatus(project)}</span>
+            </div>
+            <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <span className="truncate font-mono" title={project.repoUrl}>
+                {repoLabel(project.repoUrl)}
+              </span>
+              <span aria-hidden>·</span>
+              <span className="inline-flex shrink-0 items-center gap-1 font-mono" title={`Branch ${project.branch}`}>
+                <GitBranch className="w-3 h-3" aria-hidden />
+                {project.branch}
+              </span>
+            </p>
+            {publicUrl && (
+              <a
+                href={`https://${publicUrl}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1.5 inline-flex max-w-full items-center gap-1 text-xs font-medium text-primary-600 hover:underline dark:text-primary-400"
+                title={`Open https://${publicUrl}`}
+              >
+                <Globe className="w-3 h-3 shrink-0" aria-hidden />
+                <span className="truncate">{publicUrl}</span>
+                <ExternalLink className="w-3 h-3 shrink-0" aria-hidden />
+              </a>
+            )}
           </div>
-        )}
-        <ProjectEnvironments projectName={project.name} />
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500 dark:text-gray-400">
-          <span className="inline-flex items-center gap-1.5">
-            <Package2 className="w-3.5 h-3.5" aria-hidden />
-            {project.containers.length === 1 ? "1 container" : `${project.containers.length || "No"} containers`}
-          </span>
-          <span className="inline-flex items-center gap-1.5" title="Resource limits">
-            <Cpu className="w-3.5 h-3.5" aria-hidden />
-            {project.resourceLimits.memory} · {project.resourceLimits.cpu} CPU
-          </span>
-          <span className="inline-flex min-w-0 items-center gap-1.5">
-            <Network className="w-3.5 h-3.5 shrink-0" aria-label="Ports" />
-            {renderPorts(project, 3)}
-          </span>
+          <DropdownMenu iconTrigger triggerLabel={`More actions for ${project.name}`} items={menuItems(project)} />
         </div>
-      </CardBody>
-      <CardFooter>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          Created {new Date(project.createdAt).toLocaleDateString()}
-        </span>
-        {renderActions(project)}
-      </CardFooter>
-    </Card>
-  );
+
+        {/* Environments: the part people act on */}
+        <div className="flex-1 px-4 sm:px-5">
+          <ProjectEnvironments projectName={project.name} />
+        </div>
+
+        {/* Facts on the left, the one primary action on the right */}
+        <div className="mt-4 flex items-center gap-3 border-t border-gray-100 px-4 py-3 dark:border-gray-800 sm:px-5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+            <span className="inline-flex items-center gap-1" title="Containers">
+              <Package2 className="w-3.5 h-3.5" aria-hidden />
+              {project.containers.length}
+            </span>
+            <span className="inline-flex items-center gap-1" title="Resource limits">
+              <Cpu className="w-3.5 h-3.5" aria-hidden />
+              {project.resourceLimits.memory} · {project.resourceLimits.cpu} CPU
+            </span>
+            {hostPorts.length > 0 && (
+              <span className="inline-flex min-w-0 items-center gap-1" title="Host ports">
+                <Network className="w-3.5 h-3.5 shrink-0" aria-hidden />
+                {hostPorts.slice(0, 2).map((p) => (
+                  <a
+                    key={`${p.service}-${p.hostPort}`}
+                    href={`http://${window.location.hostname}:${p.hostPort}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-mono hover:text-primary-600 hover:underline dark:hover:text-primary-400"
+                    title={`${p.service}: ${p.hostPort} → ${p.containerPort}`}
+                  >
+                    :{p.hostPort}
+                  </a>
+                ))}
+                {hostPorts.length > 2 && <span>+{hostPorts.length - 2}</span>}
+              </span>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="primary"
+            icon={<Zap className="w-3.5 h-3.5" />}
+            loading={pending === "deploying"}
+            disabled={Boolean(pending)}
+            onClick={() => handleSyncDeploy(project.name)}
+            title="Pull the latest commit, then deploy to production"
+          >
+            Deploy
+          </Button>
+        </div>
+      </Card>
+    );
+  };
 
   const renderListItem = (project: Project) => (
     <ListItem
