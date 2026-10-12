@@ -203,7 +203,15 @@ class AdvancedContainerManager {
     );
 
     // Body parsing
-    this.app.use(express.json({ limit: "10mb" }));
+    this.app.use(
+      express.json({
+        limit: "10mb",
+        // Keep the raw bytes for webhook signature checks (routes/public.ts).
+        verify: (req, _res, buf) => {
+          if (req.url?.startsWith("/api/webhook/")) (req as any).rawBody = Buffer.from(buf);
+        },
+      }),
+    );
     this.app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
     // MCP endpoint — lets AI assistants (Claude Code, claude.ai connectors,

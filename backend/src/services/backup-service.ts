@@ -105,7 +105,7 @@ export class BackupService {
   }
 
   private countProjects(): number {
-    const projectsDir = process.env.PROJECTS_DIR || "/tmp/advanced_manager_projects";
+    const projectsDir = process.env.PROJECTS_DIR || "/data/projects";
     if (!existsSync(projectsDir)) return 0;
     return readdirSync(projectsDir).length;
   }
@@ -189,7 +189,7 @@ export class BackupService {
       }
 
       if (config.includeProjects) {
-        const projectsDir = process.env.PROJECTS_DIR || "/tmp/advanced_manager_projects";
+        const projectsDir = process.env.PROJECTS_DIR || "/data/projects";
         if (existsSync(projectsDir)) {
           this.copyRecursive(projectsDir, join(backupPath, "projects"));
           backupData.data.projects = true;
@@ -294,7 +294,7 @@ export class BackupService {
       }
 
       if (config.includeProjects && existsSync(join(backupPath, "projects"))) {
-        const projectsDir = process.env.PROJECTS_DIR || "/tmp/advanced_manager_projects";
+        const projectsDir = process.env.PROJECTS_DIR || "/data/projects";
         this.copyRecursive(join(backupPath, "projects"), projectsDir);
       }
 

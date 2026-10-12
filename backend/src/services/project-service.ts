@@ -8,6 +8,11 @@ import { ProjectInfo, ProjectHealth, AppConfig } from "../types";
 import { Logger } from "../utils/logger";
 import { encryptEnvVars, decryptEnvVars } from "../utils/encryption";
 import type { WebSocketHandler } from "./websocket-handler";
+import {
+  findRelativeBindMounts,
+  inspectOwnMounts,
+  resolveHostPath,
+} from "../utils/host-paths";
 
 const Database = require("better-sqlite3");
 
@@ -42,6 +47,9 @@ export class ProjectService {
    *  and naturally empty again on process restart. */
   private inFlightDeploys: Map<string, { startedAt: string }> = new Map();
   private wsHandler?: WebSocketHandler;
+  /** Host path behind projectsDir, looked up once (see utils/host-paths).
+   *  undefined = not looked up yet, null = unknown or not containerized. */
+  private projectsHostDir?: string | null;
   /** Resolves an authenticated clone URL for a stored git account (wired in index.ts). */
   private authenticatedUrlResolver?: (
     accountId: string,
@@ -1724,7 +1732,18 @@ export class ProjectService {
         throw new Error(message);
       }
 
-      this.applyResourceLimits(project, composeFile);
+      const resourcesFile = this.applyResourceLimits(project, composeFile);
+
+      const warnings = await this.hostPathWarnings(project, composeFile);
+      for (const warning of warnings) {
+        this.logger.warn(`Deploy ${name}: ${warning}`);
+        this.wsHandler?.broadcastProjectDeployLog({
+          projectName: name,
+          stream: "stderr",
+          chunk: `[acm] WARNING: ${warning}\n`,
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       // Hard port conflict check — block before starting containers
       const conflicts = await this.checkPortConflicts(name, composeFile);
@@ -1743,7 +1762,15 @@ export class ProjectService {
 
       const upResult = await this.runCompose(
         project,
-        ["compose", "-f", composeFile, "up", "-d", "--build"],
+        [
+          "compose",
+          "-f",
+          composeFile,
+          ...(resourcesFile ? ["-f", resourcesFile] : []),
+          "up",
+          "-d",
+          "--build",
+        ],
         (chunk) => {
           this.wsHandler?.broadcastProjectDeployLog({
             projectName: name,
@@ -1804,6 +1831,7 @@ export class ProjectService {
         });
       }
       const deployOutput = [
+        ...warnings.map((w) => `[acm] WARNING: ${w}`),
         upResult.stdout || upResult.stderr || "",
         seedHook.executed ? `\n[post-deploy-seed]\n${seedHook.output}` : "",
       ]
@@ -2230,30 +2258,34 @@ export class ProjectService {
   private static readonly DEFAULT_MEMORY = "512m";
   private static readonly DEFAULT_CPU = "0.5";
 
-  private applyResourceLimits(project: ProjectInfo, composeFile: string): void {
-    const { memory, cpu } = project.resourceLimits || {};
-    const overridePath = path.join(path.dirname(composeFile), "docker-compose.override.yml");
+  /** Resource limits live in their own compose file next to the project's
+   *  compose file and are passed with an explicit `-f` on `up`. ACM always
+   *  runs compose with `-f`, so a `docker-compose.override.yml` is never
+   *  auto-loaded; writing limits there did nothing and could clobber a
+   *  repo's own override file. */
+  private static readonly RESOURCES_FILE = "docker-compose.acm-resources.yml";
 
-    // If limits are still at defaults, remove any existing override and leave the compose file untouched
+  /** Writes (or removes) the resource-limits file and returns its path when
+   *  the project has non-default limits, otherwise null. */
+  private applyResourceLimits(project: ProjectInfo, composeFile: string): string | null {
+    const { memory, cpu } = project.resourceLimits || {};
+    const resourcesPath = path.join(path.dirname(composeFile), ProjectService.RESOURCES_FILE);
+
     if (
       (!memory || memory === ProjectService.DEFAULT_MEMORY) &&
       (!cpu || cpu === ProjectService.DEFAULT_CPU)
     ) {
-      if (fs.existsSync(overridePath)) {
-        fs.unlinkSync(overridePath);
-      }
-      return;
+      if (fs.existsSync(resourcesPath)) fs.unlinkSync(resourcesPath);
+      return null;
     }
 
     try {
-      const content = fs.readFileSync(composeFile, "utf8");
-      const compose = yaml.load(content) as any;
-      if (!compose?.services) return;
+      const compose = yaml.load(fs.readFileSync(composeFile, "utf8")) as any;
+      if (!compose?.services) return null;
 
-      // Build a minimal override with ONLY the resource limits — never touch the original file
-      const override: any = { version: compose.version, services: {} };
+      const services: Record<string, any> = {};
       for (const serviceName of Object.keys(compose.services as Record<string, any>)) {
-        override.services[serviceName] = {
+        services[serviceName] = {
           deploy: {
             resources: {
               limits: {
@@ -2265,11 +2297,50 @@ export class ProjectService {
         };
       }
 
-      fs.writeFileSync(overridePath, yaml.dump(override, { noRefs: true }), "utf8");
-      this.logger.info(`Written resource limits override for project ${project.name}`);
+      fs.writeFileSync(resourcesPath, yaml.dump({ services }, { noRefs: true }), "utf8");
+      this.logger.info(`Written resource limits for project ${project.name}`);
+      return resourcesPath;
     } catch (error) {
-      this.logger.warn(`Failed to write resource limits override for ${project.name}: ${error}`);
+      this.logger.warn(`Failed to write resource limits for ${project.name}: ${error}`);
+      return null;
     }
+  }
+
+  /** Warn when a project's relative bind mounts will land somewhere other
+   *  than its checkout because ACM's projects dir is mounted from a different
+   *  host path (see utils/host-paths). This is how a project ends up seeding
+   *  or serving stale files from an old host directory. */
+  private async hostPathWarnings(project: ProjectInfo, composeFile: string): Promise<string[]> {
+    if (this.projectsHostDir === undefined) {
+      const mounts = await inspectOwnMounts(this.config.docker.socketPath || "/var/run/docker.sock");
+      this.projectsHostDir = mounts ? resolveHostPath(mounts, this.projectsDir) : null;
+      if (this.projectsHostDir && this.projectsHostDir !== this.projectsDir) {
+        this.logger.warn(
+          `Projects dir ${this.projectsDir} is mounted from host ${this.projectsHostDir}; ` +
+            `relative bind mounts in project compose files resolve under ${this.projectsDir} on the host`,
+        );
+      }
+    }
+    if (!this.projectsHostDir || this.projectsHostDir === this.projectsDir) return [];
+
+    let relative: string[] = [];
+    try {
+      relative = findRelativeBindMounts(yaml.load(fs.readFileSync(composeFile, "utf8")));
+    } catch {
+      return [];
+    }
+    if (relative.length === 0) return [];
+
+    const actualHost = path.join(
+      this.projectsHostDir,
+      path.relative(this.projectsDir, path.dirname(composeFile)),
+    );
+    const daemonSees = path.dirname(composeFile);
+    return [
+      `relative bind mounts (${relative.join(", ")}) resolve to host ${daemonSees}, ` +
+        `not to this checkout (host ${actualHost}). Files there may be stale or missing. ` +
+        `Bake the files into the image, use a named volume, or mount ACM's projects dir at the same path on host and container.`,
+    ];
   }
 
   /** Reconcile a project's stored status with its actual containers, so the

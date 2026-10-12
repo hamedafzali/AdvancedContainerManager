@@ -109,7 +109,7 @@ shows up in the deployed container's env (`docker exec <container> printenv <VAR
 value, sometimes several save-and-redeploy cycles later.
 
 Affected so far: `NEXT_PUBLIC_SITE_URL` (KoodakBook, reported first — see the pre-existing diagnostic
-comment/log in `backend/src/routes/index.ts`'s `PUT /projects/:name` handler, added specifically to
+comment/log in `backend/src/routes/projects.ts`'s `PUT /projects/:name` handler, added specifically to
 chase this) and `ADMIN_TELEGRAM_CHAT_ID` (KoodakBook, 2026-09-03 — took four save+redeploy rounds
 before the container showed the correct value).
 
@@ -139,7 +139,7 @@ been confirmed.
 **If this recurs**: don't start from scratch. A branch named `debug/admin-telegram-chat-id-env-trace`
 (may be deleted by the time you read this — recreate from this diff if so) adds four presence+length-
 only log points (never the actual value) tracing one env var end to end:
-1. `routes/index.ts`'s `PUT /projects/:name` handler — the request body as parsed.
+1. `routes/projects.ts`'s `PUT /projects/:name` handler — the request body as parsed.
 2. `updateProjectSettings` — the payload as received, pre-merge (also logs the compose file's
    discovered default for the same key, to rule the empty-default theory in or out on the spot).
 3. `updateProjectSettings` — `project.environmentVars` right after the merge + `saveProjects()`.
@@ -150,32 +150,45 @@ deploy step is reading something else" into three distinct, checkable outcomes �
 needing to decrypt the sqlite-stored value (which needs the encryption key file and should not be
 done casually). Generalize past the one hardcoded var name if tracing a different key next time.
 
-### Resource-limits editor silently deletes/overwrites any project's own `docker-compose.override.yml`
+### Resource-limits editor clobbered `docker-compose.override.yml` (fixed 2026-10-12)
 
-`ProjectService.applyResourceLimits` (`backend/src/services/project-service.ts:2222`) treats
-`docker-compose.override.yml` as ACM's own private scratch file for per-project CPU/memory limits.
-When limits are unset or at default, it unconditionally `fs.unlinkSync`s that path; when limits are
-set, it overwrites the whole file with a fresh `{ services: { <name>: { deploy: { resources: ... } } } }`
-document. Either way, anything else that was in that file is destroyed with no warning, no diff, no
-backup.
+`applyResourceLimits` used to write per-project CPU/memory limits to `docker-compose.override.yml`,
+deleting or overwriting whatever the project kept there (KoodakBook lost a loopback-only port
+override this way). Worse, the limits never applied: ACM always runs compose with an explicit
+`-f <file>`, and Compose only auto-merges `docker-compose.override.yml` when no `-f` is given.
 
-`docker-compose.override.yml` is not an ACM-private name — it's the standard Docker Compose
-convention for local/environment-specific overrides (auto-merged by `docker compose up` with no
-extra flag), so any managed project has an entirely legitimate, ACM-unrelated reason to have one.
-Confirmed live: KoodakBook committed one to restrict two ports to loopback-only (a security fix,
-unrelated to resource limits); a resource-limits save on that project in ACM (including one that
-lands back at defaults) deleted it, and the ports it was meant to protect were live-exposed on
-`0.0.0.0` as a result. Any other managed project using this filename for its own purposes is
-equally at risk, silently, the next time its resource limits are touched in ACM.
+Now the limits go to `docker-compose.acm-resources.yml`, passed as a second `-f` on `up` only when
+the project has non-default limits; ACM never touches `docker-compose.override.yml`.
 
-Two ways to close this, from least to most invasive: (a) `applyResourceLimits` should merge into
-an existing override file's `services.<name>.deploy.resources` keys rather than clobbering the
-whole document, and delete only its own keys (not the file) when limits reset to default; (b)
-simpler and more robust — stop using the standard filename at all and write ACM's own limits to a
-distinctly-named file (e.g. `docker-compose.acm-resources.yml`) that Compose won't auto-merge
-unless explicitly listed with `-f`, requiring ACM to pass `-f docker-compose.yml -f
-docker-compose.acm-resources.yml` explicitly wherever it invokes compose for a project with limits
-set. (b) fully removes the collision; (a) only reduces its blast radius.
+Consequence to know about: a project's own `docker-compose.override.yml` is **not** applied by ACM
+deploys either (same `-f` rule). If a project relies on one (e.g. KoodakBook's loopback-only ports),
+move those settings into the compose file ACM deploys.
+
+### Relative bind mounts resolve on the HOST, not inside ACM
+
+ACM runs `docker compose` inside its own container, but the host daemon resolves bind-mount
+sources. ACM's compose mounts `./data/projects:/data/projects`, so a project checkout lives at
+`<acm repo>/data/projects/<name>` on the host, while a project's `./data:/app/data` is resolved
+by the daemon as host `/data/projects/<name>/data`, a different directory. On the home server that
+tree holds old clones and the live data of several projects (TradeSignal, NewsFeed, Simorgh,
+Doc2Pdf, Trainova), so do not "fix" it by moving or deleting it.
+
+Seen 2026-10: the Portfolio seed container mounted `./data` and kept seeding 12 skills from the old
+host clone while the checkout had 41. Fixed on the project side by baking the seed data into the
+image.
+
+ACM now detects the mismatch (`utils/host-paths.ts`: inspects its own container's mounts once) and
+prints a `[acm] WARNING` line in the deploy log and deploy history for every project whose compose
+file uses relative bind mounts. Real fixes, per project: bake files into the image, use a named
+volume, or (server-wide, needs a planned data move) mount the projects dir at the same path on host
+and container.
+
+### Git webhook was behind auth (fixed 2026-10-12)
+
+`POST /api/webhook/:name` was registered after the auth middleware, so with `requireAuth` on every
+GitHub/GitLab push got 401. It is now registered with the other public routes. The HMAC is checked
+against the raw request body (GitHub signs the bytes it sent), and a wrong-length signature returns
+401 instead of throwing.
 
 ## Suggested Next Enhancements
 
@@ -186,3 +199,14 @@ set. (b) fully removes the collision; (a) only reduces its blast radius.
    - running container conflicts
    - host process conflicts (optional via `lsof`/`ss`)
 4. Add automated tests for `ProjectService.updateProjectSettings` validation paths
+5. Move the Docker image off Node 18 (EOL). Needs a rebuild check of the native modules
+   (`better-sqlite3`, `node-pty`).
+
+## Code Layout Notes
+
+- `backend/src/routes/index.ts` builds shared dependencies and middleware; the endpoints live in
+  per-domain modules (`public`, `system`, `docker`, `security`, `projects`, `analytics`,
+  `tunnels`). Public routes are registered before the auth middleware, everything else after.
+  Keep route order inside a module when adding endpoints (e.g. `/containers/cached` vs
+  `/containers/:id`).
+- Tests: `npm test` in `backend/` (wraps jest so it also runs on Node 25+).
