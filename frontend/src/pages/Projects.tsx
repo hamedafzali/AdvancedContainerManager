@@ -1208,7 +1208,7 @@ export default function Projects() {
     const shown = limit ? ports.slice(0, limit) : ports;
     const hidden = ports.length - shown.length;
     return (
-      <span className="inline-flex flex-wrap justify-end gap-1 min-w-0">
+      <span className="inline-flex flex-wrap gap-1 min-w-0">
         {shown.map((port) => {
           const conflict = port.hostPort
             ? conflicts.find((c) => c.includes(`port ${port.hostPort}`))
@@ -1362,28 +1362,42 @@ export default function Projects() {
           </IconTile>
         }
         title={projectTitle(project)}
-        subtitle={repoSubtitle(project)}
+        subtitle={
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="truncate font-mono text-xs" title={project.repoUrl}>
+              {repoLabel(project.repoUrl)}
+            </span>
+            <span aria-hidden className="text-gray-300 dark:text-gray-600">·</span>
+            <span className="inline-flex shrink-0 items-center gap-1 font-mono text-xs" title={`Branch ${project.branch}`}>
+              <GitBranch className="w-3 h-3" aria-hidden />
+              {project.branch}
+            </span>
+          </span>
+        }
         actions={renderStatus(project)}
       />
-      <CardBody className="mt-4 flex-1">
-        <DescriptionList
-          items={[
-            { label: "Branch", icon: <GitBranch className="w-3.5 h-3.5" />, value: project.branch, mono: true },
-            { label: "Ports", icon: <Network className="w-3.5 h-3.5" />, value: renderPorts(project, 3), title: "" },
-            { label: "Public URL", icon: <Globe className="w-3.5 h-3.5" />, value: renderPublicUrl(project), hidden: !project.tunnelUrl, title: "" },
-            {
-              label: "Containers",
-              icon: <Package2 className="w-3.5 h-3.5" />,
-              value: project.containers.length || "None",
-            },
-            {
-              label: "Limits",
-              icon: <Cpu className="w-3.5 h-3.5" />,
-              value: `${project.resourceLimits.memory} · ${project.resourceLimits.cpu} CPU`,
-            },
-          ]}
-        />
+      <CardBody className="mt-4 flex-1 space-y-4">
+        {project.tunnelUrl && (
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <Globe className="w-4 h-4 shrink-0 text-gray-400" aria-label="Public URL" />
+            {renderPublicUrl(project)}
+          </div>
+        )}
         <ProjectEnvironments projectName={project.name} />
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-gray-500 dark:text-gray-400">
+          <span className="inline-flex items-center gap-1.5">
+            <Package2 className="w-3.5 h-3.5" aria-hidden />
+            {project.containers.length === 1 ? "1 container" : `${project.containers.length || "No"} containers`}
+          </span>
+          <span className="inline-flex items-center gap-1.5" title="Resource limits">
+            <Cpu className="w-3.5 h-3.5" aria-hidden />
+            {project.resourceLimits.memory} · {project.resourceLimits.cpu} CPU
+          </span>
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <Network className="w-3.5 h-3.5 shrink-0" aria-label="Ports" />
+            {renderPorts(project, 3)}
+          </span>
+        </div>
       </CardBody>
       <CardFooter>
         <span className="text-xs text-gray-500 dark:text-gray-400">

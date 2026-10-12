@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { Play, Square, RotateCw, Settings2, Loader2, ChevronRight, Info } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronRight, Info, Loader2, Play, RotateCw, Settings2, Square } from "lucide-react";
+import { DropdownMenu } from "pixelwizards-components";
 import { apiFetch, apiJson, apiPost } from "@/utils/api";
 import { ConfirmDialog, ErrorBanner, Modal, Button } from "@/components/ui";
 
@@ -145,12 +146,12 @@ export default function ProjectEnvironments({ projectName }: { projectName: stri
   const byName = Object.fromEntries(envs.map((e) => [e.env, e])) as Partial<Record<EnvName, EnvRow>>;
 
   return (
-    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
+    <div className="space-y-2">
       <div className="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
         Environments
       </div>
-      {/* One column per stage with a promote arrow between them, so every
-          card lines its stages up the same way whatever the commit labels. */}
+      {/* One tile per stage. Each tile opens its own labelled menu, so the
+          actions read as words instead of a row of tiny icons. */}
       <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-stretch gap-1">
         {envs.map((e) => {
           const next = NEXT[e.env];
@@ -159,84 +160,73 @@ export default function ProjectEnvironments({ projectName }: { projectName: stri
           const canPromote = !!next && e.status === "running" && !!e.deployedAt && !busy;
           const behind = !!(head && e.commit && e.commit !== head);
           const failed = e.lastResult?.status === "failed";
-          const iconBtn =
-            "p-1 rounded-md text-gray-400 hover:bg-gray-200/70 dark:hover:bg-gray-700 disabled:opacity-40";
+          const stopped = e.status === "stopped" || e.status === "unknown";
+          const items = [
+            {
+              label: stopped ? `Deploy ${e.env}` : `Redeploy ${e.env}`,
+              icon: stopped ? <Play className="w-4 h-4" /> : <RotateCw className="w-4 h-4" />,
+              disabled: !!busy,
+              onClick: () => act(e.env, "deploy"),
+            },
+            ...(stopped
+              ? []
+              : [{ label: `Stop ${e.env}`, icon: <Square className="w-4 h-4" />, disabled: !!busy, onClick: () => act(e.env, "stop") }]),
+            ...(next
+              ? [{
+                  label: canPromote ? `Promote to ${next}` : `Promote to ${next} (deploy ${e.env} first)`,
+                  icon: <ArrowRight className="w-4 h-4" />,
+                  disabled: !canPromote,
+                  onClick: () => setPromote({ from: e.env, to: next }),
+                }]
+              : []),
+            { label: "Variables", icon: <Settings2 className="w-4 h-4" />, dividerAbove: true, onClick: () => openVars(e.env) },
+            { label: "Details", icon: <Info className="w-4 h-4" />, onClick: () => setDetails(e) },
+          ];
+          const statusText = failed ? "failed" : e.status === "unknown" ? "not deployed" : e.status;
           return (
             <Fragment key={e.env}>
-              <div
-                className={`min-w-0 rounded-lg border px-2 py-1.5 ${
+              <DropdownMenu
+                className="flex min-w-0"
+                align={e.env === "prod" ? "right" : "left"}
+                triggerLabel={`${e.env} actions`}
+                items={items}
+                triggerClassName={`flex w-full min-w-0 flex-col items-stretch gap-0.5 rounded-lg border px-2.5 py-2 text-left transition-colors ${
                   failed
-                    ? "border-red-200 bg-red-50/60 dark:border-red-500/30 dark:bg-red-500/10"
-                    : "border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/60"
+                    ? "border-red-200 bg-red-50/60 hover:bg-red-50 dark:border-red-500/30 dark:bg-red-500/10 dark:hover:bg-red-500/15"
+                    : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:border-gray-600 dark:hover:bg-gray-800"
                 }`}
-              >
-                <button
-                  onClick={() => setDetails(e)}
-                  className="flex w-full items-center gap-1.5 text-left min-w-0"
-                  title={`${e.env}: ${e.status}${e.commit ? ` at ${short(e.commit)}` : ""}. Click for details.`}
-                >
-                  <span className={`w-2 h-2 shrink-0 rounded-full ${DOT[e.status]}`} aria-hidden />
-                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">{e.env}</span>
-                  <span className="sr-only">{e.status}</span>
-                  <code
-                    className={`ml-auto hidden sm:block truncate text-[10px] ${
-                      behind ? "text-amber-600 dark:text-amber-400" : "text-gray-400"
-                    }`}
-                  >
-                    {e.commit ? short(e.commit) : "–"}
-                  </code>
-                </button>
-                <div className="mt-1 flex items-center justify-between">
-                  {envBusy ? (
-                    <Loader2 className="w-3.5 h-3.5 m-1 text-gray-400 animate-spin" aria-label="Working" />
-                  ) : (
-                    <div className="flex items-center -ml-1">
-                      <button
-                        disabled={!!busy}
-                        onClick={() => act(e.env, "deploy")}
-                        title={e.status === "stopped" ? `Build and start ${e.env} from the checkout` : `Rebuild ${e.env} from the checkout`}
-                        aria-label={`${e.status === "stopped" ? "Deploy" : "Redeploy"} ${e.env}`}
-                        className={`${iconBtn} hover:text-green-600`}
-                      >
-                        {e.status === "stopped" ? <Play className="w-3.5 h-3.5" /> : <RotateCw className="w-3.5 h-3.5" />}
-                      </button>
-                      {e.status !== "stopped" && e.status !== "unknown" && (
-                        <button
-                          disabled={!!busy}
-                          onClick={() => act(e.env, "stop")}
-                          title={`Stop ${e.env}`}
-                          aria-label={`Stop ${e.env}`}
-                          className={`${iconBtn} hover:text-red-600`}
-                        >
-                          <Square className="w-3.5 h-3.5" />
-                        </button>
+                label={
+                  <>
+                    <span className="flex items-center gap-1.5 min-w-0">
+                      <span className={`w-2 h-2 shrink-0 rounded-full ${failed ? "bg-red-500" : DOT[e.status]}`} aria-hidden />
+                      <span className="text-xs font-semibold text-gray-800 dark:text-gray-100">{e.env}</span>
+                      {envBusy ? (
+                        <Loader2 className="ml-auto w-3.5 h-3.5 shrink-0 text-gray-400 animate-spin" aria-label="Working" />
+                      ) : (
+                        <ChevronDown className="ml-auto w-3.5 h-3.5 shrink-0 text-gray-400" aria-hidden />
                       )}
-                    </div>
-                  )}
-                  <button
-                    onClick={() => openVars(e.env)}
-                    title={`${e.env} variables`}
-                    aria-label={`${e.env} variables`}
-                    className={`${iconBtn} -mr-1 hover:text-gray-700 dark:hover:text-gray-200`}
-                  >
-                    <Settings2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
+                    </span>
+                    <span
+                      className={`truncate text-[11px] capitalize ${
+                        failed ? "text-red-600 dark:text-red-400" : "text-gray-500 dark:text-gray-400"
+                      }`}
+                    >
+                      {statusText}
+                    </span>
+                    <code
+                      className={`truncate text-[11px] ${behind ? "text-amber-600 dark:text-amber-400" : "text-gray-400 dark:text-gray-500"}`}
+                      title={behind && head ? `Checkout is at ${short(head)}; redeploy to pick it up` : undefined}
+                    >
+                      {e.commit ? `${short(e.commit)}${e.deployedAt ? ` · ${ago(e.deployedAt)}` : ""}` : "–"}
+                    </code>
+                  </>
+                }
+              />
               {next && (
-                <button
-                  disabled={!canPromote}
-                  onClick={() => setPromote({ from: e.env, to: next })}
-                  title={
-                    canPromote
-                      ? `Promote ${e.env} (${short(e.commit)}) to ${next}${target?.commit ? `, replacing ${short(target.commit)}` : ""}`
-                      : `Deploy ${e.env} and let it come up healthy to promote it to ${next}`
-                  }
-                  aria-label={`Promote ${e.env} to ${next}`}
-                  className="self-center p-0.5 rounded text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-500/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+                <ChevronRight
+                  className={`self-center w-3.5 h-3.5 ${target?.commit && e.commit && target.commit !== e.commit ? "text-primary-400" : "text-gray-300 dark:text-gray-600"}`}
+                  aria-hidden
+                />
               )}
             </Fragment>
           );
