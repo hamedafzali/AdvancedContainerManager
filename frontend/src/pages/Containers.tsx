@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Play,
   Square,
@@ -11,8 +11,6 @@ import {
   CheckCircle,
   XCircle,
   PauseCircle,
-  Copy,
-  Download,
   Layers,
   Package2,
   Boxes,
@@ -279,7 +277,11 @@ function ContainerCard(props: RowProps) {
             <Package2 />
           </IconTile>
         }
-        title={<span title={container.name}>{container.name}</span>}
+        title={
+          <Link to={`/containers/${container.id}`} title={container.name} className="hover:text-primary-600 hover:underline dark:hover:text-primary-400">
+            {container.name}
+          </Link>
+        }
         subtitle={<span className="font-mono text-xs" title={container.image}>{container.image}</span>}
         actions={<ContainerStatus container={container} pendingAction={props.pendingAction} />}
       />
@@ -312,13 +314,6 @@ export default function Containers() {
   const [filterStatus, setFilterStatus] = useState<string>(
     searchParams.get("status") || "all",
   );
-  const [showLogsModal, setShowLogsModal] = useState(false);
-  const [selectedContainer, setSelectedContainer] = useState<Container | null>(
-    null,
-  );
-  const [logs, setLogs] = useState<string[]>([]);
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [logsError, setLogsError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [groupByProject, setGroupByProject] = useState(false);
   const [view, setView] = useViewMode("containers", "table", VIEWS);
@@ -453,44 +448,6 @@ export default function Containers() {
     window.addEventListener("container_event", onEvent);
     return () => window.removeEventListener("container_event", onEvent);
   }, [fetchContainers]);
-
-  const fetchLogs = async (containerId: string) => {
-    try {
-      setLogsLoading(true);
-      setLogsError(null);
-      const response = await apiFetch(`/api/containers/${containerId}/logs`);
-      const text = await response.text();
-      if (!response.ok) {
-        throw new Error(text || "Failed to fetch logs");
-      }
-      const logLines = text.split("\n").filter((line) => line.trim());
-      setLogs(logLines.length > 0 ? logLines : ["No logs available"]);
-    } catch (err) {
-      setLogsError(err instanceof Error ? err.message : "Failed to fetch logs");
-    } finally {
-      setLogsLoading(false);
-    }
-  };
-
-  const handleViewLogs = (container: Container) => {
-    setSelectedContainer(container);
-    setShowLogsModal(true);
-    fetchLogs(container.id);
-  };
-
-  const copyLogs = () => {
-    navigator.clipboard.writeText(logs.join("\n"));
-  };
-
-  const downloadLogs = () => {
-    const blob = new Blob([logs.join("\n")], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${selectedContainer?.name}-logs-${new Date().toISOString()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
 
   const runContainerAction = useCallback(
     async (container: Container, action: ContainerAction) => {
@@ -638,8 +595,8 @@ export default function Containers() {
     container,
     pendingAction: pendingActions[container.id] || null,
     onAction: handleAction,
-    onViewLogs: handleViewLogs,
-    onOpenTerminal: (c) => navigate(`/terminal/${c.id}`),
+    onViewLogs: (c) => navigate(`/containers/${c.id}?tab=logs`),
+    onOpenTerminal: (c) => navigate(`/containers/${c.id}?tab=terminal`),
   });
 
   const groups = groupedContainers
@@ -654,9 +611,13 @@ export default function Containers() {
       header: "Container",
       render: (c) => (
         <div className="min-w-0 max-w-[12rem] sm:max-w-[18rem]">
-          <div className="font-medium text-gray-900 dark:text-gray-100 truncate" title={c.name}>
+          <Link
+            to={`/containers/${c.id}`}
+            className="block font-medium text-gray-900 hover:text-primary-600 hover:underline dark:text-gray-100 dark:hover:text-primary-400 truncate"
+            title={c.name}
+          >
             {c.name}
-          </div>
+          </Link>
           <div className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate" title={c.image}>
             {c.image}
           </div>
@@ -821,7 +782,11 @@ export default function Containers() {
                           <Package2 />
                         </IconTile>
                       }
-                      title={c.name}
+                      title={
+                        <Link to={`/containers/${c.id}`} className="hover:text-primary-600 hover:underline dark:hover:text-primary-400">
+                          {c.name}
+                        </Link>
+                      }
                       subtitle={<span className="font-mono text-xs">{c.image}</span>}
                       meta={
                         <span className="flex items-center gap-2">
@@ -838,52 +803,6 @@ export default function Containers() {
           ))}
         </div>
       )}
-
-      {/* Logs modal */}
-      <Modal
-        open={showLogsModal && selectedContainer !== null}
-        onClose={() => setShowLogsModal(false)}
-        title={
-          <span className="flex items-center gap-2">
-            <ScrollText className="w-5 h-5 text-gray-500" aria-hidden="true" />
-            {selectedContainer?.name} logs
-          </span>
-        }
-        wide
-        footer={
-          <>
-            <Button
-              variant="secondary"
-              icon={<Copy className="w-4 h-4" />}
-              onClick={copyLogs}
-            >
-              Copy
-            </Button>
-            <Button
-              variant="secondary"
-              icon={<Download className="w-4 h-4" />}
-              onClick={downloadLogs}
-            >
-              Download
-            </Button>
-          </>
-        }
-      >
-        {logsLoading ? (
-          <LoadingState label="Loading logs…" />
-        ) : logsError ? (
-          <ErrorBanner
-            message={logsError}
-            onRetry={() =>
-              selectedContainer && fetchLogs(selectedContainer.id)
-            }
-          />
-        ) : (
-          <pre className="bg-gray-900 rounded-lg p-4 font-mono text-sm text-gray-300 whitespace-pre-wrap max-h-[55vh] overflow-y-auto">
-            {logs.join("\n")}
-          </pre>
-        )}
-      </Modal>
 
       {/* Delete confirmation */}
       <ConfirmDialog

@@ -25,6 +25,7 @@ import { registerSecurityRoutes } from "./security";
 import { registerProjectRoutes } from "./projects";
 import { registerAnalyticsRoutes } from "./analytics";
 import { registerTunnelRoutes } from "./tunnels";
+import { registerTerminalRoutes } from "./terminal";
 
 export function routes(
   dockerService: DockerService,
@@ -114,6 +115,7 @@ export function routes(
   registerProjectRoutes(router, deps);
   registerAnalyticsRoutes(router, deps);
   registerTunnelRoutes(router, deps);
+  registerTerminalRoutes(router, deps);
 
   return router;
 }

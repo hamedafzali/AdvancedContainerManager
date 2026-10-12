@@ -27,7 +27,7 @@ import {
   type SidebarSection,
 } from "pixelwizards-components";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { AdvancedSearch } from "@/components/AdvancedSearch";
+import { CommandMenu } from "@/components/CommandMenu";
 import { TaskTray } from "@/hooks/useTasks";
 
 interface NavItem {
@@ -229,23 +229,7 @@ export default function Layout() {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <div className="hidden lg:block">
-              <AdvancedSearch
-                items={[]}
-                onSearch={(query, filters) => {
-                  if (!query.trim()) return;
-                  const type = filters?.type?.[0];
-                  if (type === "project") {
-                    navigate(`/projects?search=${encodeURIComponent(query)}`);
-                  } else if (type === "image") {
-                    navigate(`/images?search=${encodeURIComponent(query)}`);
-                  } else {
-                    navigate(`/containers?search=${encodeURIComponent(query)}`);
-                  }
-                }}
-                className="w-56 xl:w-72"
-              />
-            </div>
+            <CommandMenu pages={allNavItems} />
 
             <TaskTray />
             <ThemeToggle />

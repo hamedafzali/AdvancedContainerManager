@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { apiUrl, apiFetch } from "@/utils/api";
 import { Alert, Button, ErrorBanner, LoadingState, PageHeader } from "@/components/ui";
+import { useTheme, type Theme } from "@/hooks/useTheme";
 
 interface Settings {
   general: {
@@ -93,6 +94,7 @@ function ChangePasswordForm({ onSuccess, onError }: { onSuccess: () => void; onE
 }
 
 export default function Settings() {
+  const { theme, setTheme } = useTheme();
   const [settings, setSettings] = useState<Settings>({
     general: {
       theme: "light",
@@ -388,14 +390,18 @@ export default function Settings() {
                         Theme
                       </label>
                       <select id="settings-field-1"
-                        value={settings.general.theme}
-                        onChange={(e) => updateSetting("general", "theme", e.target.value)}
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value as Theme)}
                         className="field"
+                        aria-describedby="settings-theme-hint"
                       >
+                        <option value="system">System (follow OS)</option>
                         <option value="light">Light</option>
                         <option value="dark">Dark</option>
-                        <option value="auto">Auto</option>
                       </select>
+                      <p id="settings-theme-hint" className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        Applies immediately and is remembered in this browser.
+                      </p>
                     </div>
 
                     <div>

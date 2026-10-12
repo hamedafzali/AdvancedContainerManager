@@ -1,7 +1,8 @@
 import { Logger } from "../utils/logger";
 import { execSync } from "child_process";
-import { existsSync, readFileSync } from "fs";
-import { join } from "path";
+import { accessSync, constants as fsConstants, readFileSync } from "fs";
+import { dirname, join } from "path";
+import { Socket } from "net";
 
 interface HealthCheck {
   name: string;
@@ -74,9 +75,23 @@ export class HealthService {
     const startTime = Date.now();
     
     try {
-      // Check if Redis is accessible
-      execSync("redis-cli ping", { encoding: "utf8", timeout: 3000 });
-      
+      // Plain RESP PING over TCP; the image ships no redis-cli.
+      await new Promise<void>((resolve, reject) => {
+        const socket = new Socket();
+        const fail = (err: Error) => {
+          socket.destroy();
+          reject(err);
+        };
+        socket.setTimeout(3000, () => fail(new Error("timeout")));
+        socket.once("error", fail);
+        socket.once("data", (buf) => {
+          socket.end();
+          buf.toString().startsWith("+PONG") ? resolve() : reject(new Error(buf.toString().trim()));
+        });
+        socket.connect(Number(process.env.REDIS_PORT) || 6379, process.env.REDIS_HOST || "localhost", () =>
+          socket.write("PING\r\n"),
+        );
+      });
       const responseTime = Date.now() - startTime;
       
       return {
@@ -238,13 +253,21 @@ export class HealthService {
     const startTime = Date.now();
     
     try {
-      // Check if we can access the data directories
-      const dataDirs = ["./data/projects", "./data/config", "./data/backups", "./data/logs"];
+      // The directories the app actually persists to, and must be able to write.
+      const dataDirs = Array.from(
+        new Set([
+          process.env.PROJECTS_DIR || "./data/projects",
+          dirname(process.env.DATABASE_PATH || "./data/db/manager.sqlite"),
+        ]),
+      );
       let accessibleDirs = 0;
-      
+
       for (const dir of dataDirs) {
-        if (existsSync(dir)) {
+        try {
+          accessSync(dir, fsConstants.R_OK | fsConstants.W_OK);
           accessibleDirs++;
+        } catch {
+          /* missing or read-only */
         }
       }
       
@@ -267,7 +290,7 @@ export class HealthService {
         message,
         timestamp: new Date().toISOString(),
         responseTime,
-        details: { accessibleDirs, totalDirs: dataDirs.length },
+        details: { accessibleDirs, totalDirs: dataDirs.length, dirs: dataDirs },
       };
     } catch (error) {
       const responseTime = Date.now() - startTime;

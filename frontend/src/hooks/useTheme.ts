@@ -9,30 +9,38 @@ interface ThemeContextType {
   toggleTheme: () => void;
 }
 
+const STORAGE_KEY = "theme";
+
+function readStoredTheme(): Theme {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored === "light" || stored === "dark" || stored === "system") return stored;
+  } catch {
+    /* storage blocked */
+  }
+  return "system";
+}
+
+function resolveTheme(theme: Theme): "light" | "dark" {
+  if (theme !== "system") return theme;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window !== "undefined") {
-      return (localStorage.getItem("theme") as Theme) || "system";
-    }
-    return "system";
-  });
+  const [theme, setThemeState] = useState<Theme>(readStoredTheme);
 
-  const [actualTheme, setActualTheme] = useState<"light" | "dark">("light");
+  // Start from what index.html's pre-paint script already applied, so the
+  // first render never flashes the wrong theme.
+  const [actualTheme, setActualTheme] = useState<"light" | "dark">(() =>
+    resolveTheme(readStoredTheme()),
+  );
 
   useEffect(() => {
     const updateTheme = () => {
       const root = window.document.documentElement;
-      let newTheme: "light" | "dark";
-
-      if (theme === "system") {
-        newTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-          ? "dark"
-          : "light";
-      } else {
-        newTheme = theme;
-      }
+      const newTheme = resolveTheme(theme);
 
       setActualTheme(newTheme);
 
@@ -63,19 +71,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme]);
 
   const setTheme = (newTheme: Theme) => {
-    localStorage.setItem("theme", newTheme);
+    try {
+      localStorage.setItem(STORAGE_KEY, newTheme);
+    } catch {
+      /* private mode: the choice just won't persist */
+    }
     setThemeState(newTheme);
   };
 
-  const toggleTheme = () => {
-    if (theme === "light") {
-      setTheme("dark");
-    } else if (theme === "dark") {
-      setTheme("system");
-    } else {
-      setTheme("light");
-    }
-  };
+  const toggleTheme = () => setTheme(actualTheme === "dark" ? "light" : "dark");
 
   return React.createElement(
     ThemeContext.Provider,

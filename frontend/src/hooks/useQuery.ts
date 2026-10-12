@@ -6,7 +6,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { apiUrl, apiFetch } from "@/utils/api";
+import { apiFetch } from "@/utils/api";
 
 // Create a client
 export const queryClient = new QueryClient({
@@ -56,8 +56,7 @@ export function useContainerStats(containerId: string) {
   return useQuery({
     queryKey: ["container-stats", containerId],
     queryFn: async () => {
-      const response = await fetch(
-        apiUrl(`/api/containers/${containerId}/stats`),
+      const response = await apiFetch(`/api/containers/${containerId}/stats`,
       );
       if (!response.ok) throw new Error("Failed to fetch container stats");
       return response.json();

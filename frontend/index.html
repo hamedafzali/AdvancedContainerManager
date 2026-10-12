@@ -6,6 +6,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Advanced Container Manager</title>
     <meta name="description" content="Professional web-based container management platform" />
+    <meta name="theme-color" content="#f8fafc" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Apply the theme before first paint; ThemeProvider takes over after. -->
+    <script>
+      (function () {
+        var t = "system";
+        try { t = localStorage.getItem("theme") || "system"; } catch (e) {}
+        var dark = t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        var r = document.documentElement;
+        r.classList.add(dark ? "dark" : "light");
+        r.dataset.theme = dark ? "dark" : "light";
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#020617" : "#f8fafc");
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

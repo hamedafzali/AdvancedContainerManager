@@ -800,7 +800,7 @@ export class DockerService {
       startedAt: container?.State?.StartedAt || "",
       finishedAt: container?.State?.FinishedAt || "",
       exitCode: container?.State?.ExitCode || 0,
-      ports: container?.Ports || {},
+      ports: container?.Ports || container?.NetworkSettings?.Ports || {},
       mountPoints: container?.Mounts || [],
       networks: container?.NetworkSettings?.Networks || {},
       labels: container?.Labels || container?.Config?.Labels || {},
