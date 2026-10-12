@@ -108,10 +108,25 @@ function buildServer(deps: McpDeps): McpServer {
     "list_environments",
     {
       description:
-        "Live status of a project's environments (dev/test/prod) — which are running and their compose project names.",
+        "Live status of a project's environments (dev/test/prod): which are running, the commit each runs, host ports, and how dev/test are isolated from prod.",
       inputSchema: { name: z.string().describe("Project name") },
     },
     tool(async ({ name }) => projectService.getEnvironments(name)),
+  );
+
+  server.registerTool(
+    "promote_environment",
+    {
+      description:
+        "Promote the images running in one environment to the next stage (dev → test, test → prod) without rebuilding. " +
+        "Waits for the target to become healthy and restores the target's previous images if it does not.",
+      inputSchema: {
+        name: z.string().describe("Project name"),
+        from: z.enum(["dev", "test"]).describe("Environment to promote from"),
+        to: z.enum(["test", "prod"]).describe("Next environment"),
+      },
+    },
+    tool(async ({ name, from, to }) => projectService.promoteEnvironment(name, from, to)),
   );
 
   server.registerTool(

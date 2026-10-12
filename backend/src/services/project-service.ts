@@ -13,6 +13,18 @@ import {
   inspectOwnMounts,
   resolveHostPath,
 } from "../utils/host-paths";
+import {
+  DEFAULT_PORT_OFFSETS,
+  RenderResult,
+  buildVariableRefs,
+  builtImageName,
+  builtServices,
+  defaultComposeProjectName,
+  evaluateHealth,
+  parseComposePs,
+  renderEnvCompose,
+  withTag,
+} from "../utils/env-compose";
 
 const Database = require("better-sqlite3");
 
@@ -273,6 +285,11 @@ export class ProjectService {
         rows.map((row) => {
           const p = JSON.parse(row.payload) as ProjectInfo;
           p.environmentVars = decryptEnvVars(p.environmentVars || {});
+          if (p.envOverrides) {
+            p.envOverrides = Object.fromEntries(
+              Object.entries(p.envOverrides).map(([env, vars]) => [env, decryptEnvVars(vars || {})]),
+            );
+          }
           // A persisted "building" status can only mean the process died
           // mid-deploy — inFlightDeploys is in-memory and always empty right
           // after a restart, so no deploy can genuinely still be running.
@@ -310,6 +327,13 @@ export class ProjectService {
           const stored = {
             ...project,
             environmentVars: encryptEnvVars(project.environmentVars || {}),
+            ...(project.envOverrides
+              ? {
+                  envOverrides: Object.fromEntries(
+                    Object.entries(project.envOverrides).map(([env, vars]) => [env, encryptEnvVars(vars || {})]),
+                  ),
+                }
+              : {}),
           };
           upsert.run({
             name,
@@ -718,7 +742,9 @@ export class ProjectService {
     command: string;
   }> {
     const cwd = project.path;
-    const env = project.environmentVars;
+    // Prod's per-env overrides apply to every prod compose run, as they do to
+    // dev/test, instead of being saved and then silently ignored.
+    const env = this.mergedEnvFor(project, "prod");
     const dockerArgs = args;
     const dockerComposeArgs = args[0] === "compose" ? args.slice(1) : args;
 
@@ -1724,7 +1750,7 @@ export class ProjectService {
 
       const missingEnvVars = this.getMissingEnvVars(
         composeFile,
-        project.environmentVars || {},
+        this.mergedEnvFor(project, "prod"),
       );
       if (missingEnvVars.length > 0) {
         const message = `Missing required environment variables: ${missingEnvVars.join(", ")}`;
@@ -1845,7 +1871,23 @@ export class ProjectService {
         containerIds,
         output: deployOutput,
         command: upResult.command,
+        env: "prod",
+        kind: "deploy",
       });
+      try {
+        const prodCtx = this.envContext(project, "prod");
+        project.envState = {
+          ...(project.envState || {}),
+          prod: {
+            commit: await this.headCommit(project),
+            deployedAt: new Date().toISOString(),
+            source: "build",
+            images: await this.builtImageIds(project, prodCtx),
+          },
+        };
+      } catch (e) {
+        this.logger.warn(`Could not record prod state for ${name}: ${e}`);
+      }
       project.containers = containerIds;
 
       project.status = "running";
@@ -1874,6 +1916,8 @@ export class ProjectService {
         containerIds: [],
         error: error.message,
         output: error.message,
+        env: "prod",
+        kind: "deploy",
       });
       this.saveProjects();
 
@@ -1967,7 +2011,7 @@ export class ProjectService {
     const psResult = await this.runCompose(project, [
       "compose",
       "-p",
-      this.composeProjectFor(name, env),
+      this.envComposeProject(project, env),
       "-f",
       composeFile,
       "ps",
@@ -2023,13 +2067,11 @@ export class ProjectService {
         return health;
       }
 
-      // Explicit -p: without it Compose guesses the project name from the
-      // directory, which is unrelated to composeProjectFor's dev/test/prod
-      // naming and can silently target the wrong environment.
+      // Explicit -p so dev/test are found; see envComposeProject.
       const psResult = await this.runCompose(project, [
         "compose",
         "-p",
-        this.composeProjectFor(name, env),
+        this.envComposeProject(project, env),
         "-f",
         composeFile,
         "ps",
@@ -2356,9 +2398,8 @@ export class ProjectService {
     if (!composeFile) return false;
     try {
       // project.status represents prod specifically (dev/test have their own
-      // toggle buttons) — pin -p explicitly rather than relying on Compose's
-      // directory-name guess, which can drift from composeProjectFor's naming.
-      const composeProject = this.composeProjectFor(name, "prod");
+      // toggle buttons).
+      const composeProject = this.envComposeProject(project, "prod");
       const [allRes, runningRes] = await Promise.all([
         this.runCompose(project, ["compose", "-p", composeProject, "-f", composeFile, "ps", "-q"]),
         this.runCompose(project, ["compose", "-p", composeProject, "-f", composeFile, "ps", "--status", "running", "-q"]),
@@ -2434,12 +2475,17 @@ export class ProjectService {
   }
 
   // ── Environments (dev / test / prod) ─────────────────────
-  // Each environment is a separate compose project on the host:
-  //   prod  -> <name>            (the existing deployment, unchanged)
-  //   dev   -> <name>-dev
-  //   test  -> <name>-test
-  // Per-env variables (e.g. ports/domains so they don't collide) are stored in
-  // envOverrides and also written to .env.<env> so the pipeline can reuse them.
+  // Each environment is a separate compose project on the same host, built
+  // from the same checkout:
+  //   prod  -> the project's own compose file, exactly as deployProject runs it
+  //   dev   -> <name>-dev,  from a rendered docker-compose.acm-dev.yml
+  //   test  -> <name>-test, from a rendered docker-compose.acm-test.yml
+  // The rendered files (see utils/env-compose.ts) rename containers, shift
+  // host ports and give each env its own data directories, so dev/test can run
+  // next to prod without touching it. Promotion moves the exact images an env
+  // was tested with to the next env instead of rebuilding them.
+
+  private static readonly HEALTH_TIMEOUT_MS = Number(process.env.ACM_ENV_HEALTH_TIMEOUT_MS) || 120_000;
 
   private sanitizeProjectName(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9_-]/g, "");
@@ -2450,144 +2496,616 @@ export class ProjectService {
     return env === "prod" ? base : `${base}-${env}`;
   }
 
+  /** The compose project an env actually runs under. Prod is deployed
+   *  without -p (see deployProject), so its name is whatever Compose derives
+   *  from the compose file, which is not always the ACM project name. */
+  private envComposeProject(project: ProjectInfo, env: string): string {
+    if (env !== "prod") return this.composeProjectFor(project.name, env);
+    const composeFile = this.resolveComposeFile(project);
+    if (!composeFile) return this.composeProjectFor(project.name, env);
+    let doc: any = {};
+    try {
+      doc = yaml.load(fs.readFileSync(composeFile, "utf8")) || {};
+    } catch {
+      /* unparsable: fall back to the directory name */
+    }
+    return defaultComposeProjectName(doc, composeFile, this.mergedEnvFor(project, "prod"));
+  }
+
   private mergedEnvFor(project: ProjectInfo, env: string): Record<string, string> {
     return { ...(project.environmentVars || {}), ...((project.envOverrides || {})[env] || {}) };
   }
 
-  public getEnvVars(name: string, env: string): Record<string, string> {
+  private assertEnv(env: string): void {
+    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
+  }
+
+  private requireProject(name: string): ProjectInfo {
     const project = this.projects.get(name);
     if (!project) throw new Error(`Project ${name} not found`);
+    return project;
+  }
+
+  /** Lock key: prod shares deployProject's key so the two never overlap. */
+  private envLockKey(name: string, env: string): string {
+    return env === "prod" ? name : `${name}:${env}`;
+  }
+
+  private async withEnvLock<T>(name: string, envs: string[], fn: () => Promise<T>): Promise<T> {
+    const keys = envs.map((e) => this.envLockKey(name, e));
+    for (const key of keys) {
+      const existing = this.inFlightDeploys.get(key);
+      if (existing) throw new DeployInProgressError(name, existing.startedAt);
+    }
+    const startedAt = new Date().toISOString();
+    for (const key of keys) this.inFlightDeploys.set(key, { startedAt });
+    try {
+      return await fn();
+    } finally {
+      for (const key of keys) this.inFlightDeploys.delete(key);
+    }
+  }
+
+  /** Writes .env.<env> owner-only: it holds the env's secrets in plaintext
+   *  for Compose and the pipeline's --env-file. */
+  private writeEnvFile(project: ProjectInfo, env: string): string {
+    const file = path.join(project.path, `.env.${env}`);
+    const merged = this.mergedEnvFor(project, env);
+    fs.writeFileSync(
+      file,
+      Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n") + "\n",
+      { mode: 0o600 },
+    );
+    fs.chmodSync(file, 0o600);
+    return file;
+  }
+
+  /** Keeps ACM's generated files out of `git status` (and out of the way of
+   *  `git pull`) without touching the repo's own .gitignore. */
+  private excludeGeneratedFiles(project: ProjectInfo): void {
+    const exclude = path.join(project.path, ".git", "info", "exclude");
+    if (!fs.existsSync(path.dirname(exclude))) return;
+    const wanted = ["docker-compose.acm-*.yml", ".acm-env/", ".env.dev", ".env.test", ".env.prod"];
+    try {
+      const current = fs.existsSync(exclude) ? fs.readFileSync(exclude, "utf8") : "";
+      const lines = new Set(current.split("\n").map((l) => l.trim()));
+      const missing = wanted.filter((w) => !lines.has(w));
+      if (missing.length) {
+        const prefix = current && !current.endsWith("\n") ? "\n" : "";
+        fs.appendFileSync(exclude, `${prefix}# ACM generated files\n${missing.join("\n")}\n`);
+      }
+    } catch (e) {
+      this.logger.warn(`Could not update .git/info/exclude for ${project.name}: ${e}`);
+    }
+  }
+
+  private gitTracked(dir: string, rel: string): boolean {
+    try {
+      const { execFileSync } = require("child_process");
+      const out = execFileSync("git", ["ls-files", "--", rel], { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+      return out.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  private async headCommit(project: ProjectInfo): Promise<string | null> {
+    try {
+      return (await simpleGit(project.path).revparse(["HEAD"])).trim();
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Everything needed to run compose against one env. For dev/test it renders
+   * the isolated compose document (and writes it when `write` is set).
+   */
+  private envContext(project: ProjectInfo, env: string, write = false): EnvContext {
+    const composeFile = this.resolveComposeFile(project);
+    if (!composeFile) throw new Error("docker-compose file not found in project");
+    const dir = path.dirname(composeFile);
+    let source: any;
+    try {
+      source = yaml.load(fs.readFileSync(composeFile, "utf8")) || {};
+    } catch (e: any) {
+      throw new Error(`Could not parse ${path.basename(composeFile)}: ${e.message}`);
+    }
+    const merged = this.mergedEnvFor(project, env);
+
+    if (env === "prod") {
+      return {
+        env,
+        composeFile,
+        doc: source,
+        files: [composeFile],
+        composeProject: defaultComposeProjectName(source, composeFile, merged),
+        merged,
+        render: null,
+      };
+    }
+
+    const offsetRaw = merged.ACM_PORT_OFFSET;
+    const portOffset = offsetRaw !== undefined && offsetRaw !== "" ? Number(offsetRaw) : DEFAULT_PORT_OFFSETS[env] ?? 0;
+    if (!Number.isInteger(portOffset)) throw new Error(`ACM_PORT_OFFSET for ${env} must be a whole number`);
+
+    const render = renderEnvCompose(source, {
+      env,
+      portOffset,
+      isTracked: (rel) => this.gitTracked(dir, rel),
+      isFile: (rel) => {
+        try {
+          return fs.statSync(path.join(dir, rel)).isFile();
+        } catch {
+          return false;
+        }
+      },
+    });
+    const rendered = path.join(dir, `docker-compose.acm-${env}.yml`);
+    if (write) {
+      const header =
+        `# Generated by ACM for the "${env}" environment from ${path.basename(composeFile)}.\n` +
+        `# Do not edit: it is rewritten on every ${env} deploy.\n`;
+      fs.writeFileSync(rendered, header + yaml.dump(render.doc, { noRefs: true, lineWidth: -1 }), "utf8");
+      this.excludeGeneratedFiles(project);
+    }
+    return {
+      env,
+      composeFile,
+      doc: render.doc,
+      files: [rendered],
+      composeProject: this.composeProjectFor(project.name, env),
+      merged,
+      render,
+    };
+  }
+
+  private composeBaseArgs(ctx: EnvContext, envFile?: string): string[] {
+    const args = ["compose", "-p", ctx.composeProject];
+    for (const f of ctx.files) args.push("-f", f);
+    if (envFile) {
+      // An explicit --env-file stops Compose from reading the project's .env,
+      // so pass that first to keep its defaults, then the env's values on top.
+      const dotEnv = path.join(path.dirname(ctx.composeFile), ".env");
+      if (fs.existsSync(dotEnv)) args.push("--env-file", dotEnv);
+      args.push("--env-file", envFile);
+    }
+    return args;
+  }
+
+  private async envServiceStates(project: ProjectInfo, ctx: EnvContext) {
+    const res = await this.runCommand(
+      "docker",
+      [...this.composeBaseArgs(ctx), "ps", "-a", "--format", "json"],
+      project.path,
+      ctx.merged,
+    );
+    if (res.code !== 0) throw new Error(res.stderr || res.stdout || "docker compose ps failed");
+    return parseComposePs(res.stdout);
+  }
+
+  /** Services that start on a plain `up` (profiled services do not). */
+  private expectedServices(doc: any): string[] {
+    return Object.entries<any>(doc?.services || {})
+      .filter(([, svc]) => !svc?.profiles || svc.profiles.length === 0)
+      .map(([n]) => n);
+  }
+
+  /** Polls until every service is running/healthy, something fails, or the
+   *  timeout passes. */
+  private async waitForHealthy(
+    project: ProjectInfo,
+    ctx: EnvContext,
+    log: (line: string) => void,
+  ): Promise<{ ok: boolean; detail: string }> {
+    const expected = this.expectedServices(ctx.doc);
+    const deadline = Date.now() + ProjectService.HEALTH_TIMEOUT_MS;
+    let last = "";
+    while (Date.now() < deadline) {
+      let verdict: ReturnType<typeof evaluateHealth>;
+      try {
+        verdict = evaluateHealth(await this.envServiceStates(project, ctx), expected);
+      } catch (e: any) {
+        verdict = { verdict: "pending", detail: e.message };
+      }
+      if (verdict.verdict === "healthy") return { ok: true, detail: verdict.detail };
+      if (verdict.verdict === "failed") return { ok: false, detail: verdict.detail };
+      if (verdict.detail !== last) log(`[acm] waiting: ${verdict.detail}`);
+      last = verdict.detail;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    return { ok: false, detail: `not healthy after ${Math.round(ProjectService.HEALTH_TIMEOUT_MS / 1000)}s (${last})` };
+  }
+
+  private async imageId(ref: string, cwd: string): Promise<string | null> {
+    const res = await this.runCommand("docker", ["image", "inspect", "-f", "{{.Id}}", ref], cwd);
+    return res.code === 0 ? res.stdout.trim() || null : null;
+  }
+
+  private async builtImageIds(project: ProjectInfo, ctx: EnvContext) {
+    const images: Record<string, string> = {};
+    for (const svc of builtServices(ctx.doc)) {
+      const id = await this.imageId(builtImageName(ctx.doc, ctx.composeProject, svc), project.path);
+      if (id) images[svc] = id;
+    }
+    return images;
+  }
+
+  private recordEnv(
+    project: ProjectInfo,
+    env: string,
+    entry: { status: "success" | "failed"; kind: "deploy" | "promote" | "rollback"; output: string; error?: string },
+  ) {
+    project.deployHistory.push({
+      timestamp: new Date().toISOString(),
+      status: entry.status,
+      containerIds: [],
+      output: entry.output,
+      error: entry.error,
+      env,
+      kind: entry.kind,
+    });
+    // Keep the persisted payload bounded.
+    if (project.deployHistory.length > 100) project.deployHistory.splice(0, project.deployHistory.length - 100);
+  }
+
+  public getEnvVars(name: string, env: string): Record<string, string> {
+    const project = this.requireProject(name);
     return (project.envOverrides || {})[env] || {};
   }
 
   public setEnvVars(name: string, env: string, vars: Record<string, string>): void {
-    const project = this.projects.get(name);
-    if (!project) throw new Error(`Project ${name} not found`);
-    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
+    const project = this.requireProject(name);
+    this.assertEnv(env);
+    for (const key of Object.keys(vars)) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) throw new Error(`Invalid variable name: ${key}`);
+    }
     project.envOverrides = { ...(project.envOverrides || {}), [env]: vars };
     this.saveProjects();
-    // Mirror to .env.<env> so a pipeline `--env-file` deploy uses the same values.
     try {
-      const merged = this.mergedEnvFor(project, env);
-      fs.writeFileSync(
-        path.join(project.path, `.env.${env}`),
-        Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n") + "\n",
-      );
+      this.writeEnvFile(project, env);
+      this.excludeGeneratedFiles(project);
     } catch (e) {
       this.logger.warn(`Failed to write .env.${env} for ${name}: ${e}`);
     }
   }
 
-  /** Live status of every environment for a project (reconciled from Docker). */
-  public async getEnvironments(
-    name: string,
-  ): Promise<Array<{ env: string; status: "running" | "stopped"; composeProject: string; configured: boolean }>> {
-    const project = this.projects.get(name);
-    if (!project) throw new Error(`Project ${name} not found`);
-    const composeFile = this.resolveComposeFile(project);
-    const out: Array<{ env: string; status: "running" | "stopped"; composeProject: string; configured: boolean }> = [];
+  /** Live status of every environment, with what is deployed in it and how
+   *  it is isolated from prod. */
+  public async getEnvironments(name: string) {
+    const project = this.requireProject(name);
+    const out = [];
     for (const env of PROJECT_ENVIRONMENTS) {
-      const cp = this.composeProjectFor(name, env);
-      let status: "running" | "stopped" = "stopped";
-      if (composeFile) {
-        try {
-          const res = await this.runCommand(
-            "docker",
-            ["compose", "-p", cp, "-f", composeFile, "ps", "--status", "running", "-q"],
-            project.path,
-            project.environmentVars,
-          );
-          if (res.stdout.split("\n").map((s) => s.trim()).filter(Boolean).length > 0) status = "running";
-        } catch { /* docker unreachable */ }
+      let status: "running" | "partial" | "stopped" | "unknown" = "stopped";
+      let composeProject = this.composeProjectFor(name, env);
+      let ports: Array<{ service: string; host: string; container: string }> = [];
+      let isolation: string[] = [];
+      let warnings: string[] = [];
+      let error: string | undefined;
+      try {
+        const ctx = this.envContext(project, env);
+        composeProject = ctx.composeProject;
+        if (ctx.render) {
+          ports = ctx.render.hostPorts;
+          isolation = ctx.render.changes;
+          warnings = ctx.render.warnings;
+        } else {
+          ports = renderEnvCompose(ctx.doc, { env, portOffset: 0, isTracked: () => true, isFile: () => true }).hostPorts;
+        }
+        const states = await this.envServiceStates(project, ctx);
+        const running = states.filter((s) => s.State === "running").length;
+        const expected = this.expectedServices(ctx.doc).length;
+        status = running === 0 ? "stopped" : running < expected ? "partial" : "running";
+      } catch (e: any) {
+        status = "unknown";
+        error = e.message;
       }
+      const state = project.envState?.[env];
+      const last = [...(project.deployHistory || [])]
+        .reverse()
+        .find((h) => (h.env || "prod") === env);
       out.push({
         env,
         status,
-        composeProject: cp,
-        configured: env === "prod" || !!(project.envOverrides || {})[env],
+        composeProject,
+        configured: env === "prod" || !!(project.envOverrides || {})[env] || !!state,
+        commit: state?.commit ?? null,
+        deployedAt: state?.deployedAt ?? null,
+        source: state?.source ?? null,
+        promotedFrom: state?.promotedFrom ?? null,
+        lastResult: last ? { status: last.status, timestamp: last.timestamp, kind: last.kind || "deploy", error: last.error } : null,
+        ports,
+        isolation,
+        warnings,
+        error,
       });
     }
-    return out;
+    return { environments: out, headCommit: await this.headCommit(project) };
   }
 
+  /** Builds and starts one env from the current checkout. Prod goes through
+   *  deployProject so both paths share one lock, history and set of checks. */
   public async deployEnvironment(name: string, env: string): Promise<{ output: string }> {
-    const project = this.projects.get(name);
-    if (!project) throw new Error(`Project ${name} not found`);
-    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
-    const composeFile = this.resolveComposeFile(project);
-    if (!composeFile) throw new Error("docker-compose file not found in project");
+    const project = this.requireProject(name);
+    this.assertEnv(env);
 
-    const cp = this.composeProjectFor(name, env);
-    const merged = this.mergedEnvFor(project, env);
-    const envFile = path.join(project.path, `.env.${env}`);
-    try {
-      fs.writeFileSync(envFile, Object.entries(merged).map(([k, v]) => `${k}=${v}`).join("\n") + "\n");
-    } catch { /* best effort */ }
-
-    this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "started", timestamp: new Date().toISOString() });
-
-    const args = ["compose", "-p", cp, "-f", composeFile];
-    if (fs.existsSync(envFile)) args.push("--env-file", envFile);
-    args.push("up", "-d", "--build");
-
-    const result = await this.runCommand(
-      "docker", args, project.path, merged,
-      (chunk) => this.wsHandler?.broadcastProjectDeployLog({ projectName: name, stream: "stdout", chunk, timestamp: new Date().toISOString() }),
-      (chunk) => this.wsHandler?.broadcastProjectDeployLog({ projectName: name, stream: "stderr", chunk, timestamp: new Date().toISOString() }),
-    );
-
-    if (result.code !== 0) {
-      this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "failed", timestamp: new Date().toISOString(), code: result.code, error: result.stderr || result.stdout });
-      throw new Error(result.stderr || result.stdout || "Deploy failed");
+    if (env === "prod") {
+      const result = await this.deployProject(name);
+      return { output: result.output };
     }
 
-    if (env === "prod") { project.status = "running"; project.lastUpdated = new Date().toISOString(); this.saveProjects(); }
-    this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "completed", timestamp: new Date().toISOString(), code: 0 });
-    this.wsHandler?.broadcastProjectStatus({ name, status: env === "prod" ? "running" : project.status });
-    return { output: result.stdout || result.stderr || "" };
+    return this.withEnvLock(name, [env], async () => {
+      const lines: string[] = [];
+      const log = (line: string) => {
+        lines.push(line);
+        this.deployLogStreamer(name, "stdout")(line + "\n");
+      };
+      this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "started", timestamp: new Date().toISOString() });
+      try {
+        const ctx = this.envContext(project, env, true);
+        for (const c of ctx.render!.changes) log(`[acm] ${env}: ${c}`);
+        for (const w of ctx.render!.warnings) log(`[acm] WARNING: ${w}`);
+        const envFile = this.writeEnvFile(project, env);
+        const resourcesFile = this.applyResourceLimits(project, ctx.composeFile);
+        const commit = await this.headCommit(project);
+
+        const args = this.composeBaseArgs(ctx, envFile);
+        if (resourcesFile) args.splice(args.indexOf("--env-file"), 0, "-f", resourcesFile);
+        const up = await this.runCommand(
+          "docker",
+          [...args, "up", "-d", "--build", "--remove-orphans"],
+          project.path,
+          ctx.merged,
+          this.deployLogStreamer(name, "stdout"),
+          this.deployLogStreamer(name, "stderr"),
+        );
+        lines.push(up.stdout, up.stderr);
+        if (up.code !== 0) throw new Error(up.stderr || up.stdout || "Deploy failed");
+
+        const health = await this.waitForHealthy(project, ctx, log);
+        if (!health.ok) throw new Error(`${env} started but is not healthy: ${health.detail}`);
+        log(`[acm] ${env} healthy: ${health.detail}`);
+
+        project.envState = {
+          ...(project.envState || {}),
+          [env]: { commit, deployedAt: new Date().toISOString(), source: "build", images: await this.builtImageIds(project, ctx) },
+        };
+        this.recordEnv(project, env, { status: "success", kind: "deploy", output: lines.filter(Boolean).join("\n") });
+        this.saveProjects();
+        this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "completed", timestamp: new Date().toISOString(), code: 0 });
+        return { output: lines.filter(Boolean).join("\n") };
+      } catch (e: any) {
+        this.recordEnv(project, env, { status: "failed", kind: "deploy", output: lines.filter(Boolean).join("\n"), error: e.message });
+        this.saveProjects();
+        this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "failed", timestamp: new Date().toISOString(), error: e.message });
+        throw e;
+      }
+    });
+  }
+
+  /**
+   * Moves the images running in `from` to the next env without rebuilding,
+   * so the next stage runs exactly what was tested. The target's previous
+   * images are kept as `:acm-rollback` and restored if the target does not
+   * come up healthy.
+   */
+  public async promoteEnvironment(name: string, from: string, to: string): Promise<{ output: string; warnings: string[] }> {
+    const project = this.requireProject(name);
+    this.assertEnv(from);
+    this.assertEnv(to);
+    const order = PROJECT_ENVIRONMENTS as readonly string[];
+    if (order.indexOf(to) !== order.indexOf(from) + 1) {
+      throw new Error(`Promotion goes one stage at a time (${order.join(" → ")}); ${from} → ${to} is not allowed`);
+    }
+
+    return this.withEnvLock(name, [from, to], async () => {
+      const lines: string[] = [];
+      const warnings: string[] = [];
+      const log = (line: string) => {
+        lines.push(line);
+        this.deployLogStreamer(name, "stdout")(line + "\n");
+      };
+      const fromState = project.envState?.[from];
+      if (!fromState) throw new Error(`${from} has not been deployed by ACM yet; deploy it first`);
+
+      const fromCtx = this.envContext(project, from);
+      const fromHealth = evaluateHealth(await this.envServiceStates(project, fromCtx), this.expectedServices(fromCtx.doc));
+      if (fromHealth.verdict !== "healthy") {
+        throw new Error(`${from} is not healthy (${fromHealth.detail}); fix it before promoting`);
+      }
+
+      const toCtx = this.envContext(project, to, to !== "prod");
+      const fromEnv = fromCtx.merged;
+      const toEnv = toCtx.merged;
+
+      // Values baked in at build time would carry the wrong env's config.
+      const baked: string[] = [];
+      for (const svc of builtServices(fromCtx.doc)) {
+        for (const v of buildVariableRefs(fromCtx.doc, svc)) {
+          if ((fromEnv[v] ?? "") !== (toEnv[v] ?? "")) baked.push(`${svc}: ${v}`);
+        }
+      }
+      if (baked.length) {
+        throw new Error(
+          `These build-time variables differ between ${from} and ${to}, so ${from}'s images cannot be reused: ` +
+            `${baked.join(", ")}. Make them runtime variables, or deploy ${to} directly.`,
+        );
+      }
+
+      const head = await this.headCommit(project);
+      if (fromState.commit && head && head !== fromState.commit) {
+        warnings.push(
+          `The checkout is at ${head.slice(0, 7)} but ${from} was built from ${fromState.commit.slice(0, 7)}. ` +
+            `Images come from ${from}; files mounted from the checkout come from ${head.slice(0, 7)}.`,
+        );
+      }
+      for (const w of warnings) log(`[acm] WARNING: ${w}`);
+
+      // Retag: from's image IDs become the names `to` runs.
+      const retagged: Array<{ svc: string; target: string; previous: string | null }> = [];
+      for (const svc of builtServices(fromCtx.doc)) {
+        const target = builtImageName(toCtx.doc, toCtx.composeProject, svc);
+        if (target.includes("$")) throw new Error(`${svc}: image name ${target} uses a variable; promotion cannot resolve it`);
+        const sourceId =
+          (fromState.images[svc] && (await this.imageId(fromState.images[svc], project.path))) ||
+          (await this.imageId(builtImageName(fromCtx.doc, fromCtx.composeProject, svc), project.path));
+        if (!sourceId) throw new Error(`${svc}: ${from}'s image is gone (pruned?); redeploy ${from} first`);
+        const previous = await this.imageId(target, project.path);
+        if (previous) await this.runCommand("docker", ["tag", previous, withTag(target, "acm-rollback")], project.path);
+        const tag = await this.runCommand("docker", ["tag", sourceId, target], project.path);
+        if (tag.code !== 0) throw new Error(`docker tag ${svc} failed: ${tag.stderr}`);
+        retagged.push({ svc, target, previous });
+        log(`[acm] ${svc}: ${from} image ${sourceId.slice(7, 19)} -> ${target}`);
+      }
+
+      const up = async () => {
+        if (to === "prod") {
+          return this.runCompose(
+            project,
+            [
+              "compose",
+              "-f",
+              toCtx.composeFile,
+              ...((r) => (r ? ["-f", r] : []))(this.applyResourceLimits(project, toCtx.composeFile)),
+              "up",
+              "-d",
+              "--no-build",
+              "--remove-orphans",
+            ],
+            this.deployLogStreamer(name, "stdout"),
+            this.deployLogStreamer(name, "stderr"),
+          );
+        }
+        const envFile = this.writeEnvFile(project, to);
+        const args = this.composeBaseArgs(toCtx, envFile);
+        const resourcesFile = this.applyResourceLimits(project, toCtx.composeFile);
+        if (resourcesFile) args.splice(args.indexOf("--env-file"), 0, "-f", resourcesFile);
+        return this.runCommand(
+          "docker",
+          [...args, "up", "-d", "--no-build", "--remove-orphans"],
+          project.path,
+          toCtx.merged,
+          this.deployLogStreamer(name, "stdout"),
+          this.deployLogStreamer(name, "stderr"),
+        );
+      };
+
+      this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "started", timestamp: new Date().toISOString() });
+      if (to === "prod") {
+        project.status = "building";
+        this.saveProjects();
+      }
+
+      let failure: string | null = null;
+      const result = await up();
+      lines.push(result.stdout, result.stderr);
+      if (result.code !== 0) {
+        failure = result.stderr || result.stdout || "up failed";
+      } else {
+        const health = await this.waitForHealthy(project, toCtx, log);
+        if (!health.ok) failure = health.detail;
+        else log(`[acm] ${to} healthy: ${health.detail}`);
+      }
+
+      if (failure) {
+        log(`[acm] promotion to ${to} failed: ${failure}`);
+        let rollback = "nothing to roll back to (first deploy of this env)";
+        if (retagged.some((r) => r.previous)) {
+          for (const r of retagged) if (r.previous) await this.runCommand("docker", ["tag", r.previous, r.target], project.path);
+          const again = await up();
+          const health = again.code === 0 ? await this.waitForHealthy(project, toCtx, log) : { ok: false, detail: again.stderr };
+          rollback = health.ok ? "rolled back to the previous images, which are healthy" : `rollback also failed: ${health.detail}`;
+        }
+        log(`[acm] ${rollback}`);
+        if (to === "prod") project.status = "error";
+        this.recordEnv(project, to, {
+          status: "failed",
+          kind: "promote",
+          output: lines.filter(Boolean).join("\n"),
+          error: `${failure}; ${rollback}`,
+        });
+        this.saveProjects();
+        this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "failed", timestamp: new Date().toISOString(), error: failure });
+        throw new Error(`Promotion ${from} → ${to} failed: ${failure}. ${rollback}.`);
+      }
+
+      project.envState = {
+        ...(project.envState || {}),
+        [to]: {
+          commit: fromState.commit,
+          deployedAt: new Date().toISOString(),
+          source: "promote",
+          promotedFrom: from,
+          images: await this.builtImageIds(project, toCtx),
+        },
+      };
+      if (to === "prod") {
+        project.status = "running";
+        project.lastUpdated = new Date().toISOString();
+        const seed = await this.runPostDeploySeedHook(project);
+        if (seed.executed && seed.output) log(`[post-deploy-seed]\n${seed.output}`);
+      }
+      this.recordEnv(project, to, { status: "success", kind: "promote", output: lines.filter(Boolean).join("\n") });
+      this.saveProjects();
+      this.wsHandler?.broadcastProjectDeployStatus({ projectName: name, status: "completed", timestamp: new Date().toISOString(), code: 0 });
+      this.wsHandler?.broadcastProjectStatus({ name, status: project.status });
+      return { output: lines.filter(Boolean).join("\n"), warnings };
+    });
   }
 
   public async stopEnvironment(name: string, env: string): Promise<void> {
-    const project = this.projects.get(name);
-    if (!project) throw new Error(`Project ${name} not found`);
-    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
-    const composeFile = this.resolveComposeFile(project);
-    if (!composeFile) throw new Error("docker-compose file not found in project");
-
-    const cp = this.composeProjectFor(name, env);
-    const merged = this.mergedEnvFor(project, env);
-    const result = await this.runCommand(
-      "docker",
-      ["compose", "-p", cp, "-f", composeFile, "down"],
-      project.path, merged,
-      this.deployLogStreamer(name, "stdout"),
-      this.deployLogStreamer(name, "stderr"),
-    );
-    if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Stop failed");
-    if (env === "prod") { project.status = "stopped"; project.lastUpdated = new Date().toISOString(); this.saveProjects(); }
-    this.wsHandler?.broadcastProjectStatus({ name, status: env === "prod" ? "stopped" : project.status });
+    const project = this.requireProject(name);
+    this.assertEnv(env);
+    if (env === "prod") {
+      await this.stopProject(name);
+      this.wsHandler?.broadcastProjectStatus({ name, status: "stopped" });
+      return;
+    }
+    await this.withEnvLock(name, [env], async () => {
+      const ctx = this.envContext(project, env, true);
+      const result = await this.runCommand(
+        "docker",
+        [...this.composeBaseArgs(ctx), "down", "--remove-orphans"],
+        project.path,
+        ctx.merged,
+        this.deployLogStreamer(name, "stdout"),
+        this.deployLogStreamer(name, "stderr"),
+      );
+      if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Stop failed");
+    });
   }
 
   /** Restart an environment's containers in place (no rebuild, no config reload). */
   public async restartEnvironment(name: string, env: string): Promise<void> {
-    const project = this.projects.get(name);
-    if (!project) throw new Error(`Project ${name} not found`);
-    if (!PROJECT_ENVIRONMENTS.includes(env as any)) throw new Error(`Unknown environment: ${env}`);
-    const composeFile = this.resolveComposeFile(project);
-    if (!composeFile) throw new Error("docker-compose file not found in project");
-
-    const cp = this.composeProjectFor(name, env);
-    const merged = this.mergedEnvFor(project, env);
-    const result = await this.runCommand(
-      "docker",
-      ["compose", "-p", cp, "-f", composeFile, "restart"],
-      project.path, merged,
-      this.deployLogStreamer(name, "stdout"),
-      this.deployLogStreamer(name, "stderr"),
-    );
-    if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Restart failed");
-    this.wsHandler?.broadcastProjectStatus({ name, status: env === "prod" ? "running" : project.status });
+    const project = this.requireProject(name);
+    this.assertEnv(env);
+    await this.withEnvLock(name, [env], async () => {
+      const ctx = this.envContext(project, env);
+      const result = await this.runCommand(
+        "docker",
+        [...this.composeBaseArgs(ctx), "restart"],
+        project.path,
+        ctx.merged,
+        this.deployLogStreamer(name, "stdout"),
+        this.deployLogStreamer(name, "stderr"),
+      );
+      if (result.code !== 0) throw new Error(result.stderr || result.stdout || "Restart failed");
+    });
+    this.wsHandler?.broadcastProjectStatus({ name, status: project.status });
   }
 }
 
 export default ProjectService;
+
+interface EnvContext {
+  env: string;
+  /** The project's own compose file. */
+  composeFile: string;
+  /** The compose document this env runs (rendered for dev/test). */
+  doc: any;
+  /** Files passed with -f. */
+  files: string[];
+  composeProject: string;
+  merged: Record<string, string>;
+  render: RenderResult | null;
+}

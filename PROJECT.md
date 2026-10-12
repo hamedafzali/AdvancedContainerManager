@@ -190,6 +190,39 @@ GitHub/GitLab push got 401. It is now registered with the other public routes. T
 against the raw request body (GitHub signs the bytes it sent), and a wrong-length signature returns
 401 instead of throwing.
 
+### dev/test collided with prod (fixed 2026-10-12)
+
+dev and test ran the project's own compose file under another `-p`. On the server 7 of 8 projects
+set `container_name` (so a dev deploy failed with "name already in use"), most publish fixed host
+ports (prod already holds them), several bind-mount `./data`-style directories (dev wrote into
+prod's data), and a service with both `build:` and `image:` let a dev build overwrite prod's image.
+Prod deployed through the env strip also skipped deployProject's lock, history and checks, and
+`envOverrides` were stored in plaintext.
+
+Now (`utils/env-compose.ts`, `ProjectService` "Environments" section):
+
+- dev/test run a rendered `docker-compose.acm-<env>.yml`: `container_name` gets `-<env>`, numeric
+  host ports shift by +10000 (dev) / +20000 (test) (`ACM_PORT_OFFSET` in the env's variables
+  overrides it), writable bind mounts of untracked dirs move to `./.acm-env/<env>/…`, and `image:`
+  is dropped on built services. Read-only mounts, files and git-tracked dirs stay shared.
+  External or fixed-name volumes and `../` mounts are reported as still shared.
+- Prod always uses the project's compose file untouched, through `deployProject`.
+- Promotion (`POST /projects/:name/environments/:from/promote {to}`, one stage at a time) retags
+  the images `from` is running to the names `to` uses and runs `up --no-build`, so the next stage
+  runs exactly what was tested. It refuses when `from` is unhealthy or when a build-time variable
+  (build args) differs between the two envs, keeps the target's previous images as
+  `:acm-rollback`, waits for health (`ACM_ENV_HEALTH_TIMEOUT_MS`, default 120s) and puts the
+  previous images back if the target does not come up.
+- Each env records commit, time, source and image IDs in `envState`; history entries carry `env`.
+- Env actions share a per-env lock (prod shares deployProject's), `envOverrides` are encrypted at
+  rest (plaintext rows still load), `.env.<env>` files are mode 600, and generated files are
+  added to `.git/info/exclude`.
+- Prod's compose project name is taken from Compose's own rule (`name:`, COMPOSE_PROJECT_NAME,
+  directory) since deployProject runs without `-p`; logs, health and status use the same name.
+
+Limits: an isolated data dir starts empty (no copy of prod data). A project's own
+`docker-compose.override.yml` is still not applied (KoodakBook relies on one for loopback ports).
+
 ## Suggested Next Enhancements
 
 1. Persist `/api/settings` to disk (same config store as projects) with schema validation

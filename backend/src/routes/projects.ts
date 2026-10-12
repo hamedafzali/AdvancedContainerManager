@@ -655,6 +655,13 @@ export function registerProjectRoutes(router: Router, deps: RouteDeps): void {
     }),
   );
 
+  // A lock held by another deploy/promote on the same env is a 409, not a 400,
+  // so the UI can say "already running" instead of showing it as a failure.
+  const envError = (res: any, e: any) =>
+    e instanceof DeployInProgressError
+      ? res.status(409).json({ success: false, message: e.message, data: { startedAt: e.startedAt } })
+      : res.status(400).json({ success: false, message: e.message });
+
   router.post(
     "/projects/:name/environments/:env/deploy",
     asyncHandler(async (req, res) => {
@@ -662,7 +669,21 @@ export function registerProjectRoutes(router: Router, deps: RouteDeps): void {
         const result = await projectService.deployEnvironment(req.params.name, req.params.env);
         res.json({ success: true, data: result });
       } catch (e: any) {
-        res.status(400).json({ success: false, message: e.message });
+        envError(res, e);
+      }
+    }),
+  );
+
+  router.post(
+    "/projects/:name/environments/:env/promote",
+    asyncHandler(async (req, res) => {
+      const to = String(req.body?.to || "");
+      if (!to) return res.status(400).json({ success: false, message: "Body must name the target env: { to }" });
+      try {
+        const result = await projectService.promoteEnvironment(req.params.name, req.params.env, to);
+        res.json({ success: true, data: result });
+      } catch (e: any) {
+        envError(res, e);
       }
     }),
   );
@@ -674,7 +695,7 @@ export function registerProjectRoutes(router: Router, deps: RouteDeps): void {
         await projectService.stopEnvironment(req.params.name, req.params.env);
         res.json({ success: true });
       } catch (e: any) {
-        res.status(400).json({ success: false, message: e.message });
+        envError(res, e);
       }
     }),
   );
@@ -686,7 +707,7 @@ export function registerProjectRoutes(router: Router, deps: RouteDeps): void {
         await projectService.restartEnvironment(req.params.name, req.params.env);
         res.json({ success: true });
       } catch (e: any) {
-        res.status(400).json({ success: false, message: e.message });
+        envError(res, e);
       }
     }),
   );

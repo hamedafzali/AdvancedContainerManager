@@ -93,6 +93,16 @@ export interface ContainerMetrics {
   blockWrite: number;
 }
 
+export interface EnvironmentState {
+  /** Git commit the env's images were built from. */
+  commit: string | null;
+  deployedAt: string;
+  source: "build" | "promote";
+  promotedFrom?: string;
+  /** service -> image ID, for built services. */
+  images: Record<string, string>;
+}
+
 export interface ProjectInfo {
   name: string;
   repoUrl: string;
@@ -103,6 +113,8 @@ export interface ProjectInfo {
   environmentVars: Record<string, string>;
   // Per-environment variable overlays (dev/test/prod), merged over environmentVars.
   envOverrides?: Record<string, Record<string, string>>;
+  /** What is running in each environment, recorded on deploy/promote. */
+  envState?: Record<string, EnvironmentState>;
   /** Git account used to clone this repo — lets recovery/sync rebuild an
    *  authenticated URL instead of failing on private repos. */
   accountId?: string;
@@ -129,6 +141,10 @@ export interface ProjectInfo {
     error?: string;
     output?: string;
     command?: string;
+    /** Environment the entry belongs to; absent on entries from before
+     *  environments were tracked, which were all prod deploys. */
+    env?: string;
+    kind?: "deploy" | "promote" | "rollback";
   }>;
   healthChecks: Array<{
     timestamp: string;
